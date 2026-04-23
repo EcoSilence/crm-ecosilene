@@ -26,7 +26,8 @@ export const AppDataProvider = ({ children }) => {
     setIsLoading(true);
     try {
       // Clientes
-      const { data: clis } = await supabase.from('clientes').select('*');
+      const { data: clis, error: e1 } = await supabase.from('clientes').select('*');
+      if (e1) throw e1;
       if (clis) setClientes(clis.map(c => ({
         ...c,
         direccionEmpresa: c.direccion_empresa,
@@ -34,7 +35,8 @@ export const AppDataProvider = ({ children }) => {
       })));
 
       // Inventario
-      const { data: inv } = await supabase.from('inventario').select('*');
+      const { data: inv, error: e2 } = await supabase.from('inventario').select('*');
+      if (e2) throw e2;
       if (inv) setInventario(inv.map(i => ({
         idEquipo: i.id_equipo,
         nombreEquipo: i.nombre_equipo,
@@ -44,7 +46,8 @@ export const AppDataProvider = ({ children }) => {
       })));
 
       // Servicios
-      const { data: servs } = await supabase.from('servicios').select('*');
+      const { data: servs, error: e3 } = await supabase.from('servicios').select('*');
+      if (e3) throw e3;
       if (servs) setServicios(servs.map(s => ({
         idServicio: s.id_servicio,
         clienteId: s.cliente_id,
@@ -57,7 +60,8 @@ export const AppDataProvider = ({ children }) => {
       })));
 
       // Cotizaciones
-      const { data: cots } = await supabase.from('cotizaciones').select('*');
+      const { data: cots, error: e4 } = await supabase.from('cotizaciones').select('*');
+      if (e4) throw e4;
       if (cots) setCotizaciones(cots.map(c => ({
         idCotizacion: c.id_cotizacion,
         servicioId: c.servicio_id,
@@ -68,12 +72,9 @@ export const AppDataProvider = ({ children }) => {
         precioUnitario: c.precio_unitario
       })));
 
-      // Configuracion
-      const { data: conf } = await supabase.from('configuracion').select('valor').eq('clave', 'menu_names').single();
-      if (conf) setMenuNames(conf.valor);
-
     } catch (error) {
       console.error('Error fetching data:', error);
+      alert('Error al conectar con la base de datos: ' + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -83,10 +84,14 @@ export const AppDataProvider = ({ children }) => {
     fetchData();
   }, []);
 
+  const generateId = (prefix) => `${prefix}-${Math.random().toString(36).substr(2, 9)}`;
+
   const updateMenuName = async (id, newName) => {
     const updated = { ...menuNames, [id]: newName };
     setMenuNames(updated);
-    await supabase.from('configuracion').upsert({ clave: 'menu_names', valor: updated });
+    try {
+      await supabase.from('configuracion').upsert({ clave: 'menu_names', valor: updated });
+    } catch (e) { console.error(e); }
   };
 
   const navigate = (view, params = null) => {
@@ -149,19 +154,22 @@ export const AppDataProvider = ({ children }) => {
   };
 
   const addServicio = async (servicioData) => {
-    const idServicio = `S-${crypto.randomUUID().split('-')[0]}`;
+    const idServicio = generateId('S');
     const newS = { ...servicioData, idServicio, etapa: 'Cotizado', descuento: 0, moneda: 'CLP' };
-    setServicios([...servicios, newS]);
-    await supabase.from('servicios').insert({
-      id_servicio: idServicio,
-      cliente_id: servicioData.clienteId,
-      direccion_evento: servicioData.direccionEvento,
-      fecha_inicio: servicioData.fechaInicio,
-      fecha_fin: servicioData.fechaFin,
-      etapa: 'Cotizado',
-      descuento: 0,
-      moneda: 'CLP'
-    });
+    try {
+      const { error } = await supabase.from('servicios').insert({
+        id_servicio: idServicio,
+        cliente_id: servicioData.clienteId,
+        direccion_evento: servicioData.direccionEvento,
+        fecha_inicio: servicioData.fechaInicio,
+        fecha_fin: servicioData.fechaFin,
+        etapa: 'Cotizado',
+        descuento: 0,
+        moneda: 'CLP'
+      });
+      if (error) throw error;
+      setServicios([...servicios, newS]);
+    } catch (err) { alert('Error: ' + err.message); }
   };
 
   const editServicio = async (idServicio, updatedData) => {
@@ -181,22 +189,25 @@ export const AppDataProvider = ({ children }) => {
   };
 
   const addCliente = async (clienteData) => {
-    const id = `C-${crypto.randomUUID().split('-')[0]}`;
+    const id = generateId('C');
     const newC = { ...clienteData, id };
-    setClientes([...clientes, newC]);
-    await supabase.from('clientes').insert({
-      id,
-      nombre: clienteData.nombre,
-      apellido: clienteData.apellido,
-      correo: clienteData.correo,
-      telefono: clienteData.telefono,
-      direccion_empresa: clienteData.direccionEmpresa,
-      comuna: clienteData.comuna,
-      pais: clienteData.pais,
-      empresa: clienteData.empresa,
-      cargo: clienteData.cargo,
-      tipo_evento: clienteData.tipoEvento
-    });
+    try {
+      const { error } = await supabase.from('clientes').insert({
+        id,
+        nombre: clienteData.nombre,
+        apellido: clienteData.apellido,
+        correo: clienteData.correo,
+        telefono: clienteData.telefono,
+        direccion_empresa: clienteData.direccionEmpresa,
+        comuna: clienteData.comuna,
+        pais: clienteData.pais,
+        empresa: clienteData.empresa,
+        cargo: clienteData.cargo,
+        tipo_evento: clienteData.tipoEvento
+      });
+      if (error) throw error;
+      setClientes([...clientes, newC]);
+    } catch (err) { alert('Error: ' + err.message); }
   };
 
   const editCliente = async (id, updatedData) => {
@@ -221,16 +232,19 @@ export const AppDataProvider = ({ children }) => {
   };
 
   const addEquipo = async (equipoData) => {
-    const idEquipo = `E-${crypto.randomUUID().split('-')[0]}`;
+    const idEquipo = generateId('E');
     const newE = { ...equipoData, idEquipo, stockTotal: Number(equipoData.stockTotal) };
-    setInventario([...inventario, newE]);
-    await supabase.from('inventario').insert({
-      id_equipo: idEquipo,
-      nombre_equipo: equipoData.nombreEquipo,
-      categoria: equipoData.categoria,
-      stock_total: Number(equipoData.stockTotal),
-      ubicacion_bodega: equipoData.ubicacionBodega
-    });
+    try {
+      const { error } = await supabase.from('inventario').insert({
+        id_equipo: idEquipo,
+        nombre_equipo: equipoData.nombreEquipo,
+        categoria: equipoData.categoria,
+        stock_total: Number(equipoData.stockTotal),
+        ubicacion_bodega: equipoData.ubicacionBodega
+      });
+      if (error) throw error;
+      setInventario([...inventario, newE]);
+    } catch (err) { alert('Error: ' + err.message); }
   };
 
   const editEquipo = async (idEquipo, updatedData) => {
@@ -249,18 +263,21 @@ export const AppDataProvider = ({ children }) => {
   };
 
   const addItemCotizacion = async (itemData) => {
-    const idCotizacion = `Q-${crypto.randomUUID().split('-')[0]}`;
+    const idCotizacion = generateId('Q');
     const newQ = { ...itemData, idCotizacion, cantidad: Number(itemData.cantidad), dias: Number(itemData.dias), precioUnitario: Number(itemData.precioUnitario) };
-    setCotizaciones([...cotizaciones, newQ]);
-    await supabase.from('cotizaciones').insert({
-      id_cotizacion: idCotizacion,
-      servicio_id: itemData.servicioId,
-      equipo_id: itemData.equipoId,
-      descripcion: itemData.descripcion,
-      cantidad: Number(itemData.cantidad),
-      dias: Number(itemData.dias),
-      precio_unitario: Number(itemData.precioUnitario)
-    });
+    try {
+      const { error } = await supabase.from('cotizaciones').insert({
+        id_cotizacion: idCotizacion,
+        servicio_id: itemData.servicioId,
+        equipo_id: itemData.equipoId,
+        descripcion: itemData.descripcion,
+        cantidad: Number(itemData.cantidad),
+        dias: Number(itemData.dias),
+        precio_unitario: Number(itemData.precioUnitario)
+      });
+      if (error) throw error;
+      setCotizaciones([...cotizaciones, newQ]);
+    } catch (err) { alert('Error: ' + err.message); }
   };
 
   const removeItemCotizacion = async (idCotizacion) => {
