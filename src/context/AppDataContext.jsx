@@ -84,7 +84,38 @@ export const AppDataProvider = ({ children }) => {
     fetchData();
   }, []);
 
-  const generateId = (prefix) => `${prefix}-${Math.random().toString(36).substr(2, 9)}`;
+  const generateId = (prefix) => {
+    if (prefix === 'S') return generateCorrelativeId();
+    return `${prefix}-${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+  const generateCorrelativeId = () => {
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const prefix = `${yy}${mm}`;
+    
+    // Filtrar servicios que ya usen el formato correlativo para este mes
+    const sameMonthServicios = servicios.filter(s => 
+      s.idServicio && 
+      typeof s.idServicio === 'string' && 
+      s.idServicio.startsWith(prefix) &&
+      s.idServicio.length >= 6
+    );
+    
+    let nextNum = 1;
+    if (sameMonthServicios.length > 0) {
+      const numbers = sameMonthServicios.map(s => {
+        // Extraer la parte numérica después de AAMM
+        const numPart = s.idServicio.substring(4);
+        const parsed = parseInt(numPart, 10);
+        return isNaN(parsed) ? 0 : parsed;
+      });
+      nextNum = Math.max(...numbers) + 1;
+    }
+    
+    return `${prefix}${String(nextNum).padStart(2, '0')}`;
+  };
 
   const updateMenuName = async (id, newName) => {
     const updated = { ...menuNames, [id]: newName };
@@ -154,7 +185,7 @@ export const AppDataProvider = ({ children }) => {
   };
 
   const addServicio = async (servicioData) => {
-    const idServicio = generateId('S');
+    const idServicio = generateCorrelativeId();
     const newS = { ...servicioData, idServicio, etapa: 'Cotizado', descuento: 0, moneda: 'CLP' };
     try {
       const { error } = await supabase.from('servicios').insert({
@@ -321,7 +352,7 @@ export const AppDataProvider = ({ children }) => {
     <AppDataContext.Provider value={value}>
       {!isLoading ? children : (
         <div style={{ height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-dark)', color: '#fff' }}>
-          <div className="animate-pulse">Sincronizando con la nube...</div>
+          <div className="animate-pulse">Sincronizando con EcoSilence v2...</div>
         </div>
       )}
     </AppDataContext.Provider>
