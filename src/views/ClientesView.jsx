@@ -187,8 +187,8 @@ const ClientesView = () => {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <div style={{ overflowX: 'auto', maxHeight: '70vh', position: 'relative' }}>
+          <table className="sticky-header" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase' }}>
                 <th style={{ padding: '1rem' }}>Empresa / Tipo</th>
@@ -245,8 +245,8 @@ const ClientesView = () => {
       </div>
 
       {isModalOpen && (
-        <div className="modal-overlay">
-           <div className="modal-content">
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 }}>
+           <div className="modal-content" style={{ margin: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                  <h2 style={{ margin: 0, fontSize: '1.3rem' }}>Registrar Nuevo Cliente</h2>
                  <button className="btn btn-ghost" style={{ padding: '0.4rem', border: 'none' }} onClick={() => setIsModalOpen(false)}>
