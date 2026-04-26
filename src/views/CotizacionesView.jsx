@@ -99,7 +99,7 @@ const CotizacionesView = () => {
           /* Ajustes de página */
           @page {
             size: A4;
-            margin: 0;
+            margin: 5mm;
           }
         }
       `}</style>
@@ -356,7 +356,7 @@ https://www.youtube.com/watch?v=M5Hv5z5rWaA`);
                </div>
             </div>
             {/* CUERPO DE LA COTIZACIÓN (Lo que se verá en el PDF) */}
-            <div className="print-voucher-body" style={{ padding: '1.5cm 2cm', background: 'white', color: 'black', fontSize: '11pt', boxSizing: 'border-box', minHeight: '29.7cm', display: 'flex', flexDirection: 'column' }}>
+            <div className="print-voucher-body" style={{ padding: '2.5cm 2cm 1.5cm 2cm', background: 'white', color: 'black', fontSize: '11pt', boxSizing: 'border-box', minHeight: '29.7cm', display: 'flex', flexDirection: 'column' }}>
               
               {/* Membrete Superior */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
