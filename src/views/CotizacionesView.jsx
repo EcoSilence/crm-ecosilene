@@ -72,10 +72,43 @@ const CotizacionesView = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', paddingBottom: '2rem' }}>
-      <div>
-        <h1 style={{ marginBottom: '0.5rem' }}>Cotización y Facturación</h1>
-        <p style={{ color: 'var(--text-muted)' }}>Crea y gestiona presupuestos enlazados a tus servicios y eventos.</p>
-      </div>
+      {/* ESTILOS CRÍTICOS PARA IMPRESIÓN */}
+      <style>{`
+        @media print {
+          /* Ocultar todo lo que no sea la cotización */
+          body * { visibility: hidden !important; }
+          .print-voucher-container, .print-voucher-container * { visibility: visible !important; }
+          .print-voucher-container {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+          .no-print { display: none !important; }
+          
+          /* Forzar colores de fondo y sombras */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          /* Ajustes de página */
+          @page {
+            size: A4;
+            margin: 0;
+          }
+        }
+      `}</style>
+
+      <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div>
+          <h1 style={{ marginBottom: '0.5rem' }}>Cotización y Facturación</h1>
+          <p style={{ color: 'var(--text-muted)' }}>Crea y gestiona presupuestos enlazados a tus servicios y eventos.</p>
+        </div>
 
       {/* Selector de Servicio */}
       <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
@@ -273,6 +306,7 @@ const CotizacionesView = () => {
           <p>Usa el menú desplegable superior o vincula un servicio desde el Pipeline para generar su cotización o factura.</p>
         </div>
       )}
+      </div>
 
       {/* MODAL DE PREVISUALIZACION PDF VOUCHER */}
       {showPreview && servicio && cliente && (
@@ -321,150 +355,118 @@ https://www.youtube.com/watch?v=M5Hv5z5rWaA`);
                  </button>
                </div>
             </div>
-            {/* DOCUMENTO TIPO A4 (Lo que se imprime) */}
-            <div style={{ padding: '2rem 3rem', minHeight: '1000px', display: 'flex', flexDirection: 'column', gap: '1.5rem', background: 'white', color: 'black' }}>
+            {/* CUERPO DE LA COTIZACIÓN (Lo que se verá en el PDF) */}
+            <div className="print-voucher-body" style={{ padding: '1.5cm 2cm', background: 'white', color: 'black', fontSize: '11pt', boxSizing: 'border-box', minHeight: '29.7cm', display: 'flex', flexDirection: 'column' }}>
               
-              {/* Accent Bar */}
-              <div className="print-accent-bar"></div>
-
-              {/* Encabezado Membrete Estilo Premium */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                 <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                    {/* Logo */}
-                    <div style={{ width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <img src="/logo.png" alt="EcoSilence Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                    </div>
-                    {/* Datos Empresa */}
-                    <div style={{ fontSize: '0.8rem', color: '#334155', lineHeight: 1.5 }}>
-                        <h2 style={{ color: '#1e293b', fontSize: '1.5rem', margin: '0 0 0.5rem 0', fontWeight: 700 }}>EcoSilence</h2>
-                        <p style={{ margin: 0 }}>Pintor Laureano Guevara 60</p>
-                        <p style={{ margin: 0 }}>La Reina, Santiago, Chile</p>
-                        <p style={{ margin: 0 }}>77.510.784-7</p>
-                        <p style={{ margin: 0 }}>info@ecosilence.cl | +569 5379 9875</p>
-                    </div>
-                 </div>
-                 {/* Datos Cotizacion */}
-                 <div style={{ textAlign: 'right' }}>
-                    <div className="print-doc-id-box" style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documento</p>
-                        <p style={{ margin: '0.2rem 0', fontSize: '1.2rem', fontWeight: 700, color: '#1e293b' }}>Cotización #{servicio.idServicio}</p>
-                        <div style={{ height: '1px', background: '#e2e8f0', margin: '0.5rem 0' }}></div>
-                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#475569' }}><strong>Fecha:</strong> {new Date().toLocaleDateString('es-CL')}</p>
-                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#475569' }}><strong>Vence:</strong> {new Date(new Date().getTime() + 15*24*60*60*1000).toLocaleDateString('es-CL')}</p>
-                    </div>
-                 </div>
-              </div>
-
-              {/* Info Cliente & Evento */}
-              <div className="print-info-box" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '1rem', padding: '1.5rem', background: '#f8fafc', borderRadius: '8px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                 <div>
-                    <h4 style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', margin: '0 0 0.8rem 0', letterSpacing: '0.05em' }}>Cliente / Empresa</h4>
-                    <p style={{ margin: '0 0 0.3rem 0', fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>{cliente.empresa || `${cliente.nombre} ${cliente.apellido}`}</p>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#334155' }}>{cliente.nombre} {cliente.apellido}</p>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#334155' }}>{cliente.correo}</p>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#334155' }}>{cliente.telefono}</p>
-                 </div>
-                 <div>
-                    <h4 style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', margin: '0 0 0.8rem 0', letterSpacing: '0.05em' }}>Detalles del Evento</h4>
-                    <p style={{ margin: '0 0 0.3rem 0', fontSize: '0.85rem', color: '#334155' }}><strong>Dirección:</strong> {servicio.direccionEvento}</p>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#334155' }}><strong>Fecha Evento:</strong> {servicio.fechaInicio.replace('T', ' ')}</p>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#334155' }}><strong>Moneda:</strong> {servicio.moneda || 'CLP'}</p>
-                 </div>
-              </div>
-
-              {/* Tabla de Articulos */}
-              <div style={{ marginTop: '1rem' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                    <tr>
-                      <th style={{ padding: '1.2rem 1rem', textAlign: 'left', fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase' }}>Equipo / Servicio</th>
-                      <th style={{ padding: '1.2rem 1rem', textAlign: 'center', fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', width: '70px' }}>Cant.</th>
-                      <th style={{ padding: '1.2rem 1rem', textAlign: 'center', fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', width: '70px' }}>Días</th>
-                      <th style={{ padding: '1.2rem 1rem', textAlign: 'right', fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', width: '140px' }}>P. Unitario</th>
-                      <th style={{ padding: '1.2rem 1rem', textAlign: 'right', fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', width: '140px' }}>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {itemsCotizacion.map((item, idx) => (
-                      <tr key={item.idCotizacion} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '2.5rem 1rem' }}>
-                           <p style={{ margin: 0, fontWeight: 500, color: '#1e293b', fontSize: '1rem' }}>{item.descripcion}</p>
-                        </td>
-                        <td style={{ padding: '2.5rem 1rem', textAlign: 'center', color: '#475569', fontSize: '1rem', width: '70px' }}>{item.cantidad}</td>
-                        <td style={{ padding: '2.5rem 1rem', textAlign: 'center', color: '#475569', fontSize: '1rem', width: '70px' }}>{item.dias}</td>
-                        <td style={{ padding: '2.5rem 1rem', textAlign: 'right', color: '#475569', fontSize: '1rem', width: '140px' }}>{formatCurrency(item.precioUnitario)}</td>
-                        <td style={{ padding: '2.5rem 1rem', textAlign: 'right', fontWeight: 700, color: '#1e293b', fontSize: '1rem', width: '140px' }}>{formatCurrency(item.subtotal)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot style={{ borderTop: '2px solid #e2e8f0' }}>
-                    <tr>
-                      <td colSpan="4" style={{ padding: '1.5rem 1rem 0.5rem 1rem', textAlign: 'right', color: '#64748b', fontSize: '1rem' }}>Subtotal</td>
-                      <td style={{ padding: '1.5rem 1rem 0.5rem 1rem', textAlign: 'right', color: '#334155', fontSize: '1rem', fontWeight: 600 }}>{formatCurrency(totales.subtotalBruto)}</td>
-                    </tr>
-                    {totales.descuentoPorcentaje > 0 && (
-                      <tr>
-                        <td colSpan="4" style={{ padding: '0.5rem 1rem', textAlign: 'right', color: '#ef4444', fontSize: '1rem' }}>Descuento ({totales.descuentoPorcentaje}%)</td>
-                        <td style={{ padding: '0.5rem 1rem', textAlign: 'right', color: '#ef4444', fontSize: '1rem', fontWeight: 600 }}>- {formatCurrency(totales.descuentoMonto)}</td>
-                      </tr>
-                    )}
-                    <tr>
-                      <td colSpan="4" style={{ padding: '0.5rem 1rem', textAlign: 'right', color: '#64748b', fontSize: '1rem' }}>IVA (19%)</td>
-                      <td style={{ padding: '0.5rem 1rem', textAlign: 'right', color: '#334155', fontSize: '1rem', fontWeight: 600 }}>{formatCurrency(totales.iva)}</td>
-                    </tr>
-                    <tr>
-                      <td colSpan="4" style={{ padding: '1.5rem 1rem', textAlign: 'right', color: '#1e293b', fontSize: '1.1rem', fontWeight: 700 }}>Total General</td>
-                      <td style={{ padding: '1.5rem 1rem', textAlign: 'right', color: '#6366f1', fontSize: '1.4rem', fontWeight: 800 }}>{formatCurrency(totales.total)}</td>
-                    </tr>
-                  </tfoot>
-
-
-                </table>
-              </div>
-
-              {/* Sección de Resumen (Sin los totales que ahora están en la tabla) */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
-                <div style={{ width: '60%', fontSize: '0.8rem', color: '#475569', lineHeight: 1.6 }}>
-                    <div style={{ padding: '1rem', borderLeft: '3px solid #6366f1', background: '#f8fafc' }}>
-                        <h4 style={{ margin: '0 0 0.5rem 0', color: '#1e293b' }}>Notas Importantes</h4>
-                        <p style={{ margin: 0 }}>Esta cotización es válida por 15 días a partir de la fecha de emisión. Los precios incluyen soporte técnico básico durante el evento.</p>
-                    </div>
+              {/* Membrete Superior */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                  <div className="print-logo-container" style={{ width: '150px', height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img src="/logo.png" alt="EcoSilence Logo" style={{ width: '100%', height: 'auto', objectFit: 'contain' }} />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>EcoSilence</h2>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Pintor Laureano Guevara 60, La Reina</p>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>RUT: 77.510.784-7 | info@ecosilence.cl</p>
+                  </div>
+                </div>
+                
+                <div style={{ textAlign: 'right', background: '#f8fafc', padding: '1.2rem', borderRadius: '12px', border: '1px solid #e2e8f0', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                  <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documento Cotización</span>
+                  <h3 style={{ fontSize: '1.5rem', margin: '0.1rem 0', color: '#4f46e5', fontWeight: 800 }}>#{servicio.idServicio}</h3>
+                  <div style={{ height: '1px', background: '#e2e8f0', margin: '0.5rem 0' }}></div>
+                  <p style={{ margin: 0, fontSize: '0.8rem' }}><strong>Fecha:</strong> {new Date().toLocaleDateString('es-CL')}</p>
+                  <p style={{ margin: 0, fontSize: '0.8rem' }}><strong>Vence:</strong> {new Date(new Date().getTime() + 15*24*60*60*1000).toLocaleDateString('es-CL')}</p>
                 </div>
               </div>
 
-              {/* Footer: Datos de Pago y Términos */}
-              <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid #e2e8f0' }}>
-                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem', fontSize: '0.75rem', color: '#64748b' }}>
-                    <div>
-                        <h4 style={{ margin: '0 0 0.5rem 0', color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Datos para Transferencia</h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '0.3rem' }}>
-                            <strong>Titular:</strong> <span>EcoSilence SPA</span>
-                            <strong>RUT:</strong> <span>77.510.784-7</span>
-                            <strong>Banco:</strong> <span>Banco de Chile</span>
-                            <strong>Cuenta:</strong> <span>Cuenta Corriente 00-023-709973-10</span>
-                            <strong>Email:</strong> <span>info@ecosilence.cl</span>
-                        </div>
+              {/* Grid de Información Cliente & Evento */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+                <div style={{ padding: '1.2rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                  <h4 style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.8rem', letterSpacing: '0.05em' }}>Cliente / Empresa</h4>
+                  <p style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.3rem 0', color: '#0f172a' }}>{cliente.empresa || `${cliente.nombre} ${cliente.apellido}`}</p>
+                  <p style={{ fontSize: '0.9rem', margin: 0, color: '#334155' }}>{cliente.nombre} {cliente.apellido}</p>
+                  <p style={{ fontSize: '0.9rem', margin: 0, color: '#334155' }}>{cliente.correo}</p>
+                  <p style={{ fontSize: '0.9rem', margin: 0, color: '#334155' }}>{cliente.telefono}</p>
+                </div>
+                <div style={{ padding: '1.2rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <h4 style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.8rem', letterSpacing: '0.05em' }}>Detalles del Evento</h4>
+                  <p style={{ fontSize: '0.9rem', margin: '0 0 0.4rem 0', color: '#334155' }}><strong>Dirección:</strong> {servicio.direccionEvento}</p>
+                  <p style={{ fontSize: '0.9rem', margin: '0 0 0.4rem 0', color: '#334155' }}><strong>Fecha Evento:</strong> {servicio.fechaInicio.replace('T', ' ')}</p>
+                  <p style={{ fontSize: '0.9rem', margin: 0, color: '#334155' }}><strong>Moneda:</strong> {servicio.moneda || 'CLP'}</p>
+                </div>
+              </div>
+
+              {/* Tabla de Items */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                <thead>
+                  <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                    <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.8rem', color: '#475569', textTransform: 'uppercase', border: '1px solid #e2e8f0' }}>Descripción Equipo / Servicio</th>
+                    <th style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: '#475569', textTransform: 'uppercase', width: '70px', border: '1px solid #e2e8f0' }}>Cant.</th>
+                    <th style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: '#475569', textTransform: 'uppercase', width: '70px', border: '1px solid #e2e8f0' }}>Días</th>
+                    <th style={{ padding: '1rem', textAlign: 'right', fontSize: '0.8rem', color: '#475569', textTransform: 'uppercase', width: '120px', border: '1px solid #e2e8f0' }}>P. Unitario</th>
+                    <th style={{ padding: '1rem', textAlign: 'right', fontSize: '0.8rem', color: '#475569', textTransform: 'uppercase', width: '120px', border: '1px solid #e2e8f0' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itemsCotizacion.map((item) => (
+                    <tr key={item.idCotizacion} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '0.8rem 1rem', fontSize: '0.95rem', fontWeight: 500, color: '#1e293b', border: '1px solid #e2e8f0' }}>{item.descripcion}</td>
+                      <td style={{ padding: '0.8rem 1rem', textAlign: 'center', color: '#334155', border: '1px solid #e2e8f0' }}>{item.cantidad}</td>
+                      <td style={{ padding: '0.8rem 1rem', textAlign: 'center', color: '#334155', border: '1px solid #e2e8f0' }}>{item.dias}</td>
+                      <td style={{ padding: '0.8rem 1rem', textAlign: 'right', color: '#334155', border: '1px solid #e2e8f0' }}>{formatCurrency(item.precioUnitario)}</td>
+                      <td style={{ padding: '0.8rem 1rem', textAlign: 'right', fontWeight: 700, color: '#0f172a', border: '1px solid #e2e8f0' }}>{formatCurrency(item.subtotal)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Totales y Notas */}
+              <div style={{ display: 'flex', gap: '2rem', marginTop: 'auto' }}>
+                <div style={{ flex: 1, fontSize: '0.8rem', color: '#64748b' }}>
+                  <div style={{ background: '#f8fafc', padding: '1.2rem', borderRadius: '8px', borderLeft: '4px solid #4f46e5', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                    <h5 style={{ color: '#0f172a', margin: '0 0 0.6rem 0', fontSize: '0.9rem', textTransform: 'uppercase' }}>Términos y Condiciones</h5>
+                    <ul style={{ paddingLeft: '1.2rem', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                      <li>Reserva: 50% de anticipo al confirmar, saldo contra entrega.</li>
+                      <li>Cancelación: Cargo del 20% si se cancela con menos de 48 hrs.</li>
+                      <li>Reposición: Audífono $60.000 / Transmisor $250.000 (en caso de pérdida).</li>
+                      <li>Arriendo base: 24 horas por evento.</li>
+                      <li>Esta cotización es válida por 15 días a partir de la fecha de emisión.</li>
+                    </ul>
+                  </div>
+                </div>
+                <div style={{ width: '300px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span style={{ color: '#64748b' }}>Subtotal:</span>
+                    <span style={{ fontWeight: 600 }}>{formatCurrency(totales.subtotalBruto)}</span>
+                  </div>
+                  {totales.descuentoPorcentaje > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0', color: '#ef4444', borderBottom: '1px solid #fee2e2' }}>
+                      <span>Descuento ({totales.descuentoPorcentaje}%):</span>
+                      <span style={{ fontWeight: 600 }}>- {formatCurrency(totales.descuentoMonto)}</span>
                     </div>
-                    <div>
-                        <h4 style={{ margin: '0 0 0.5rem 0', color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Términos y Condiciones</h4>
-                        <ul style={{ paddingLeft: '1.2rem', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                           <li>Reserva: 50% de anticipo al confirmar, saldo contra entrega.</li>
-                           <li>Cancelación: Cargo del 20% si se cancela con menos de 48 hrs.</li>
-                           <li>Reposición: Audífono $60.000 / Transmisor $250.000 (en caso de pérdida).</li>
-                           <li>Arriendo base: 24 horas por evento.</li>
-                        </ul>
-                    </div>
-                 </div>
-                 <div style={{ textAlign: 'center', marginTop: '2rem', color: '#94a3b8', fontSize: '0.7rem' }}>
-                    <p>EcoSilence - Soluciones Audiovisuales Profesionales</p>
-                 </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span style={{ color: '#64748b' }}>IVA (19%):</span>
+                    <span style={{ fontWeight: 600 }}>{formatCurrency(totales.iva)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem 0.5rem', background: '#4f46e5', color: 'white', borderRadius: '4px', marginTop: '1rem', fontSize: '1.3rem', fontWeight: 800, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                    <span>Total General:</span>
+                    <span>{formatCurrency(totales.total)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer de Pago */}
+              <div style={{ marginTop: '2rem', textAlign: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem', fontSize: '0.75rem', color: '#94a3b8' }}>
+                <p style={{ margin: '0 0 0.3rem 0' }}>EcoSilence SPA | RUT: 77.510.784-7 | Banco de Chile | Cuenta Corriente 00-023-709973-10 | info@ecosilence.cl</p>
+                <p style={{ margin: 0, fontWeight: 600 }}>EcoSilence - Soluciones Audiovisuales Profesionales</p>
               </div>
 
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };

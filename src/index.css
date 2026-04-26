@@ -392,7 +392,7 @@ select.input-control option {
 @media print {
   @page {
     size: A4;
-    margin: 10mm;
+    margin: 5mm 10mm;
   }
 
   html, body {
@@ -408,7 +408,7 @@ select.input-control option {
     display: none !important;
   }
 
-  .app-container, .main-content, .content-scroll, #root {
+  .app-container, .main-content, .content-scroll, #root, .animate-fade-in {
     display: block !important;
     width: 100% !important;
     height: auto !important;
@@ -416,6 +416,9 @@ select.input-control option {
     padding: 0 !important;
     overflow: visible !important;
     position: static !important;
+    background: white !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
   .modal-overlay {
@@ -424,29 +427,34 @@ select.input-control option {
     top: 0 !important;
     left: 0 !important;
     width: 100% !important;
-    height: auto !important;
     display: block !important;
     z-index: 99999 !important;
     background: white !important;
     margin: 0 !important;
     padding: 0 !important;
+    border: none !important;
   }
 
 
-  .modal-content.print-voucher-container, 
-  .modal-content.print-voucher-container * {
+  .modal-content.print-voucher-container {
     visibility: visible !important;
-    position: relative !important;
-
     width: 100% !important;
     max-width: none !important;
     max-height: none !important;
     overflow: visible !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
     box-shadow: none !important;
-    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-logo-container {
+    width: 4cm !important;
+    height: auto !important;
+  }
+
+  .print-logo-container img {
+    width: 100% !important;
+    height: auto !important;
   }
 
   .modal-content.print-voucher-container > div {
@@ -476,12 +484,13 @@ select.input-control option {
 
   .print-info-box {
     background-color: #f8fafc !important;
-    padding: 24px !important;
+    padding: 16px 20px !important;
     border-radius: 8px !important;
-    margin-top: 20px !important;
+    border: 1px solid #e2e8f0 !important;
+    margin-top: 10px !important;
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
-    gap: 30px !important;
+    gap: 20px !important;
   }
 
   .print-doc-id-box {
@@ -497,18 +506,10 @@ select.input-control option {
     color-adjust: exact !important;
   }
 
-  th {
-    background-color: #f8fafc !important;
-    color: #1e293b !important;
-    border-bottom: 2px solid #e2e8f0 !important;
-    padding: 20px 10px !important;
-  }
-
-  td {
-    border-bottom: 1px solid #f1f5f9 !important;
-    padding: 40px 10px !important;
-    word-wrap: break-word !important;
-    line-height: 1.5 !important;
+  th, td {
+    border: 1px solid #e2e8f0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
 
@@ -520,7 +521,19 @@ select.input-control option {
     background: #6366f1 !important;
     -webkit-print-color-adjust: exact;
     width: 100%;
-    margin-bottom: 2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Prevent page breaks and extra space */
+  .print-info-box, .print-doc-id-box, tr, tfoot, .print-voucher-container {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Force single page if possible */
+  .print-voucher-container > div {
+    max-height: 280mm !important; /* Slightly less than A4 height to be safe */
+    overflow: hidden !important;
   }
 }
 
