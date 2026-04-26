@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useAppStore } from '../context/AppDataContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { DollarSign, Briefcase, MapPin, Calendar, Clock, Filter } from 'lucide-react';
+import { DollarSign, Briefcase, MapPin, Calendar, Clock, Filter, CalendarDays } from 'lucide-react';
 
 const Dashboard = () => {
-  const { servicios, cotizaciones } = useAppStore();
+  const { servicios, cotizaciones, isGoogleLinked, linkGoogle } = useAppStore();
   const [selectedMonth, setSelectedMonth] = useState('Todos');
 
   const availableMonths = useMemo(() => {
@@ -102,18 +102,29 @@ const Dashboard = () => {
           <h1 style={{ marginBottom: '0.5rem' }}>Panel de Control {selectedMonth !== 'Todos' ? `- ${formatMonth(selectedMonth)}` : ''}</h1>
           <p style={{ color: 'var(--text-muted)' }}>Resumen de métricas de facturación y servicios del periodo.</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-panel)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)' }}>
-           <Filter size={18} color="var(--text-muted)" />
-           <select 
-             className="input-control" 
-             style={{ border: 'none', background: 'transparent', padding: 0, margin: 0, outline: 'none', fontSize: '1rem', fontWeight: 600 }}
-             value={selectedMonth} 
-             onChange={e => setSelectedMonth(e.target.value)}
-           >
-             <option value="Todos">Facturación Total (Histórico)</option>
-             {availableMonths.map(m => <option key={m} value={m}>{formatMonth(m)}</option>)}
-           </select>
-        </div>
+         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <button 
+              className={`btn ${isGoogleLinked ? 'btn-basil' : 'btn-primary'}`}
+              onClick={linkGoogle}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <CalendarDays size={18} />
+              {isGoogleLinked ? 'Google Calendar Vinculado' : 'Vincular Google Calendar'}
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-panel)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)' }}>
+               <Filter size={18} color="var(--text-muted)" />
+               <select 
+                 className="input-control" 
+                 style={{ border: 'none', background: 'transparent', padding: 0, margin: 0, outline: 'none', fontSize: '1rem', fontWeight: 600 }}
+                 value={selectedMonth} 
+                 onChange={e => setSelectedMonth(e.target.value)}
+               >
+                 <option value="Todos">Facturación Total (Histórico)</option>
+                 {availableMonths.map(m => <option key={m} value={m}>{formatMonth(m)}</option>)}
+               </select>
+            </div>
+         </div>
       </div>
 
       <div className="responsive-grid-cards">

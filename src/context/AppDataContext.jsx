@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { initGoogleScripts, authenticateGoogle, syncServiceToCalendar, deleteCalendarEvent } from '../services/GoogleCalendarService';
 
 const AppDataContext = createContext();
 
@@ -7,6 +8,7 @@ export const AppDataProvider = ({ children }) => {
   const [currentView, setCurrentView] = useState('dashboard');
   const [viewParams, setViewParams] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGoogleLinked, setIsGoogleLinked] = useState(false);
 
   const [menuNames, setMenuNames] = useState({
     dashboard: 'Dashboard',
@@ -56,7 +58,8 @@ export const AppDataProvider = ({ children }) => {
         fechaFin: s.fecha_fin,
         etapa: s.etapa,
         descuento: s.descuento,
-        moneda: s.moneda
+        moneda: s.moneda,
+        googleEventId: s.google_event_id
       })));
 
       // Cotizaciones
@@ -82,7 +85,19 @@ export const AppDataProvider = ({ children }) => {
 
   useEffect(() => {
     fetchData();
+    initGoogleScripts();
   }, []);
+
+  const linkGoogle = async () => {
+    try {
+      await authenticateGoogle();
+      setIsGoogleLinked(true);
+      return true;
+    } catch (err) {
+      console.error('Auth error:', err);
+      return false;
+    }
+  };
 
   const generateId = (prefix) => {
     if (prefix === 'S') return generateCorrelativeId();
@@ -169,8 +184,18 @@ export const AppDataProvider = ({ children }) => {
   };
 
   const updateServiceStage = async (idServicio, newStage) => {
-    setServicios(servicios.map(s => s.idServicio === idServicio ? { ...s, etapa: newStage } : s));
+    const s = servicios.find(srv => srv.idServicio === idServicio);
+    const updatedS = { ...s, etapa: newStage };
+    
+    setServicios(servicios.map(srv => srv.idServicio === idServicio ? updatedS : srv));
     await supabase.from('servicios').update({ etapa: newStage }).eq('id_servicio', idServicio);
+
+    // Sincronizar con Google Calendar si está vinculado
+    if (isGoogleLinked) {
+      const cliente = clientes.find(c => c.id === s.clienteId);
+      const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+      await syncServiceToCalendar(updatedS, clienteName);
+    }
   };
 
   const updateServiceDiscount = async (idServicio, newDiscount) => {
@@ -186,8 +211,18 @@ export const AppDataProvider = ({ children }) => {
 
   const addServicio = async (servicioData) => {
     const idServicio = generateCorrelativeId();
-    const newS = { ...servicioData, idServicio, etapa: 'Cotizado', descuento: 0, moneda: 'CLP' };
+    let newS = { ...servicioData, idServicio, etapa: 'Cotizado', descuento: 0, moneda: 'CLP' };
+    
     try {
+      // Sincronizar con Google Calendar ANTES de guardar en Supabase para obtener el eventId
+      let googleEventId = null;
+      if (isGoogleLinked) {
+        const cliente = clientes.find(c => c.id === servicioData.clienteId);
+        const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+        googleEventId = await syncServiceToCalendar(newS, clienteName);
+        newS.googleEventId = googleEventId;
+      }
+
       const { error } = await supabase.from('servicios').insert({
         id_servicio: idServicio,
         cliente_id: servicioData.clienteId,
@@ -196,27 +231,45 @@ export const AppDataProvider = ({ children }) => {
         fecha_fin: servicioData.fechaFin,
         etapa: 'Cotizado',
         descuento: 0,
-        moneda: 'CLP'
+        moneda: 'CLP',
+        google_event_id: googleEventId
       });
+      
       if (error) throw error;
       setServicios([...servicios, newS]);
     } catch (err) { alert('Error: ' + err.message); }
   };
 
   const editServicio = async (idServicio, updatedData) => {
-    setServicios(servicios.map(s => (s.idServicio === idServicio ? { ...s, ...updatedData } : s)));
+    const s = servicios.find(srv => srv.idServicio === idServicio);
+    const merged = { ...s, ...updatedData };
+
+    setServicios(servicios.map(srv => (srv.idServicio === idServicio ? merged : srv)));
     await supabase.from('servicios').update({
       cliente_id: updatedData.clienteId,
       direccion_evento: updatedData.direccionEvento,
       fecha_inicio: updatedData.fechaInicio,
       fecha_fin: updatedData.fechaFin
     }).eq('id_servicio', idServicio);
+
+    // Sincronizar con Google Calendar
+    if (isGoogleLinked) {
+      const cliente = clientes.find(c => c.id === merged.clienteId);
+      const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+      await syncServiceToCalendar(merged, clienteName);
+    }
   };
 
   const removeServicio = async (idServicio) => {
-    setServicios(servicios.filter(s => s.idServicio !== idServicio));
+    const s = servicios.find(srv => srv.idServicio === idServicio);
+    setServicios(servicios.filter(srv => srv.idServicio !== idServicio));
     setCotizaciones(cotizaciones.filter(c => c.servicioId !== idServicio));
     await supabase.from('servicios').delete().eq('id_servicio', idServicio);
+
+    // Eliminar de Google Calendar
+    if (isGoogleLinked && s.googleEventId) {
+      await deleteCalendarEvent(s.googleEventId);
+    }
   };
 
   const addCliente = async (clienteData) => {
@@ -345,7 +398,8 @@ export const AppDataProvider = ({ children }) => {
     inventario, addEquipo, editEquipo, removeEquipo,
     servicios, updateServiceStage, updateServiceDiscount, updateServiceCurrency, addServicio, editServicio, removeServicio,
     cotizaciones: getCotizacionesEnriched(), addItemCotizacion, removeItemCotizacion, editItemCotizacion,
-    getStockActual
+    getStockActual,
+    isGoogleLinked, linkGoogle
   };
 
   return (

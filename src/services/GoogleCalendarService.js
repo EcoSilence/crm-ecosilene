@@ -1,0 +1,134 @@
+/**
+ * Servicio para integrar Google Calendar con el CRM de EcoSilence
+ */
+
+const CLIENT_ID = '718018729593-1j2gdsri0lfmb21llv6abc10cjpacc3d.apps.googleusercontent.com';
+const API_KEY = 'AIzaSyBWlbA1NZOtsP2b7ei6xzPLQBIdNv-KrCY';
+const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
+const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+
+let gapiInited = false;
+let gsisInited = false;
+let tokenClient;
+
+// Mapeo de Etapas a Colores de Google Calendar
+// 1: Lavanda (Berry), 5: Plátano (Cotizado), 11: Tomate (Por Cobrar), 10: Albahaca (Pagado)
+const STAGE_COLORS = {
+  'Cotizado': '5',
+  'Aprobado': '1',
+  'Por Cobrar': '11',
+  'Pagado': '10'
+};
+
+export const initGoogleScripts = () => {
+  return new Promise((resolve) => {
+    const checkReady = () => {
+      if (window.gapi && window.google) {
+        gapiLoaded();
+        gisLoaded();
+        resolve(true);
+      } else {
+        setTimeout(checkReady, 100);
+      }
+    };
+    checkReady();
+  });
+};
+
+function gapiLoaded() {
+  window.gapi.load('client', initializeGapiClient);
+}
+
+async function initializeGapiClient() {
+  await window.gapi.client.init({
+    apiKey: API_KEY,
+    discoveryDocs: [DISCOVERY_DOC],
+  });
+  gapiInited = true;
+}
+
+function gisLoaded() {
+  tokenClient = window.google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: '', // definido en el momento del uso
+  });
+  gsisInited = true;
+}
+
+export const authenticateGoogle = () => {
+  return new Promise((resolve, reject) => {
+    tokenClient.callback = async (resp) => {
+      if (resp.error !== undefined) {
+        reject(resp);
+      }
+      resolve(resp);
+    };
+
+    if (window.gapi.client.getToken() === null) {
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+      tokenClient.requestAccessToken({ prompt: '' });
+    }
+  });
+};
+
+export const syncServiceToCalendar = async (servicio, clienteName) => {
+  if (!gapiInited || !gsisInited) return null;
+
+  const event = {
+    'summary': `EcoSilence: ${clienteName} - ${servicio.idServicio}`,
+    'location': servicio.direccionEvento,
+    'description': `Servicio de EcoSilence\nEtapa: ${servicio.etapa}\nID: ${servicio.idServicio}`,
+    'start': {
+      'dateTime': new Date(servicio.fechaInicio).toISOString(),
+      'timeZone': 'America/Santiago'
+    },
+    'end': {
+      'dateTime': new Date(servicio.fechaFin).toISOString(),
+      'timeZone': 'America/Santiago'
+    },
+    'colorId': STAGE_COLORS[servicio.etapa] || '8'
+  };
+
+  try {
+    let request;
+    if (servicio.googleEventId) {
+      // Actualizar evento existente
+      request = window.gapi.client.calendar.events.patch({
+        'calendarId': 'primary',
+        'eventId': servicio.googleEventId,
+        'resource': event,
+      });
+    } else {
+      // Crear nuevo evento
+      request = window.gapi.client.calendar.events.insert({
+        'calendarId': 'primary',
+        'resource': event,
+      });
+    }
+
+    const response = await request;
+    return response.result.id;
+  } catch (err) {
+    console.error('Error sincronizando con Google Calendar:', err);
+    if (err.status === 401) {
+       // Token expirado, re-autenticar
+       await authenticateGoogle();
+       return syncServiceToCalendar(servicio, clienteName);
+    }
+    return null;
+  }
+};
+
+export const deleteCalendarEvent = async (eventId) => {
+  if (!gapiInited || !eventId) return;
+  try {
+    await window.gapi.client.calendar.events.delete({
+      'calendarId': 'primary',
+      'eventId': eventId,
+    });
+  } catch (err) {
+    console.error('Error eliminando evento de Google Calendar:', err);
+  }
+};
