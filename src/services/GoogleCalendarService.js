@@ -102,18 +102,38 @@ export const syncServiceToCalendar = async (servicio, clienteName, items = []) =
 
   const prefijoAudifonos = totalAudifonos > 0 ? `${totalAudifonos} - ` : '';
 
+  const isAllDay = !servicio.fechaInicio.includes('T');
+  
+  const startObj = isAllDay ? 
+    { 'date': servicio.fechaInicio } : 
+    { 'dateTime': new Date(servicio.fechaInicio).toISOString(), 'timeZone': 'America/Santiago' };
+
+  let endObj;
+  if (servicio.fechaFin) {
+      const isEndAllDay = !servicio.fechaFin.includes('T');
+      if (isEndAllDay) {
+          const endD = new Date(servicio.fechaFin + 'T00:00:00');
+          endD.setDate(endD.getDate() + 1); // Google Calendar excluye el día final en eventos de todo el día
+          endObj = { 'date': endD.toISOString().split('T')[0] };
+      } else {
+          endObj = { 'dateTime': new Date(servicio.fechaFin).toISOString(), 'timeZone': 'America/Santiago' };
+      }
+  } else {
+      if (isAllDay) {
+          const startD = new Date(servicio.fechaInicio + 'T00:00:00');
+          startD.setDate(startD.getDate() + 1);
+          endObj = { 'date': startD.toISOString().split('T')[0] };
+      } else {
+          endObj = startObj;
+      }
+  }
+
   const event = {
     'summary': `${prefijoAudifonos}${clienteName} - ${servicio.idServicio}`,
     'location': servicio.direccionEvento,
     'description': `Servicio de EcoSilence\nEtapa: ${servicio.etapa}\nID: ${servicio.idServicio}${detalleEquipos}`,
-    'start': {
-      'dateTime': new Date(servicio.fechaInicio).toISOString(),
-      'timeZone': 'America/Santiago'
-    },
-    'end': {
-      'dateTime': new Date(servicio.fechaFin).toISOString(),
-      'timeZone': 'America/Santiago'
-    },
+    'start': startObj,
+    'end': endObj,
     'colorId': STAGE_COLORS[servicio.etapa] || '8'
   };
 

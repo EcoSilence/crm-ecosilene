@@ -20,8 +20,10 @@ const KanbanBoard = () => {
   const [formData, setFormData] = useState({
     clienteId: clientes.length > 0 ? clientes[0].id : '',
     direccionEvento: '',
-    fechaInicio: '',
-    fechaFin: ''
+    fechaInicioDate: '',
+    fechaInicioTime: '',
+    fechaFinDate: '',
+    fechaFinTime: ''
   });
 
   const filteredSortedClientes = useMemo(() => {
@@ -46,7 +48,7 @@ const KanbanBoard = () => {
     setEditMode(false);
     setEditingId(null);
     setSearchTerm('');
-    setFormData({ clienteId: '', direccionEvento: '', fechaInicio: '', fechaFin: '' });
+    setFormData({ clienteId: '', direccionEvento: '', fechaInicioDate: '', fechaInicioTime: '', fechaFinDate: '', fechaFinTime: '' });
     setIsModalOpen(true);
   };
 
@@ -54,11 +56,15 @@ const KanbanBoard = () => {
     setEditMode(true);
     setEditingId(servicio.idServicio);
     setSearchTerm('');
+    const startParts = (servicio.fechaInicio || '').split('T');
+    const endParts = (servicio.fechaFin || '').split('T');
     setFormData({
       clienteId: servicio.clienteId,
       direccionEvento: servicio.direccionEvento,
-      fechaInicio: servicio.fechaInicio,
-      fechaFin: servicio.fechaFin
+      fechaInicioDate: startParts[0] || '',
+      fechaInicioTime: startParts[1] ? startParts[1].substring(0, 5) : '',
+      fechaFinDate: endParts[0] || '',
+      fechaFinTime: endParts[1] ? endParts[1].substring(0, 5) : ''
     });
     setIsModalOpen(true);
   };
@@ -95,10 +101,22 @@ const KanbanBoard = () => {
     e.preventDefault();
     if (!formData.clienteId) return alert('Debes seleccionar un cliente.');
     
+    const buildDateTime = (date, time) => {
+       if (!date) return '';
+       return time ? `${date}T${time}` : date;
+    };
+    
+    const finalData = {
+       clienteId: formData.clienteId,
+       direccionEvento: formData.direccionEvento,
+       fechaInicio: buildDateTime(formData.fechaInicioDate, formData.fechaInicioTime),
+       fechaFin: buildDateTime(formData.fechaFinDate, formData.fechaFinTime)
+    };
+
     if (editMode && editingId) {
-       editServicio(editingId, formData);
+       editServicio(editingId, finalData);
     } else {
-       addServicio(formData);
+       addServicio(finalData);
     }
     
     setIsModalOpen(false);
@@ -455,11 +473,11 @@ const KanbanBoard = () => {
                  <div className="responsive-flex-column" style={{ display: 'flex', gap: '1rem' }}>
                    <div className="input-group" style={{ flex: 1, margin: 0 }}>
                      <label className="input-label">Fecha y Hora de Inicio</label>
-                     <input type="datetime-local" className="input-control" value={formData.fechaInicio} onChange={e => setFormData({...formData, fechaInicio: e.target.value})} />
+                     <div style={{ display: 'flex', gap: '0.5rem' }}><input type="date" className="input-control" value={formData.fechaInicioDate} onChange={e => setFormData({...formData, fechaInicioDate: e.target.value})} /><input type="time" className="input-control" value={formData.fechaInicioTime} onChange={e => setFormData({...formData, fechaInicioTime: e.target.value})} /></div>
                    </div>
                    <div className="input-group" style={{ flex: 1, margin: 0 }}>
                      <label className="input-label">Fecha y Hora de Fin</label>
-                     <input type="datetime-local" className="input-control" value={formData.fechaFin} onChange={e => setFormData({...formData, fechaFin: e.target.value})} />
+                     <div style={{ display: 'flex', gap: '0.5rem' }}><input type="date" className="input-control" value={formData.fechaFinDate} onChange={e => setFormData({...formData, fechaFinDate: e.target.value})} /><input type="time" className="input-control" value={formData.fechaFinTime} onChange={e => setFormData({...formData, fechaFinTime: e.target.value})} /></div>
                    </div>
                  </div>
                  

@@ -193,6 +193,19 @@ export const AppDataProvider = ({ children }) => {
     return equipo.stockTotal - totalUsado;
   };
 
+  const handleCalendarSync = async (servicioObj, itemsArr = []) => {
+    if (!isGoogleLinked || !servicioObj.fechaInicio) return;
+    const cliente = clientes.find(c => c.id === servicioObj.clienteId);
+    const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+    const eventId = await syncServiceToCalendar(servicioObj, clienteName, itemsArr);
+    
+    if (eventId && eventId !== servicioObj.googleEventId) {
+      servicioObj.googleEventId = eventId;
+      setServicios(prev => prev.map(s => s.idServicio === servicioObj.idServicio ? { ...s, googleEventId: eventId } : s));
+      await supabase.from('servicios').update({ google_event_id: eventId }).eq('id_servicio', servicioObj.idServicio);
+    }
+  };
+
   const updateServiceStage = async (idServicio, newStage) => {
     const s = servicios.find(srv => srv.idServicio === idServicio);
     const updatedS = { ...s, etapa: newStage };
@@ -202,10 +215,8 @@ export const AppDataProvider = ({ children }) => {
 
     // Sincronizar con Google Calendar si está vinculado
     if (isGoogleLinked) {
-      const cliente = clientes.find(c => c.id === s.clienteId);
-      const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
       const items = cotizaciones.filter(c => c.servicioId === idServicio);
-      await syncServiceToCalendar(updatedS, clienteName, items);
+      await handleCalendarSync(updatedS, items);
     }
   };
 
@@ -265,10 +276,8 @@ export const AppDataProvider = ({ children }) => {
 
     // Sincronizar con Google Calendar
     if (isGoogleLinked) {
-      const cliente = clientes.find(c => c.id === merged.clienteId);
-      const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
       const items = cotizaciones.filter(c => c.servicioId === idServicio);
-      await syncServiceToCalendar(merged, clienteName, items);
+      await handleCalendarSync(merged, items);
     }
   };
 
@@ -379,10 +388,8 @@ export const AppDataProvider = ({ children }) => {
       if (isGoogleLinked) {
         const s = servicios.find(srv => srv.idServicio === itemData.servicioId);
         if (s) {
-          const cliente = clientes.find(c => c.id === s.clienteId);
-          const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
           const items = updatedCots.filter(c => c.servicioId === s.idServicio);
-          await syncServiceToCalendar(s, clienteName, items);
+          await handleCalendarSync(s, items);
         }
       }
     } catch (err) { alert('Error: ' + err.message); }
@@ -398,10 +405,8 @@ export const AppDataProvider = ({ children }) => {
     if (isGoogleLinked && itemToRemove) {
       const s = servicios.find(srv => srv.idServicio === itemToRemove.servicioId);
       if (s) {
-        const cliente = clientes.find(c => c.id === s.clienteId);
-        const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
         const items = updatedCots.filter(c => c.servicioId === s.idServicio);
-        await syncServiceToCalendar(s, clienteName, items);
+        await handleCalendarSync(s, items);
       }
     }
   };
@@ -435,10 +440,8 @@ export const AppDataProvider = ({ children }) => {
       if (currentItem) {
         const s = servicios.find(srv => srv.idServicio === currentItem.servicioId);
         if (s) {
-          const cliente = clientes.find(c => c.id === s.clienteId);
-          const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
           const items = updatedCots.filter(c => c.servicioId === s.idServicio);
-          await syncServiceToCalendar(s, clienteName, items);
+          await handleCalendarSync(s, items);
         }
       }
     }
