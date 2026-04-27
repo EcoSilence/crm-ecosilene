@@ -8,7 +8,7 @@ export const AppDataProvider = ({ children }) => {
   const [currentView, setCurrentView] = useState('dashboard');
   const [viewParams, setViewParams] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isGoogleLinked, setIsGoogleLinked] = useState(false);
+  const [isGoogleLinked, setIsGoogleLinked] = useState(localStorage.getItem('google_calendar_linked') === 'true');
 
   const [menuNames, setMenuNames] = useState({
     dashboard: 'Dashboard',
@@ -85,13 +85,23 @@ export const AppDataProvider = ({ children }) => {
 
   useEffect(() => {
     fetchData();
-    initGoogleScripts();
+    initGoogleScripts().then(() => {
+      // Si estaba vinculado antes, intentar reconectar silenciosamente
+      if (localStorage.getItem('google_calendar_linked') === 'true') {
+        authenticateGoogle(true).catch(err => {
+          console.warn('Auto-link failed:', err);
+          setIsGoogleLinked(false);
+          localStorage.removeItem('google_calendar_linked');
+        });
+      }
+    });
   }, []);
 
   const linkGoogle = async () => {
     try {
-      await authenticateGoogle();
+      await authenticateGoogle(false);
       setIsGoogleLinked(true);
+      localStorage.setItem('google_calendar_linked', 'true');
       return true;
     } catch (err) {
       console.error('Auth error:', err);

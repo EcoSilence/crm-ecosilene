@@ -56,7 +56,7 @@ function gisLoaded() {
   gsisInited = true;
 }
 
-export const authenticateGoogle = () => {
+export const authenticateGoogle = (silent = false) => {
   return new Promise((resolve, reject) => {
     tokenClient.callback = async (resp) => {
       if (resp.error !== undefined) {
@@ -65,10 +65,10 @@ export const authenticateGoogle = () => {
       resolve(resp);
     };
 
-    if (window.gapi.client.getToken() === null) {
-      tokenClient.requestAccessToken({ prompt: 'consent' });
-    } else {
+    if (silent) {
       tokenClient.requestAccessToken({ prompt: '' });
+    } else {
+      tokenClient.requestAccessToken({ prompt: 'consent' });
     }
   });
 };
