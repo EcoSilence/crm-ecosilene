@@ -89,8 +89,15 @@ export const syncServiceToCalendar = async (servicio, clienteName, items = []) =
       }).join('\n') + `\n\nTOTAL COTIZACIÓN:\nSubtotal: $${subtotalGeneral.toLocaleString('es-CL')}\nIVA (19%): $${iva.toLocaleString('es-CL')}\nTOTAL CLP: $${totalFinal.toLocaleString('es-CL')}`
     : '\n\n(No hay equipos agregados aún)';
 
+  // Calcular total de audífonos para el título
+  const totalAudifonos = items
+    .filter(i => (i.descripcion || '').toLowerCase().includes('audifono'))
+    .reduce((acc, i) => acc + (i.cantidad || 0), 0);
+
+  const prefijoAudifonos = totalAudifonos > 0 ? `${totalAudifonos} - ` : '';
+
   const event = {
-    'summary': `EcoSilence: ${clienteName} - ${servicio.idServicio}`,
+    'summary': `${prefijoAudifonos}${clienteName} - ${servicio.idServicio}`,
     'location': servicio.direccionEvento,
     'description': `Servicio de EcoSilence\nEtapa: ${servicio.etapa}\nID: ${servicio.idServicio}${detalleEquipos}`,
     'start': {
