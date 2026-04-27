@@ -112,15 +112,23 @@ const KanbanBoard = () => {
   // Estructurar la data en árbol jerárquico: Year -> Month
   const groupedData = useMemo(() => {
     const years = {};
+    const sinFecha = [];
+    
     (servicios || []).forEach(s => {
-      if(!s.fechaInicio) return;
+      if(!s.fechaInicio) {
+        sinFecha.push(s);
+        return;
+      }
       const [y, m] = String(s.fechaInicio).split('-');
-      if (!y || !m) return;
+      if (!y || !m) {
+        sinFecha.push(s);
+        return;
+      }
       if (!years[y]) years[y] = {};
       if (!years[y][m]) years[y][m] = [];
       years[y][m].push(s);
     });
-    return years;
+    return { years, sinFecha };
   }, [servicios]);
 
   const getServiceTotals = (idServicio, descuentoData = 0) => {
@@ -159,11 +167,64 @@ const KanbanBoard = () => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {Object.keys(groupedData).length === 0 && (
+        {servicios.length === 0 && (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>No hay servicios registrados.</div>
         )}
 
-        {Object.keys(groupedData).sort((a, b) => b.localeCompare(a)).map(year => {
+        {/* Sección de Servicios Sin Fecha */}
+        {groupedData.sinFecha.length > 0 && (
+          <div style={{ marginBottom: '2rem' }}>
+            <div 
+              className="glass-panel" 
+              style={{ 
+                display: 'flex', alignItems: 'center', padding: '1rem 1.5rem', 
+                borderLeft: '4px solid var(--text-muted)', marginBottom: '1rem', gap: '1rem', background: 'rgba(255,255,255,0.02)'
+              }}
+            >
+                <CalendarDays size={24} color="var(--text-muted)"/>
+                <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-muted)' }}>Eventos por Programar / Sin Fecha</h2>
+                <span style={{ marginLeft: 'auto', background: 'var(--bg-panel)', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.8rem' }}>
+                  {groupedData.sinFecha.length} pendientes
+                </span>
+            </div>
+            <div style={{ paddingLeft: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+               {STAGES.map(stage => {
+                  const stageServices = groupedData.sinFecha.filter(s => s.etapa === stage);
+                  if (stageServices.length === 0) return null;
+                  return (
+                    <div key={stage} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                       <h4 style={{ color: getStageColor(stage), fontSize: '0.9rem', marginBottom: '0.2rem' }}>{stage} (Sin Fecha)</h4>
+                       {stageServices.map(s => (
+                         <div key={s.idServicio} style={{ 
+                           display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                           padding: '1rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)',
+                           border: '1px solid var(--border-color)', gap: '1rem', flexWrap: 'wrap'
+                         }}>
+                            <div style={{ flex: '1 1 250px' }}>
+                              <h5 style={{ margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem' }}>
+                                {s.idServicio} <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.8rem' }}>— {getClientName(s.clienteId)}</span>
+                              </h5>
+                              <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={13}/> {s.direccionEvento || 'Ubicación pendiente'}</span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--color-banana)' }}><Clock size={13}/> Fecha por definir</span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                               <button className="btn btn-primary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}>
+                                 <CheckCircle size={15}/> Cotizar
+                               </button>
+                               <button className="btn btn-ghost" onClick={() => openEditModal(s)}><Edit2 size={15}/></button>
+                            </div>
+                         </div>
+                       ))}
+                    </div>
+                  );
+               })}
+            </div>
+          </div>
+        )}
+
+        {Object.keys(groupedData.years).sort((a, b) => b.localeCompare(a)).map(year => {
           const isYearExpanded = !!expandedYears[year];
           
           return (
@@ -186,10 +247,10 @@ const KanbanBoard = () => {
               {/* Sub-carpetas de Meses */}
               {isYearExpanded && (
                 <div style={{ paddingLeft: '1.5rem', borderLeft: '2px solid rgba(255,255,255,0.05)', marginLeft: '1rem', marginBottom: '1rem' }}>
-                   {Object.keys(groupedData[year]).sort().reverse().map(month => {
+                   {Object.keys(groupedData.years[year]).sort().reverse().map(month => {
                       const monthKey = `${year}-${month}`;
                       const isMonthExpanded = !!expandedMonths[monthKey];
-                      const monthServices = groupedData[year][month];
+                      const monthServices = groupedData.years[year][month];
 
                       return (
                         <div key={monthKey} style={{ marginBottom: isMonthExpanded ? '1.5rem' : '0.8rem' }}>
@@ -388,17 +449,17 @@ const KanbanBoard = () => {
 
                  <div className="input-group" style={{ margin: 0 }}>
                    <label className="input-label">Dirección del Evento (Venue)</label>
-                   <input required type="text" className="input-control" placeholder="Lugar, comuna, ciudad..." value={formData.direccionEvento} onChange={e => setFormData({...formData, direccionEvento: e.target.value})} />
+                   <input type="text" className="input-control" placeholder="Lugar, comuna, ciudad..." value={formData.direccionEvento} onChange={e => setFormData({...formData, direccionEvento: e.target.value})} />
                  </div>
 
                  <div className="responsive-flex-column" style={{ display: 'flex', gap: '1rem' }}>
                    <div className="input-group" style={{ flex: 1, margin: 0 }}>
                      <label className="input-label">Fecha y Hora de Inicio</label>
-                     <input required type="datetime-local" className="input-control" value={formData.fechaInicio} onChange={e => setFormData({...formData, fechaInicio: e.target.value})} />
+                     <input type="datetime-local" className="input-control" value={formData.fechaInicio} onChange={e => setFormData({...formData, fechaInicio: e.target.value})} />
                    </div>
                    <div className="input-group" style={{ flex: 1, margin: 0 }}>
                      <label className="input-label">Fecha y Hora de Fin</label>
-                     <input required type="datetime-local" className="input-control" value={formData.fechaFin} onChange={e => setFormData({...formData, fechaFin: e.target.value})} />
+                     <input type="datetime-local" className="input-control" value={formData.fechaFin} onChange={e => setFormData({...formData, fechaFin: e.target.value})} />
                    </div>
                  </div>
                  

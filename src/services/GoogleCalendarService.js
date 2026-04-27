@@ -75,6 +75,12 @@ export const authenticateGoogle = (silent = false) => {
 
 export const syncServiceToCalendar = async (servicio, clienteName, items = []) => {
   if (!gapiInited || !gsisInited) return null;
+  
+  // Si no hay fecha de inicio, no podemos crear evento en Google Calendar
+  if (!servicio.fechaInicio) {
+    console.log('Servicio sin fecha de inicio, saltando sincronización con Google Calendar');
+    return null;
+  }
 
   // Calcular totales
   const subtotalGeneral = items.reduce((acc, item) => acc + ((item.cantidad || 0) * (item.dias || 0) * (item.precioUnitario || 0)), 0);
