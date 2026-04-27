@@ -76,12 +76,17 @@ export const authenticateGoogle = () => {
 export const syncServiceToCalendar = async (servicio, clienteName, items = []) => {
   if (!gapiInited || !gsisInited) return null;
 
+  // Calcular totales
+  const subtotalGeneral = items.reduce((acc, item) => acc + ((item.cantidad || 0) * (item.dias || 0) * (item.precioUnitario || 0)), 0);
+  const iva = subtotalGeneral * 0.19;
+  const totalFinal = subtotalGeneral + iva;
+
   // Formatear el detalle de equipos para la descripción incluyendo precios
   const detalleEquipos = items.length > 0 
     ? '\n\nDETALLE DE EQUIPOS:\n' + items.map(item => {
         const total = (item.cantidad || 0) * (item.dias || 0) * (item.precioUnitario || 0);
         return `- ${item.cantidad}x ${item.descripcion} (${item.dias} d): $${total.toLocaleString('es-CL')}`;
-      }).join('\n')
+      }).join('\n') + `\n\nTOTAL COTIZACIÓN:\nSubtotal: $${subtotalGeneral.toLocaleString('es-CL')}\nIVA (19%): $${iva.toLocaleString('es-CL')}\nTOTAL CLP: $${totalFinal.toLocaleString('es-CL')}`
     : '\n\n(No hay equipos agregados aún)';
 
   const event = {
