@@ -194,7 +194,8 @@ export const AppDataProvider = ({ children }) => {
     if (isGoogleLinked) {
       const cliente = clientes.find(c => c.id === s.clienteId);
       const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
-      await syncServiceToCalendar(updatedS, clienteName);
+      const items = cotizaciones.filter(c => c.servicioId === idServicio);
+      await syncServiceToCalendar(updatedS, clienteName, items);
     }
   };
 
@@ -256,7 +257,8 @@ export const AppDataProvider = ({ children }) => {
     if (isGoogleLinked) {
       const cliente = clientes.find(c => c.id === merged.clienteId);
       const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
-      await syncServiceToCalendar(merged, clienteName);
+      const items = cotizaciones.filter(c => c.servicioId === idServicio);
+      await syncServiceToCalendar(merged, clienteName, items);
     }
   };
 
@@ -360,17 +362,42 @@ export const AppDataProvider = ({ children }) => {
         precio_unitario: Number(itemData.precioUnitario)
       });
       if (error) throw error;
-      setCotizaciones([...cotizaciones, newQ]);
+      const updatedCots = [...cotizaciones, newQ];
+      setCotizaciones(updatedCots);
+
+      // Sincronizar con Google Calendar si el servicio existe
+      if (isGoogleLinked) {
+        const s = servicios.find(srv => srv.idServicio === itemData.servicioId);
+        if (s) {
+          const cliente = clientes.find(c => c.id === s.clienteId);
+          const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+          const items = updatedCots.filter(c => c.servicioId === s.idServicio);
+          await syncServiceToCalendar(s, clienteName, items);
+        }
+      }
     } catch (err) { alert('Error: ' + err.message); }
   };
 
   const removeItemCotizacion = async (idCotizacion) => {
-    setCotizaciones(cotizaciones.filter(c => c.idCotizacion !== idCotizacion));
+    const updatedCots = cotizaciones.filter(c => c.idCotizacion !== idCotizacion);
+    const itemToRemove = cotizaciones.find(c => c.idCotizacion === idCotizacion);
+    setCotizaciones(updatedCots);
     await supabase.from('cotizaciones').delete().eq('id_cotizacion', idCotizacion);
+
+    // Sincronizar con Google Calendar
+    if (isGoogleLinked && itemToRemove) {
+      const s = servicios.find(srv => srv.idServicio === itemToRemove.servicioId);
+      if (s) {
+        const cliente = clientes.find(c => c.id === s.clienteId);
+        const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+        const items = updatedCots.filter(c => c.servicioId === s.idServicio);
+        await syncServiceToCalendar(s, clienteName, items);
+      }
+    }
   };
 
   const editItemCotizacion = async (idCotizacion, updatedData) => {
-    setCotizaciones(cotizaciones.map(c => {
+    const updatedCots = cotizaciones.map(c => {
       if (c.idCotizacion === idCotizacion) {
         return { 
           ...c, 
@@ -381,7 +408,9 @@ export const AppDataProvider = ({ children }) => {
         };
       }
       return c;
-    }));
+    });
+    setCotizaciones(updatedCots);
+
     await supabase.from('cotizaciones').update({
       equipo_id: updatedData.equipoId,
       descripcion: updatedData.descripcion,
@@ -389,6 +418,20 @@ export const AppDataProvider = ({ children }) => {
       dias: updatedData.dias !== undefined ? Number(updatedData.dias) : undefined,
       precio_unitario: updatedData.precioUnitario !== undefined ? Number(updatedData.precioUnitario) : undefined
     }).eq('id_cotizacion', idCotizacion);
+
+    // Sincronizar con Google Calendar
+    if (isGoogleLinked) {
+      const currentItem = updatedCots.find(c => c.idCotizacion === idCotizacion);
+      if (currentItem) {
+        const s = servicios.find(srv => srv.idServicio === currentItem.servicioId);
+        if (s) {
+          const cliente = clientes.find(c => c.id === s.clienteId);
+          const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+          const items = updatedCots.filter(c => c.servicioId === s.idServicio);
+          await syncServiceToCalendar(s, clienteName, items);
+        }
+      }
+    }
   };
 
   const value = {

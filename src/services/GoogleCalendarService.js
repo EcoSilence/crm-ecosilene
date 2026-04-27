@@ -73,13 +73,18 @@ export const authenticateGoogle = () => {
   });
 };
 
-export const syncServiceToCalendar = async (servicio, clienteName) => {
+export const syncServiceToCalendar = async (servicio, clienteName, items = []) => {
   if (!gapiInited || !gsisInited) return null;
+
+  // Formatear el detalle de equipos para la descripción
+  const detalleEquipos = items.length > 0 
+    ? '\n\nDETALLE DE EQUIPOS:\n' + items.map(item => `- ${item.cantidad}x ${item.descripcion} (${item.dias} días)`).join('\n')
+    : '\n\n(No hay equipos agregados aún)';
 
   const event = {
     'summary': `EcoSilence: ${clienteName} - ${servicio.idServicio}`,
     'location': servicio.direccionEvento,
-    'description': `Servicio de EcoSilence\nEtapa: ${servicio.etapa}\nID: ${servicio.idServicio}`,
+    'description': `Servicio de EcoSilence\nEtapa: ${servicio.etapa}\nID: ${servicio.idServicio}${detalleEquipos}`,
     'start': {
       'dateTime': new Date(servicio.fechaInicio).toISOString(),
       'timeZone': 'America/Santiago'
@@ -115,7 +120,7 @@ export const syncServiceToCalendar = async (servicio, clienteName) => {
     if (err.status === 401) {
        // Token expirado, re-autenticar
        await authenticateGoogle();
-       return syncServiceToCalendar(servicio, clienteName);
+       return syncServiceToCalendar(servicio, clienteName, items);
     }
     return null;
   }
