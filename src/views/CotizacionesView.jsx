@@ -6,7 +6,7 @@ const CotizacionesView = () => {
   const { 
     servicios, clientes, inventario, cotizaciones, 
     addItemCotizacion, removeItemCotizacion, editItemCotizacion, 
-    updateServiceDiscount, updateServiceCurrency, viewParams, getStockActual, navigate
+    updateServiceDiscount, updateServiceCurrency, viewParams, getStockActual, navigate, menuNames
   } = useAppStore();
   
   // Servicio seleccionado para cotizar
@@ -116,7 +116,7 @@ const CotizacionesView = () => {
             </button>
           )}
           <div>
-            <h1 style={{ margin: 0, marginBottom: '0.3rem' }}>Cotización y Facturación</h1>
+            <h1 style={{ margin: 0, marginBottom: '0.3rem' }}>{menuNames.cotizaciones || 'Cotización y Facturación'}</h1>
             <p style={{ color: 'var(--text-muted)', margin: 0 }}>Crea y gestiona presupuestos enlazados a tus servicios y eventos.</p>
           </div>
         </div>

@@ -3,7 +3,7 @@ import { useAppStore } from '../context/AppDataContext';
 import { Plus, Search, Box, Package as PkgIcon, AlertTriangle, X, CalendarDays } from 'lucide-react';
 
 const InventarioView = () => {
-  const { inventario, getStockActual, addEquipo, editEquipo, removeEquipo } = useAppStore();
+  const { inventario, getStockActual, addEquipo, editEquipo, removeEquipo, menuNames } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [stockDate, setStockDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -45,7 +45,7 @@ const InventarioView = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <div className="responsive-flex-column" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
         <div>
-          <h1 style={{ marginBottom: '0.5rem' }}>Control de Inventario</h1>
+          <h1 style={{ marginBottom: '0.5rem' }}>{menuNames.inventario || 'Control de Inventario'}</h1>
           <p style={{ color: 'var(--text-muted)' }}>Supervisa el stock total y disponible considerando los servicios en curso (virtual).</p>
         </div>
         <button className="btn btn-primary" style={{ width: '100%', maxWidth: '200px' }} onClick={openNewModal}><Plus size={18} /> Nuevo Equipo</button>

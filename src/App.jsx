@@ -98,7 +98,16 @@ function App() {
                   >
                     <item.icon size={20} color={isActive ? 'var(--accent-primary)' : 'currentColor'} />
                     <span style={{ flex: 1 }}>{item.name}</span>
-                    <Edit2 size={12} color="var(--text-muted)" style={{ opacity: 0.3 }} />
+                    <div 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTempName(item.name);
+                        setEditingMenu(item.id);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.2rem', borderRadius: '4px' }}
+                    >
+                      <Edit2 size={12} color="var(--text-muted)" style={{ opacity: 0.8 }} />
+                    </div>
                   </button>
                 )}
               </div>

@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { DollarSign, Briefcase, MapPin, Calendar, Clock, Filter, CalendarDays } from 'lucide-react';
 
 const Dashboard = () => {
-  const { servicios, cotizaciones, isGoogleLinked, linkGoogle } = useAppStore();
+  const { servicios, cotizaciones, isGoogleLinked, linkGoogle, menuNames } = useAppStore();
   const [selectedMonth, setSelectedMonth] = useState('Todos');
 
   const availableMonths = useMemo(() => {
@@ -99,7 +99,7 @@ const Dashboard = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ marginBottom: '0.5rem' }}>Panel de Control {selectedMonth !== 'Todos' ? `- ${formatMonth(selectedMonth)}` : ''}</h1>
+          <h1 style={{ marginBottom: '0.5rem' }}>{menuNames.dashboard || 'Panel de Control'} {selectedMonth !== 'Todos' ? `- ${formatMonth(selectedMonth)}` : ''}</h1>
           <p style={{ color: 'var(--text-muted)' }}>Resumen de métricas de facturación y servicios del periodo.</p>
         </div>
          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>

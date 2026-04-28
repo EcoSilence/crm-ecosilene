@@ -4,7 +4,7 @@ import { Plus, Search, MapPin, Phone, Building, Mail, X, Trash2, Edit2, Upload, 
 import * as XLSX from 'xlsx';
 
 const ClientesView = () => {
-  const { clientes, addCliente, editCliente, removeCliente } = useAppStore();
+  const { clientes, addCliente, editCliente, removeCliente, menuNames } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal State
@@ -156,7 +156,7 @@ const ClientesView = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ marginBottom: '0.5rem' }}>Directorio de Clientes</h1>
+          <h1 style={{ marginBottom: '0.5rem' }}>{menuNames.clientes || 'Directorio de Clientes'}</h1>
           <p style={{ color: 'var(--text-muted)' }}>Gestiona tu base de datos de clientes y empresas.</p>
         </div>
         <div className="responsive-flex-column" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

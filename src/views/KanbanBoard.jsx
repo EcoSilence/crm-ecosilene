@@ -5,7 +5,7 @@ import { Clock, MapPin, User, CalendarDays, ChevronDown, ChevronUp, ChevronRight
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, addServicio, editServicio, removeServicio, navigate, kanbanExpandedYears, setKanbanExpandedYears, kanbanExpandedMonths, setKanbanExpandedMonths, kanbanExpandedStage, setKanbanExpandedStage } = useAppStore();
+  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, addServicio, editServicio, removeServicio, navigate, kanbanExpandedYears, setKanbanExpandedYears, kanbanExpandedMonths, setKanbanExpandedMonths, kanbanExpandedStage, setKanbanExpandedStage, menuNames } = useAppStore();
   
   // States para la navegación de carpetas
   const expandedYears = kanbanExpandedYears;
@@ -177,7 +177,7 @@ const KanbanBoard = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ marginBottom: '0.5rem' }}>Pipeline de Ventas (Archivos)</h1>
+          <h1 style={{ marginBottom: '0.5rem' }}>{menuNames.kanban || 'Pipeline de Ventas (Archivos)'}</h1>
           <p style={{ color: 'var(--text-muted)' }}>Despliega las carpetas por Año y Mes para acceder a los eventos.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
