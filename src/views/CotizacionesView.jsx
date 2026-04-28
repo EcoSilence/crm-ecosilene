@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../context/AppDataContext';
-import { FileText, Plus, MapPin, CalendarDays, DollarSign, Download, Trash2, Box, Mail, Printer, X, Save } from 'lucide-react';
+import { FileText, Plus, MapPin, CalendarDays, DollarSign, Download, Trash2, Box, Mail, Printer, X, Save, ArrowLeft } from 'lucide-react';
 
 const CotizacionesView = () => {
   const { 
@@ -105,9 +105,20 @@ const CotizacionesView = () => {
       `}</style>
 
       <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        <div>
-          <h1 style={{ marginBottom: '0.5rem' }}>Cotización y Facturación</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Crea y gestiona presupuestos enlazados a tus servicios y eventos.</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {viewParams?.fromKanban && (
+            <button 
+              className="btn btn-ghost" 
+              style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-dark)' }} 
+              onClick={() => navigate('kanban')}
+            >
+              <ArrowLeft size={18} /> Volver al Flujo
+            </button>
+          )}
+          <div>
+            <h1 style={{ margin: 0, marginBottom: '0.3rem' }}>Cotización y Facturación</h1>
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Crea y gestiona presupuestos enlazados a tus servicios y eventos.</p>
+          </div>
         </div>
 
       {/* Selector de Servicio */}

@@ -5,12 +5,15 @@ import { Clock, MapPin, User, CalendarDays, ChevronDown, ChevronUp, ChevronRight
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, addServicio, editServicio, removeServicio, navigate } = useAppStore();
+  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, addServicio, editServicio, removeServicio, navigate, kanbanExpandedYears, setKanbanExpandedYears, kanbanExpandedMonths, setKanbanExpandedMonths, kanbanExpandedStage, setKanbanExpandedStage } = useAppStore();
   
   // States para la navegación de carpetas
-  const [expandedYears, setExpandedYears] = useState({});
-  const [expandedMonths, setExpandedMonths] = useState({});
-  const [expandedStage, setExpandedStage] = useState(null);
+  const expandedYears = kanbanExpandedYears;
+  const setExpandedYears = setKanbanExpandedYears;
+  const expandedMonths = kanbanExpandedMonths;
+  const setExpandedMonths = setKanbanExpandedMonths;
+  const expandedStage = kanbanExpandedStage;
+  const setExpandedStage = setKanbanExpandedStage;
 
   // Modal State para Agregar / Editar Servicio
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -228,7 +231,7 @@ const KanbanBoard = () => {
                               </div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                               <button className="btn btn-primary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}>
+                               <button className="btn btn-primary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, fromKanban: true })}>
                                  <CheckCircle size={15}/> Cotizar
                                </button>
                                <button className="btn btn-ghost" onClick={() => openEditModal(s)}><Edit2 size={15}/></button>
@@ -408,7 +411,7 @@ const KanbanBoard = () => {
                                                     <button 
                                                        className="btn btn-primary" 
                                                        style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }} 
-                                                       onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}
+                                                       onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, fromKanban: true })}
                                                     >
                                                       <CheckCircle size={15}/> Cotizar
                                                     </button>

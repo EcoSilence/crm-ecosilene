@@ -23,6 +23,11 @@ export const AppDataProvider = ({ children }) => {
   const [servicios, setServicios] = useState([]);
   const [cotizaciones, setCotizaciones] = useState([]);
 
+  // Kanban visual state
+  const [kanbanExpandedYears, setKanbanExpandedYears] = useState({});
+  const [kanbanExpandedMonths, setKanbanExpandedMonths] = useState({});
+  const [kanbanExpandedStage, setKanbanExpandedStage] = useState(null);
+
   // Fetch data from Supabase
   const fetchData = async () => {
     setIsLoading(true);
@@ -455,7 +460,10 @@ export const AppDataProvider = ({ children }) => {
     servicios, updateServiceStage, updateServiceDiscount, updateServiceCurrency, addServicio, editServicio, removeServicio,
     cotizaciones: getCotizacionesEnriched(), addItemCotizacion, removeItemCotizacion, editItemCotizacion,
     getStockActual,
-    isGoogleLinked, linkGoogle
+    isGoogleLinked, linkGoogle,
+    kanbanExpandedYears, setKanbanExpandedYears,
+    kanbanExpandedMonths, setKanbanExpandedMonths,
+    kanbanExpandedStage, setKanbanExpandedStage
   };
 
   return (
