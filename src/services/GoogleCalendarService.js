@@ -84,15 +84,24 @@ export const syncServiceToCalendar = async (servicio, clienteName, items = []) =
 
   // Calcular totales
   const subtotalGeneral = items.reduce((acc, item) => acc + ((item.cantidad || 0) * (item.dias || 0) * (item.precioUnitario || 0)), 0);
-  const iva = subtotalGeneral * 0.19;
-  const totalFinal = subtotalGeneral + iva;
+  const descuentoData = servicio.descuento || 0;
+  const descuentoMonto = subtotalGeneral * (descuentoData / 100);
+  const neto = subtotalGeneral - descuentoMonto;
+  const iva = neto * 0.19;
+  const totalFinal = neto + iva;
 
   // Formatear el detalle de equipos para la descripción incluyendo precios
+  let totalesTexto = `\n\nTOTAL COTIZACIÓN:\nSubtotal: $${subtotalGeneral.toLocaleString('es-CL')}`;
+  if (descuentoData > 0) {
+    totalesTexto += `\nDescuento (${descuentoData}%): -$${descuentoMonto.toLocaleString('es-CL')}`;
+  }
+  totalesTexto += `\nIVA (19%): $${iva.toLocaleString('es-CL')}\nTOTAL CLP: $${totalFinal.toLocaleString('es-CL')}`;
+
   const detalleEquipos = items.length > 0 
     ? '\n\nDETALLE DE EQUIPOS:\n' + items.map(item => {
         const total = (item.cantidad || 0) * (item.dias || 0) * (item.precioUnitario || 0);
         return `- ${item.cantidad}x ${item.descripcion} (${item.dias} d): $${total.toLocaleString('es-CL')}`;
-      }).join('\n') + `\n\nTOTAL COTIZACIÓN:\nSubtotal: $${subtotalGeneral.toLocaleString('es-CL')}\nIVA (19%): $${iva.toLocaleString('es-CL')}\nTOTAL CLP: $${totalFinal.toLocaleString('es-CL')}`
+      }).join('\n') + totalesTexto
     : '\n\n(No hay equipos agregados aún)';
 
   // Calcular total de audífonos para el título
