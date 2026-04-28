@@ -6,7 +6,7 @@ const CotizacionesView = () => {
   const { 
     servicios, clientes, inventario, cotizaciones, 
     addItemCotizacion, removeItemCotizacion, editItemCotizacion, 
-    updateServiceDiscount, updateServiceCurrency, viewParams, getStockActual
+    updateServiceDiscount, updateServiceCurrency, viewParams, getStockActual, navigate
   } = useAppStore();
   
   // Servicio seleccionado para cotizar
