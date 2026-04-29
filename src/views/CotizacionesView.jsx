@@ -358,7 +358,13 @@ https://www.youtube.com/watch?v=M5Hv5z5rWaA`);
                  }}>
                    <Mail size={18}/> Enviar por Correo
                  </button>
-                 <button className="btn btn-primary" onClick={() => window.print()}>
+                 <button className="btn btn-primary" onClick={() => {
+                   const originalTitle = document.title;
+                   const clientName = cliente?.empresa || `${cliente?.nombre} ${cliente?.apellido}`;
+                   document.title = `COT${servicio.idServicio} - ${clientName}`;
+                   window.print();
+                   document.title = originalTitle;
+                 }}>
                    <Printer size={18}/> Imprimir / Guardar PDF
                  </button>
                  <button className="btn btn-ghost" onClick={() => setShowPreview(false)} style={{ border: 'none', padding: '0.4rem' }}>
