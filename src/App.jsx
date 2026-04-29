@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppStore } from './context/AppDataContext'
-import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X } from 'lucide-react'
+import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronDown, CalendarDays } from 'lucide-react'
 
 import Dashboard from './views/Dashboard'
 import KanbanBoard from './views/KanbanBoard'
@@ -9,10 +9,15 @@ import InventarioView from './views/InventarioView'
 import CotizacionesView from './views/CotizacionesView'
 
 function App() {
-  const { currentView, navigate, menuNames, updateMenuName } = useAppStore();
+  const { currentView, navigate, menuNames, updateMenuName, kanbanGroupedData, kanbanExpandedYears, setKanbanExpandedYears, selectedKanbanMonth, setSelectedKanbanMonth } = useAppStore();
   const [editingMenu, setEditingMenu] = useState(null);
   const [tempName, setTempName] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const monthNames = {
+    '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril', '05': 'Mayo', '06': 'Junio',
+    '07': 'Julio', '08': 'Agosto', '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
+  };
 
   const navigation = [
     { id: 'dashboard', name: menuNames.dashboard || 'Dashboard', icon: LayoutDashboard },
@@ -59,7 +64,8 @@ function App() {
             const isEditing = editingMenu === item.id;
             
             return (
-              <div key={item.id} style={{ display: 'flex', alignItems: 'center' }}>
+              <div key={item.id} style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
                 {isEditing ? (
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px', padding: '0.6rem 1rem', background: 'var(--bg-panel-hover)', borderRadius: 'var(--radius-sm)' }}>
                      <item.icon size={20} color="var(--accent-primary)" />
@@ -109,6 +115,59 @@ function App() {
                       <Edit2 size={12} color="var(--text-muted)" style={{ opacity: 0.8 }} />
                     </div>
                   </button>
+                )}
+                </div>
+
+                {/* Kanban Submenu */}
+                {item.id === 'kanban' && currentView === 'kanban' && (
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', paddingLeft: '0.5rem', marginTop: '0.2rem', borderLeft: '2px solid rgba(255,255,255,0.05)', marginLeft: '1rem', marginBottom: '0.5rem' }}>
+                      {kanbanGroupedData.sinFecha.length > 0 && (
+                        <div 
+                          onClick={() => setSelectedKanbanMonth('sinFecha')}
+                          style={{ padding: '0.4rem 0.8rem', cursor: 'pointer', borderRadius: '4px', background: selectedKanbanMonth === 'sinFecha' ? 'var(--bg-panel-hover)' : 'transparent', color: selectedKanbanMonth === 'sinFecha' ? 'var(--accent-primary)' : 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.85rem' }}
+                        >
+                          <CalendarDays size={14} /> Sin Fecha ({kanbanGroupedData.sinFecha.length})
+                        </div>
+                      )}
+                      {Object.keys(kanbanGroupedData.years).sort((a,b) => b.localeCompare(a)).map(year => (
+                        <div key={year} style={{ display: 'flex', flexDirection: 'column' }}>
+                           <div 
+                             onClick={() => setKanbanExpandedYears(prev => ({...prev, [year]: !prev[year]}))}
+                             style={{ padding: '0.4rem 0.8rem', cursor: 'pointer', borderRadius: '4px', color: kanbanExpandedYears[year] ? 'var(--accent-primary)' : 'var(--text-main)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', fontWeight: 600 }}
+                           >
+                             <span style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                               {kanbanExpandedYears[year] ? <FolderOpen size={14} color="var(--accent-primary)"/> : <Folder size={14} color="var(--text-muted)"/>}
+                               {year}
+                             </span>
+                             {kanbanExpandedYears[year] ? <ChevronDown size={14} color="var(--text-muted)"/> : <ChevronRight size={14} color="var(--text-muted)"/>}
+                           </div>
+                           
+                           {kanbanExpandedYears[year] && (
+                             <div style={{ display: 'flex', flexDirection: 'column', paddingLeft: '1.2rem', marginTop: '0.2rem', gap: '0.2rem' }}>
+                               {Object.keys(kanbanGroupedData.years[year]).sort().reverse().map(month => {
+                                 const monthKey = `${year}-${month}`;
+                                 const isSelected = selectedKanbanMonth === monthKey;
+                                 return (
+                                   <div
+                                     key={monthKey}
+                                     onClick={() => setSelectedKanbanMonth(monthKey)}
+                                     style={{ padding: '0.4rem 0.8rem', cursor: 'pointer', borderRadius: '4px', background: isSelected ? 'var(--bg-panel-hover)' : 'transparent', color: isSelected ? 'var(--text-main)' : 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}
+                                   >
+                                     <span style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                       {isSelected ? <FolderOpen size={14} color="var(--accent-secondary)"/> : <Folder size={14}/>}
+                                       {monthNames[month]}
+                                     </span>
+                                     <span style={{ background: 'var(--bg-dark)', padding: '0.1rem 0.4rem', borderRadius: '10px', fontSize: '0.7rem' }}>
+                                       {kanbanGroupedData.years[year][month].length}
+                                     </span>
+                                   </div>
+                                 );
+                               })}
+                             </div>
+                           )}
+                        </div>
+                      ))}
+                   </div>
                 )}
               </div>
             )

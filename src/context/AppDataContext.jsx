@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { initGoogleScripts, authenticateGoogle, syncServiceToCalendar, deleteCalendarEvent } from '../services/GoogleCalendarService';
 
@@ -27,6 +27,27 @@ export const AppDataProvider = ({ children }) => {
   const [kanbanExpandedYears, setKanbanExpandedYears] = useState({});
   const [kanbanExpandedMonths, setKanbanExpandedMonths] = useState({});
   const [kanbanExpandedStage, setKanbanExpandedStage] = useState(null);
+  const [selectedKanbanMonth, setSelectedKanbanMonth] = useState(null);
+
+  const kanbanGroupedData = useMemo(() => {
+    const years = {};
+    const sinFecha = [];
+    (servicios || []).forEach(s => {
+      if(!s.fechaInicio) {
+        sinFecha.push(s);
+        return;
+      }
+      const [y, m] = String(s.fechaInicio).split('-');
+      if (!y || !m) {
+        sinFecha.push(s);
+        return;
+      }
+      if (!years[y]) years[y] = {};
+      if (!years[y][m]) years[y][m] = [];
+      years[y][m].push(s);
+    });
+    return { years, sinFecha };
+  }, [servicios]);
 
   // Fetch data from Supabase
   const fetchData = async () => {
@@ -463,7 +484,8 @@ export const AppDataProvider = ({ children }) => {
     isGoogleLinked, linkGoogle,
     kanbanExpandedYears, setKanbanExpandedYears,
     kanbanExpandedMonths, setKanbanExpandedMonths,
-    kanbanExpandedStage, setKanbanExpandedStage
+    kanbanExpandedStage, setKanbanExpandedStage,
+    selectedKanbanMonth, setSelectedKanbanMonth, kanbanGroupedData
   };
 
   return (

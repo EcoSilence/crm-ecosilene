@@ -5,13 +5,8 @@ import { Clock, MapPin, User, CalendarDays, ChevronDown, ChevronUp, ChevronRight
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, addServicio, editServicio, removeServicio, navigate, kanbanExpandedYears, setKanbanExpandedYears, kanbanExpandedMonths, setKanbanExpandedMonths, kanbanExpandedStage, setKanbanExpandedStage, menuNames } = useAppStore();
+  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, addServicio, editServicio, removeServicio, navigate, kanbanExpandedStage, setKanbanExpandedStage, menuNames, selectedKanbanMonth, kanbanGroupedData } = useAppStore();
   
-  // States para la navegación de carpetas
-  const expandedYears = kanbanExpandedYears;
-  const setExpandedYears = setKanbanExpandedYears;
-  const expandedMonths = kanbanExpandedMonths;
-  const setExpandedMonths = setKanbanExpandedMonths;
   const expandedStage = kanbanExpandedStage;
   const setExpandedStage = setKanbanExpandedStage;
 
@@ -92,14 +87,6 @@ const KanbanBoard = () => {
     else setExpandedStage(stage);
   };
 
-  const toggleYear = (year) => {
-    setExpandedYears(prev => ({ ...prev, [year]: !prev[year] }));
-  };
-
-  const toggleMonth = (monthKey) => {
-    setExpandedMonths(prev => ({ ...prev, [monthKey]: !prev[monthKey] }));
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.clienteId) return alert('Debes seleccionar un cliente.');
@@ -129,28 +116,6 @@ const KanbanBoard = () => {
     '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril', '05': 'Mayo', '06': 'Junio',
     '07': 'Julio', '08': 'Agosto', '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
   };
-
-  // Estructurar la data en árbol jerárquico: Year -> Month
-  const groupedData = useMemo(() => {
-    const years = {};
-    const sinFecha = [];
-    
-    (servicios || []).forEach(s => {
-      if(!s.fechaInicio) {
-        sinFecha.push(s);
-        return;
-      }
-      const [y, m] = String(s.fechaInicio).split('-');
-      if (!y || !m) {
-        sinFecha.push(s);
-        return;
-      }
-      if (!years[y]) years[y] = {};
-      if (!years[y][m]) years[y][m] = [];
-      years[y][m].push(s);
-    });
-    return { years, sinFecha };
-  }, [servicios]);
 
   const getServiceTotals = (idServicio, descuentoData = 0) => {
     const items = cotizaciones.filter(c => c.servicioId === idServicio);
@@ -192,8 +157,14 @@ const KanbanBoard = () => {
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>No hay servicios registrados.</div>
         )}
 
+        {servicios.length > 0 && !selectedKanbanMonth && (
+           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+             Por favor selecciona un año y un mes en el menú lateral (Flujo de Trabajo) para ver los eventos.
+           </div>
+        )}
+
         {/* Sección de Servicios Sin Fecha */}
-        {groupedData.sinFecha.length > 0 && (
+        {selectedKanbanMonth === 'sinFecha' && kanbanGroupedData.sinFecha.length > 0 && (
           <div style={{ marginBottom: '2rem' }}>
             <div 
               className="glass-panel" 
@@ -205,12 +176,12 @@ const KanbanBoard = () => {
                 <CalendarDays size={24} color="var(--text-muted)"/>
                 <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-muted)' }}>Eventos por Programar / Sin Fecha</h2>
                 <span style={{ marginLeft: 'auto', background: 'var(--bg-panel)', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.8rem' }}>
-                  {groupedData.sinFecha.length} pendientes
+                  {kanbanGroupedData.sinFecha.length} pendientes
                 </span>
             </div>
             <div style={{ paddingLeft: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                {STAGES.map(stage => {
-                  const stageServices = groupedData.sinFecha.filter(s => s.etapa === stage);
+                  const stageServices = kanbanGroupedData.sinFecha.filter(s => s.etapa === stage);
                   if (stageServices.length === 0) return null;
                   return (
                     <div key={stage} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
@@ -245,195 +216,121 @@ const KanbanBoard = () => {
           </div>
         )}
 
-        {Object.keys(groupedData.years).sort((a, b) => b.localeCompare(a)).map(year => {
-          const isYearExpanded = !!expandedYears[year];
-          
-          return (
-            <div key={year} style={{ display: 'flex', flexDirection: 'column' }}>
-              {/* Carpeta del Año */}
-              <div 
-                className="glass-panel" 
-                onClick={() => toggleYear(year)}
-                style={{ 
-                  display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '1rem 1.5rem', 
-                  borderLeft: '4px solid var(--accent-primary)', marginBottom: isYearExpanded ? '1rem' : '1rem',
-                  gap: '1rem', transition: 'var(--transition)'
-                }}
-              >
-                  {isYearExpanded ? <FolderOpen size={24} color="var(--accent-primary)"/> : <Folder size={24} color="var(--text-muted)"/>}
-                  <h2 style={{ margin: 0, fontSize: '1.4rem' }}>{year}</h2>
-                  {isYearExpanded ? <ChevronDown size={20} color="var(--text-muted)" style={{ marginLeft: 'auto' }}/> : <ChevronRight size={20} color="var(--text-muted)" style={{ marginLeft: 'auto' }}/>}
-              </div>
-
-              {/* Sub-carpetas de Meses */}
-              {isYearExpanded && (
-                <div style={{ paddingLeft: '1.5rem', borderLeft: '2px solid rgba(255,255,255,0.05)', marginLeft: '1rem', marginBottom: '1rem' }}>
-                   {Object.keys(groupedData.years[year]).sort().reverse().map(month => {
-                      const monthKey = `${year}-${month}`;
-                      const isMonthExpanded = !!expandedMonths[monthKey];
-                      const monthServices = groupedData.years[year][month];
-
-                      return (
-                        <div key={monthKey} style={{ marginBottom: isMonthExpanded ? '1.5rem' : '0.8rem' }}>
-                           {/* Carpeta del Mes */}
-                           <div
-                             className="glass-panel"
-                             onClick={() => toggleMonth(monthKey)}
+        {/* Mes Seleccionado */}
+        {selectedKanbanMonth && selectedKanbanMonth !== 'sinFecha' && (() => {
+           const [year, month] = selectedKanbanMonth.split('-');
+           const monthServices = kanbanGroupedData.years[year]?.[month] || [];
+           
+           return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                 <div className="glass-panel" style={{ padding: '1rem 1.5rem', background: 'rgba(255,255,255,0.02)', borderLeft: '4px solid var(--accent-secondary)' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                       <CalendarDays size={20} color="var(--accent-secondary)"/>
+                       {monthNames[month]} {year}
+                       <span style={{ marginLeft: 'auto', background: 'var(--bg-panel)', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-muted)' }}>
+                         {monthServices.length} servicios
+                       </span>
+                    </h2>
+                 </div>
+                 
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {STAGES.map((stage) => {
+                       const stageServices = monthServices.filter(s => s.etapa === stage);
+                       const isExpanded = expandedStage === stage || expandedStage === null;
+                       
+                       return (
+                         <div key={stage} className="glass-panel" style={{ overflow: 'hidden', padding: 0 }}>
+                           <div 
                              style={{ 
-                               display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '0.8rem 1.5rem', 
-                               background: 'var(--bg-dark)', gap: '1rem', borderLeft: isMonthExpanded ? '3px solid var(--accent-secondary)' : '3px solid transparent'
+                               display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                               padding: '0.8rem 1.2rem', cursor: 'pointer', background: 'rgba(255,255,255,0.01)',
+                               borderLeft: `4px solid ${getStageColor(stage)}`
                              }}
+                             onClick={() => toggleStage(stage)}
                            >
-                              {isMonthExpanded ? <FolderOpen size={20} color="var(--accent-secondary)"/> : <Folder size={20} color="var(--text-muted)"/>}
-                              <h3 style={{ margin: 0, fontSize: '1.1rem', color: isMonthExpanded ? 'var(--text-main)' : 'var(--text-muted)' }}>
-                                {monthNames[month]}
-                              </h3>
-                              <span style={{ background: 'var(--bg-panel)', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.8rem' }}>
-                                {monthServices.length} servicios
-                              </span>
-                              {isMonthExpanded ? <ChevronDown size={18} color="var(--text-muted)" style={{ marginLeft: 'auto' }}/> : <ChevronRight size={18} color="var(--text-muted)" style={{ marginLeft: 'auto' }}/>}
+                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                               <h4 style={{ margin: 0, color: getStageColor(stage) }}>{stage}</h4>
+                               <span style={{ background: 'var(--bg-dark)', padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}>
+                                 {stageServices.length}
+                               </span>
+                               {stageServices.length > 0 && (
+                                 <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                   Total Acumulado: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(calculateStageTotal(stageServices), 'CLP')}</strong>
+                                 </span>
+                               )}
+                             </div>
+                             <button className="btn btn-ghost" style={{ padding: '0.2rem', border: 'none' }}>
+                               {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                             </button>
                            </div>
 
-                           {/* Renderizado del Flujo (STAGES) dentro del mes */}
-                           {isMonthExpanded && (
-                              <div style={{ marginLeft: '1rem', paddingLeft: '1.5rem', borderLeft: '2px solid rgba(255,255,255,0.05)', marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                 {STAGES.map((stage) => {
-                                    const stageServices = monthServices.filter(s => s.etapa === stage);
-                                    const isExpanded = expandedStage === stage || expandedStage === null;
-                                    
-                                    return (
-                                      <div key={stage} className="glass-panel" style={{ overflow: 'hidden', padding: 0 }}>
-                                        {/* Header de Etapa */}
-                                        <div 
-                                          style={{ 
-                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                                            padding: '0.8rem 1.2rem', cursor: 'pointer', background: 'rgba(255,255,255,0.01)',
-                                            borderLeft: `4px solid ${getStageColor(stage)}`
-                                          }}
-                                          onClick={() => toggleStage(stage)}
-                                        >
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                                            <h4 style={{ margin: 0, color: getStageColor(stage) }}>{stage}</h4>
-                                            <span style={{ background: 'var(--bg-dark)', padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}>
-                                              {stageServices.length}
-                                            </span>
-                                            {stageServices.length > 0 && (
-                                              <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                                                Total Acumulado: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(calculateStageTotal(stageServices), 'CLP')}</strong>
-                                              </span>
-                                            )}
-                                          </div>
-                                          <button className="btn btn-ghost" style={{ padding: '0.2rem', border: 'none' }}>
-                                            {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                                          </button>
-                                        </div>
-
-                                        {/* Tarjetas de Servicio */}
-                                        {isExpanded && (
-                                          <div style={{ padding: '0 1.2rem 1.2rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '0.5rem' }}>
-                                            {stageServices.length === 0 ? (
-                                              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', margin: '0.5rem 0' }}>Vacío</p>
-                                            ) : (
-                                              stageServices.map(s => (
-                                                <div key={s.idServicio} style={{ 
-                                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                                                  padding: '1rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)',
-                                                  border: '1px solid var(--border-color)', gap: '1rem', flexWrap: 'wrap'
-                                                }}>
-                                                   {/* Info Principal */}
-                                                  <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
-                                                    <h5 style={{ margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', flexWrap: 'wrap' }}>
-                                                      {s.idServicio} <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.8rem' }}>— {getClientName(s.clienteId)}</span>
-                                                    </h5>
-                                                    <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
-                                                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={13}/> {s.direccionEvento}</span>
-                                                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CalendarDays size={13}/> Inicio: {(s.fechaInicio || '').replace('T', ' ')}</span>
-                                                    </div>
-                                                    {(() => {
-                                                       const { neto, total } = getServiceTotals(s.idServicio, s.descuento || 0);
-                                                       const currency = s.moneda || 'CLP';
-
-                                                       const sQuotations = cotizaciones.filter(c => c.servicioId === s.idServicio);
-                                                       let audifonos = 0;
-                                                       let transmisores = 0;
-                                                       sQuotations.forEach(q => {
-                                                         const eq = inventario?.find(i => i.idEquipo === q.equipoId);
-                                                         if (eq) {
-                                                            if (eq.categoria === 'Audio' || eq.nombreEquipo.toLowerCase().includes('audífono') || eq.nombreEquipo.toLowerCase().includes('audifono')) audifonos += q.cantidad;
-                                                            else if (eq.categoria === 'Transmisión' || eq.nombreEquipo.toLowerCase().includes('transmisor') || eq.nombreEquipo.toUpperCase().includes('TX')) transmisores += q.cantidad;
-                                                         }
-                                                       });
-
-                                                       return (
-                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                                                           {(audifonos > 0 || transmisores > 0) && (
-                                                             <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                                                {audifonos > 0 && <span style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>🎧 Audífonos: <strong>{audifonos}</strong></span>}
-                                                                {transmisores > 0 && <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#facc15', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>📡 Transmisores (TX): <strong>{transmisores}</strong></span>}
-                                                             </div>
-                                                           )}
-                                                           <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.8rem', flexWrap: 'wrap' }}>
-                                                             <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>Neto: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(neto, currency)}</strong></span>
-                                                             <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>Total c/IVA: <strong style={{ color: 'var(--accent-primary)' }}>{formatCurrency(total, currency)}</strong></span>
-                                                           </div>
-                                                         </div>
-                                                       );
-                                                    })()}
-                                                  </div>
-
-                                                  {/* Controles para cambiar de etapa fácilmente en lista */}
-                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-                                                    <select 
-                                                      className="input-control" 
-                                                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', width: '130px' }}
-                                                      value={s.etapa}
-                                                      onChange={(e) => updateServiceStage(s.idServicio, e.target.value)}
-                                                    >
-                                                      {STAGES.map(st => <option key={st} value={st}>{st}</option>)}
-                                                    </select>
-                                                    
-                                                    <button 
-                                                       className="btn btn-ghost" 
-                                                       style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', color: 'var(--text-muted)' }} 
-                                                       onClick={() => openEditModal(s)}
-                                                    >
-                                                      <Edit2 size={15}/>
-                                                    </button>
-                                                    
-                                                    <button 
-                                                       className="btn btn-ghost" 
-                                                       style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', color: 'var(--color-tomato)' }} 
-                                                       onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}
-                                                    >
-                                                      <Trash2 size={15}/>
-                                                    </button>
-
-                                                    <button 
-                                                       className="btn btn-primary" 
-                                                       style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }} 
-                                                       onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, fromKanban: true })}
-                                                    >
-                                                      <CheckCircle size={15}/> Cotizar
-                                                    </button>
-                                                  </div>
+                           {isExpanded && (
+                             <div style={{ padding: '0 1.2rem 1.2rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '0.5rem' }}>
+                               {stageServices.length === 0 ? (
+                                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', margin: '0.5rem 0' }}>Vacío</p>
+                               ) : (
+                                 stageServices.map(s => (
+                                   <div key={s.idServicio} style={{ 
+                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                                     padding: '1rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)',
+                                     border: '1px solid var(--border-color)', gap: '1rem', flexWrap: 'wrap'
+                                   }}>
+                                     <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
+                                       <h5 style={{ margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', flexWrap: 'wrap' }}>
+                                         {s.idServicio} <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.8rem' }}>— {getClientName(s.clienteId)}</span>
+                                       </h5>
+                                       <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
+                                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={13}/> {s.direccionEvento}</span>
+                                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CalendarDays size={13}/> Inicio: {(s.fechaInicio || '').replace('T', ' ')}</span>
+                                       </div>
+                                       {(() => {
+                                          const { neto, total } = getServiceTotals(s.idServicio, s.descuento || 0);
+                                          const currency = s.moneda || 'CLP';
+                                          const sQuotations = cotizaciones.filter(c => c.servicioId === s.idServicio);
+                                          let audifonos = 0; let transmisores = 0;
+                                          sQuotations.forEach(q => {
+                                            const eq = inventario?.find(i => i.idEquipo === q.equipoId);
+                                            if (eq) {
+                                               if (eq.categoria === 'Audio' || eq.nombreEquipo.toLowerCase().includes('audífono') || eq.nombreEquipo.toLowerCase().includes('audifono')) audifonos += q.cantidad;
+                                               else if (eq.categoria === 'Transmisión' || eq.nombreEquipo.toLowerCase().includes('transmisor') || eq.nombreEquipo.toUpperCase().includes('TX')) transmisores += q.cantidad;
+                                            }
+                                          });
+                                          return (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                              {(audifonos > 0 || transmisores > 0) && (
+                                                <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                   {audifonos > 0 && <span style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>🎧 Audífonos: <strong>{audifonos}</strong></span>}
+                                                   {transmisores > 0 && <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#facc15', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>📡 Transmisores (TX): <strong>{transmisores}</strong></span>}
                                                 </div>
-                                              ))
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                 })}
-                              </div>
+                                              )}
+                                              <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.8rem', flexWrap: 'wrap' }}>
+                                                <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>Neto: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(neto, currency)}</strong></span>
+                                                <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>Total c/IVA: <strong style={{ color: 'var(--accent-primary)' }}>{formatCurrency(total, currency)}</strong></span>
+                                              </div>
+                                            </div>
+                                          );
+                                       })()}
+                                     </div>
+                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                                       <select className="input-control" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', width: '130px' }} value={s.etapa} onChange={(e) => updateServiceStage(s.idServicio, e.target.value)}>
+                                         {STAGES.map(st => <option key={st} value={st}>{st}</option>)}
+                                       </select>
+                                       <button className="btn btn-ghost" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', color: 'var(--text-muted)' }} onClick={() => openEditModal(s)}><Edit2 size={15}/></button>
+                                       <button className="btn btn-ghost" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', color: 'var(--color-tomato)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={15}/></button>
+                                       <button className="btn btn-primary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, fromKanban: true })}><CheckCircle size={15}/> Cotizar</button>
+                                     </div>
+                                   </div>
+                                 ))
+                               )}
+                             </div>
                            )}
-                        </div>
-                      )
-                   })}
-                </div>
-              )}
-            </div>
-          )
-        })}
+                         </div>
+                       );
+                    })}
+                 </div>
+              </div>
+           );
+        })()}
       </div>
 
       {/* Modal Agregar / Editar Servicio */}
