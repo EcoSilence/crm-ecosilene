@@ -29,7 +29,32 @@ const CotizacionesView = () => {
   const cliente = servicio ? clientes.find(c => c.id === servicio.clienteId) : null;
   const itemsCotizacion = cotizaciones.filter(c => c.servicioId === selectedServicioId);
 
-  // Lógica de impresión trasladada al botón
+  // Efecto absoluto para cambiar el title del DOM y persistirlo mientras la vista previa esté abierta
+  useEffect(() => {
+    let originalTitle = document.title;
+    let originalTagText = '';
+    const titleTag = document.querySelector('title');
+    if (titleTag) originalTagText = titleTag.innerText;
+
+    if (showPreview && servicio && cliente) {
+       const clientName = cliente.empresa || `${cliente.nombre} ${cliente.apellido}`;
+       const newTitle = `COT${servicio.idServicio} - ${clientName}`;
+       document.title = newTitle;
+       if (titleTag) titleTag.innerText = newTitle;
+    }
+
+    // El listener 'afterprint' también puede ayudar como fallback
+    const handleAfterPrint = () => {
+       // Opcional, pero dejaremos que el cierre del modal lo maneje
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    return () => {
+       document.title = originalTitle;
+       if (titleTag) titleTag.innerText = originalTagText;
+       window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, [showPreview, servicio, cliente]);
 
   const subtotalBruto = itemsCotizacion.reduce((acc, curr) => acc + curr.subtotal, 0);
   const descuentoPorcentaje = servicio?.descuento || 0;
@@ -360,23 +385,7 @@ https://www.youtube.com/watch?v=M5Hv5z5rWaA`);
                  }}>
                    <Mail size={18}/> Enviar por Correo
                  </button>
-                 <button className="btn btn-primary" onClick={() => {
-                   const clientName = cliente?.empresa || `${cliente?.nombre} ${cliente?.apellido}`;
-                   const originalTitle = document.title;
-                   const newTitle = `COT${servicio.idServicio} - ${clientName}`;
-                   
-                   document.title = newTitle;
-                   let titleTag = document.querySelector('title');
-                   if (titleTag) titleTag.innerText = newTitle;
-                   
-                   setTimeout(() => {
-                     window.print();
-                     setTimeout(() => {
-                        document.title = originalTitle;
-                        if (titleTag) titleTag.innerText = originalTitle;
-                     }, 1000);
-                   }, 100);
-                 }}>
+                 <button className="btn btn-primary" onClick={() => window.print()}>
                    <Printer size={18}/> Imprimir / Guardar PDF
                  </button>
                  <button className="btn btn-ghost" onClick={() => setShowPreview(false)} style={{ border: 'none', padding: '0.4rem' }}>
