@@ -29,17 +29,7 @@ const CotizacionesView = () => {
   const cliente = servicio ? clientes.find(c => c.id === servicio.clienteId) : null;
   const itemsCotizacion = cotizaciones.filter(c => c.servicioId === selectedServicioId);
 
-  // Efecto para asegurar que el nombre del PDF tome el formato adecuado en el diálogo de impresión
-  useEffect(() => {
-    const originalTitle = document.title;
-    if (showPreview && servicio && cliente) {
-       const clientName = cliente.empresa || `${cliente.nombre} ${cliente.apellido}`;
-       document.title = `COT${servicio.idServicio} - ${clientName}`;
-    }
-    return () => {
-       document.title = originalTitle;
-    };
-  }, [showPreview, servicio, cliente]);
+  // Lógica de impresión trasladada al botón
 
   const subtotalBruto = itemsCotizacion.reduce((acc, curr) => acc + curr.subtotal, 0);
   const descuentoPorcentaje = servicio?.descuento || 0;
@@ -370,7 +360,23 @@ https://www.youtube.com/watch?v=M5Hv5z5rWaA`);
                  }}>
                    <Mail size={18}/> Enviar por Correo
                  </button>
-                 <button className="btn btn-primary" onClick={() => window.print()}>
+                 <button className="btn btn-primary" onClick={() => {
+                   const clientName = cliente?.empresa || `${cliente?.nombre} ${cliente?.apellido}`;
+                   const originalTitle = document.title;
+                   const newTitle = `COT${servicio.idServicio} - ${clientName}`;
+                   
+                   document.title = newTitle;
+                   let titleTag = document.querySelector('title');
+                   if (titleTag) titleTag.innerText = newTitle;
+                   
+                   setTimeout(() => {
+                     window.print();
+                     setTimeout(() => {
+                        document.title = originalTitle;
+                        if (titleTag) titleTag.innerText = originalTitle;
+                     }, 1000);
+                   }, 100);
+                 }}>
                    <Printer size={18}/> Imprimir / Guardar PDF
                  </button>
                  <button className="btn btn-ghost" onClick={() => setShowPreview(false)} style={{ border: 'none', padding: '0.4rem' }}>
