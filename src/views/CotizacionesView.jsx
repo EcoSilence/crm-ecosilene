@@ -29,6 +29,18 @@ const CotizacionesView = () => {
   const cliente = servicio ? clientes.find(c => c.id === servicio.clienteId) : null;
   const itemsCotizacion = cotizaciones.filter(c => c.servicioId === selectedServicioId);
 
+  // Efecto para asegurar que el nombre del PDF tome el formato adecuado en el diálogo de impresión
+  useEffect(() => {
+    const originalTitle = document.title;
+    if (showPreview && servicio && cliente) {
+       const clientName = cliente.empresa || `${cliente.nombre} ${cliente.apellido}`;
+       document.title = `COT${servicio.idServicio} - ${clientName}`;
+    }
+    return () => {
+       document.title = originalTitle;
+    };
+  }, [showPreview, servicio, cliente]);
+
   const subtotalBruto = itemsCotizacion.reduce((acc, curr) => acc + curr.subtotal, 0);
   const descuentoPorcentaje = servicio?.descuento || 0;
   const descuentoMonto = subtotalBruto * (descuentoPorcentaje / 100);
@@ -358,13 +370,7 @@ https://www.youtube.com/watch?v=M5Hv5z5rWaA`);
                  }}>
                    <Mail size={18}/> Enviar por Correo
                  </button>
-                 <button className="btn btn-primary" onClick={() => {
-                   const originalTitle = document.title;
-                   const clientName = cliente?.empresa || `${cliente?.nombre} ${cliente?.apellido}`;
-                   document.title = `COT${servicio.idServicio} - ${clientName}`;
-                   window.print();
-                   document.title = originalTitle;
-                 }}>
+                 <button className="btn btn-primary" onClick={() => window.print()}>
                    <Printer size={18}/> Imprimir / Guardar PDF
                  </button>
                  <button className="btn btn-ghost" onClick={() => setShowPreview(false)} style={{ border: 'none', padding: '0.4rem' }}>
