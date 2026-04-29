@@ -7,7 +7,7 @@ const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 const KanbanBoard = () => {
   const { 
     clientes, servicios, cotizaciones, inventario, 
-    addServicio, removeServicio, updateServiceStage, getStockActual, menuNames,
+    addServicio, editServicio, removeServicio, updateServiceStage, getStockActual, menuNames,
     kanbanGroupedData, selectedKanbanMonth, kanbanExpandedStage, setKanbanExpandedStage, navigate,
     formatDateDDMMYYYY
   } = useAppStore();
