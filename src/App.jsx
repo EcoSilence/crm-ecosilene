@@ -7,6 +7,7 @@ import KanbanBoard from './views/KanbanBoard'
 import ClientesView from './views/ClientesView'
 import InventarioView from './views/InventarioView'
 import CotizacionesView from './views/CotizacionesView'
+import ServiciosListView from './views/ServiciosListView'
 
 function App() {
   const { currentView, navigate, menuNames, updateMenuName, kanbanGroupedData, kanbanExpandedYears, setKanbanExpandedYears, selectedKanbanMonth, setSelectedKanbanMonth } = useAppStore();
@@ -34,6 +35,7 @@ function App() {
       case 'clientes': return <ClientesView />
       case 'inventario': return <InventarioView />
       case 'cotizaciones': return <CotizacionesView />
+      case 'lista_servicios': return <ServiciosListView />
       default: return <Dashboard />
     }
   }

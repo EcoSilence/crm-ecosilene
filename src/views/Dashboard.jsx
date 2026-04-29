@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { DollarSign, Briefcase, MapPin, Calendar, Clock, Filter, CalendarDays } from 'lucide-react';
 
 const Dashboard = () => {
-  const { servicios, cotizaciones, isGoogleLinked, linkGoogle, menuNames } = useAppStore();
+  const { servicios, cotizaciones, isGoogleLinked, linkGoogle, menuNames, navigate } = useAppStore();
   const [selectedMonth, setSelectedMonth] = useState('Todos');
 
   const availableMonths = useMemo(() => {
@@ -129,7 +129,13 @@ const Dashboard = () => {
 
       <div className="responsive-grid-cards">
         
-        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem' }}>
+        <div 
+          className="glass-card" 
+          style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem', cursor: 'pointer', transition: 'all 0.2s' }}
+          onClick={() => navigate('lista_servicios', { stage: 'Cotizado' })}
+          onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.2)'; }}
+          onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+        >
           <div style={{ background: 'var(--color-banana-bg)', padding: '0.8rem', borderRadius: '50%', color: 'var(--color-banana)' }}>
             <Briefcase size={24} />
           </div>
@@ -139,7 +145,13 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem' }}>
+        <div 
+          className="glass-card" 
+          style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem', cursor: 'pointer', transition: 'all 0.2s' }}
+          onClick={() => navigate('lista_servicios', { stage: 'Aprobado' })}
+          onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.2)'; }}
+          onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+        >
           <div style={{ background: 'var(--color-berry-bg)', padding: '0.8rem', borderRadius: '50%', color: 'var(--color-berry)' }}>
             <Calendar size={24} />
           </div>
@@ -149,7 +161,13 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem' }}>
+        <div 
+          className="glass-card" 
+          style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem', cursor: 'pointer', transition: 'all 0.2s' }}
+          onClick={() => navigate('lista_servicios', { stage: 'Por Cobrar' })}
+          onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.2)'; }}
+          onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+        >
           <div style={{ background: 'var(--color-tomato-bg)', padding: '0.8rem', borderRadius: '50%', color: 'var(--color-tomato)' }}>
             <Clock size={24} />
           </div>
@@ -159,7 +177,13 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem' }}>
+        <div 
+          className="glass-card" 
+          style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem', cursor: 'pointer', transition: 'all 0.2s' }}
+          onClick={() => navigate('lista_servicios', { stage: 'Pagado' })}
+          onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.2)'; }}
+          onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+        >
           <div style={{ background: 'var(--color-basil-bg)', padding: '0.8rem', borderRadius: '50%', color: 'var(--color-basil)' }}>
             <DollarSign size={24} />
           </div>
