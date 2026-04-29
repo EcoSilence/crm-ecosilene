@@ -3,7 +3,7 @@ import { useAppStore } from '../context/AppDataContext';
 import { ArrowLeft, MapPin, CalendarDays, CheckCircle } from 'lucide-react';
 
 const ServiciosListView = () => {
-  const { servicios, clientes, cotizaciones, navigate, viewParams } = useAppStore();
+  const { servicios, clientes, cotizaciones, navigate, viewParams, formatDateDDMMYYYY } = useAppStore();
   const stage = viewParams?.stage || 'Cotizado';
 
   // Sort services by date descending (newest first)
@@ -79,7 +79,7 @@ const ServiciosListView = () => {
                 </h3>
                 <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapPin size={14}/> {s.direccionEvento || 'Sin dirección'}</span>
-                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><CalendarDays size={14}/> Inicio: {(s.fechaInicio || 'Por definir').replace('T', ' ')}</span>
+                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><CalendarDays size={14}/> Inicio: {s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'Por definir'}</span>
                 </div>
                 {(() => {
                    const { neto, total } = getServiceTotals(s.idServicio, s.descuento || 0);

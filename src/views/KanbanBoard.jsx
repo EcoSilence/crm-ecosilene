@@ -5,7 +5,12 @@ import { Clock, MapPin, User, CalendarDays, ChevronDown, ChevronUp, ChevronRight
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, addServicio, editServicio, removeServicio, navigate, kanbanExpandedStage, setKanbanExpandedStage, menuNames, selectedKanbanMonth, kanbanGroupedData } = useAppStore();
+  const { 
+    clientes, servicios, cotizaciones, inventario, 
+    addServicio, removeServicio, updateServiceStage, getStockActual, menuNames,
+    kanbanGroupedData, selectedKanbanMonth, kanbanExpandedStage, setKanbanExpandedStage, navigate,
+    formatDateDDMMYYYY
+  } = useAppStore();
   
   const expandedStage = kanbanExpandedStage;
   const setExpandedStage = setKanbanExpandedStage;
@@ -281,7 +286,7 @@ const KanbanBoard = () => {
                                        </h5>
                                        <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
                                           <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={13}/> {s.direccionEvento}</span>
-                                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CalendarDays size={13}/> Inicio: {(s.fechaInicio || '').replace('T', ' ')}</span>
+                                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CalendarDays size={13}/> Inicio: {s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'Por definir'}</span>
                                        </div>
                                        {(() => {
                                           const { neto, total } = getServiceTotals(s.idServicio, s.descuento || 0);

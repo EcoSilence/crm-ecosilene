@@ -223,8 +223,9 @@ const Dashboard = () => {
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', gap: '0.8rem', padding: '1rem', overflowY: 'auto' }}>
               {filteredServicios.map(s => {
                 const fechaStr = String(s.fechaInicio || '');
-                const dDate = fechaStr.includes('T') ? fechaStr.split('T')[0] : fechaStr;
-                const dTime = fechaStr.includes('T') ? fechaStr.split('T')[1] : '';
+                const dDateRaw = fechaStr.includes('T') ? fechaStr.split('T')[0] : fechaStr;
+                const dDate = dDateRaw ? dDateRaw.split('-').reverse().join('/') : '';
+                const dTime = fechaStr.includes('T') ? fechaStr.split('T')[1].substring(0,5) : '';
 
                 return (
                   <div key={s.idServicio} className="glass-panel" style={{ padding: '1rem', display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>

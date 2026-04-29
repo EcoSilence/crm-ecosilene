@@ -252,9 +252,21 @@ export const AppDataProvider = ({ children }) => {
     await supabase.from('servicios').update({ descuento: val }).eq('id_servicio', idServicio);
   };
 
-  const updateServiceCurrency = async (idServicio, newCurrency) => {
-    setServicios(servicios.map(s => s.idServicio === idServicio ? { ...s, moneda: newCurrency } : s));
-    await supabase.from('servicios').update({ moneda: newCurrency }).eq('id_servicio', idServicio);
+  const updateServiceCurrency = async (idServicio, currency) => {
+    try {
+      const { error } = await supabase.from('servicios').update({ moneda: currency }).eq('id_servicio', idServicio);
+      if (error) throw error;
+      setServicios(prev => prev.map(s => s.idServicio === idServicio ? { ...s, moneda: currency } : s));
+    } catch (error) { console.error('Error updating service currency', error); alert('Error al actualizar moneda del servicio.'); }
+  };
+
+  const formatDateDDMMYYYY = (dateStr) => {
+    if (!dateStr) return '';
+    const [d, t] = dateStr.split('T');
+    if (!d) return dateStr;
+    const [y, m, day] = d.split('-');
+    if (!y || !m || !day) return dateStr;
+    return t ? `${day}/${m}/${y} ${t.substring(0,5)}` : `${day}/${m}/${y}`;
   };
 
   const addServicio = async (servicioData) => {
@@ -485,7 +497,8 @@ export const AppDataProvider = ({ children }) => {
     kanbanExpandedYears, setKanbanExpandedYears,
     kanbanExpandedMonths, setKanbanExpandedMonths,
     kanbanExpandedStage, setKanbanExpandedStage,
-    selectedKanbanMonth, setSelectedKanbanMonth, kanbanGroupedData
+    selectedKanbanMonth, setSelectedKanbanMonth, kanbanGroupedData,
+    formatDateDDMMYYYY
   };
 
   return (

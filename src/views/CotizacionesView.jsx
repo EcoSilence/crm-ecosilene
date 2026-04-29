@@ -5,8 +5,8 @@ import { FileText, Plus, MapPin, CalendarDays, DollarSign, Download, Trash2, Box
 const CotizacionesView = () => {
   const { 
     servicios, clientes, inventario, cotizaciones, 
-    addItemCotizacion, removeItemCotizacion, editItemCotizacion, 
-    updateServiceDiscount, updateServiceCurrency, viewParams, getStockActual, navigate, menuNames
+    addItemCotizacion, removeItemCotizacion, editItemCotizacion,
+    updateServiceDiscount, updateServiceCurrency, viewParams, getStockActual, navigate, menuNames, formatDateDDMMYYYY
   } = useAppStore();
   
   // Servicio seleccionado para cotizar
@@ -162,7 +162,7 @@ const CotizacionesView = () => {
               <option value="">-- Selecciona un Servicio / Proyecto --</option>
               {servicios.map(s => {
                 const cli = clientes.find(c => c.id === s.clienteId);
-                return <option key={s.idServicio} value={s.idServicio}>{s.idServicio} - {cli?.nombre} {cli?.empresa ? `(${cli?.empresa})` : ''} - {s.fechaInicio.split('T')[0]}</option>
+                return <option key={s.idServicio} value={s.idServicio}>{s.idServicio} - {cli?.nombre} {cli?.empresa ? `(${cli?.empresa})` : ''} - {formatDateDDMMYYYY(s.fechaInicio).split(' ')[0]}</option>
               })}
             </select>
             {selectedServicioId && (
@@ -207,7 +207,7 @@ const CotizacionesView = () => {
                  </div>
                  <div>
                    <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '0.2rem' }}>Fechas</p>
-                   <p style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><CalendarDays size={14}/> {servicio.fechaInicio.replace('T', ' ')}</p>
+                   <p style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><CalendarDays size={14}/> {formatDateDDMMYYYY(servicio.fechaInicio)}</p>
                  </div>
                </div>
 
@@ -430,7 +430,7 @@ https://www.youtube.com/watch?v=M5Hv5z5rWaA`);
                 <div style={{ padding: '1.2rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                   <h4 style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.8rem', letterSpacing: '0.05em' }}>Detalles del Evento</h4>
                   <p style={{ fontSize: '0.9rem', margin: '0 0 0.4rem 0', color: '#334155' }}><strong>Dirección:</strong> {servicio.direccionEvento}</p>
-                  <p style={{ fontSize: '0.9rem', margin: '0 0 0.4rem 0', color: '#334155' }}><strong>Fecha Evento:</strong> {servicio.fechaInicio.replace('T', ' ')}</p>
+                  <p style={{ fontSize: '0.9rem', margin: '0 0 0.4rem 0', color: '#334155' }}><strong>Fecha Evento:</strong> {formatDateDDMMYYYY(servicio.fechaInicio)}</p>
                   <p style={{ fontSize: '0.9rem', margin: 0, color: '#334155' }}><strong>Moneda:</strong> {servicio.moneda || 'CLP'}</p>
                 </div>
               </div>
