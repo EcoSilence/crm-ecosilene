@@ -252,32 +252,53 @@ export const listDriveFiles = async (rootFolderName = 'redes ecosilence') => {
 
     console.log('Carpeta seleccionada:', targetFolder.name, 'ID:', rootFolderId);
 
-    // 2. Buscar todas las subcarpetas dentro de la raíz
-    const subFoldersRes = await window.gapi.client.drive.files.list({
-      q: `'${rootFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-      fields: 'files(id, name)',
-      supportsAllDrives: true,
-      includeItemsFromAllDrives: true,
-    });
+    // 2. Función para buscar subcarpetas recursivamente (hasta 2 niveles)
+    const getFoldersRecursive = async (parentIds) => {
+      if (!parentIds || parentIds.length === 0) return [];
+      const query = parentIds.map(id => `'${id}' in parents`).join(' or ');
+      const res = await window.gapi.client.drive.files.list({
+        q: `(${query}) and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+        fields: 'files(id, name, parents)',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      });
+      return res.result.files || [];
+    };
 
-    const folderIds = [rootFolderId, ...subFoldersRes.result.files.map(f => f.id)];
+    // Nivel 1: Subcarpetas principales (fotos eventos, videos eventos, etc)
+    const level1Folders = await getFoldersRecursive([rootFolderId]);
     
-    // 3. Construir query para buscar archivos
-    const parentQuery = folderIds.map(id => `'${id}' in parents`).join(' or ');
-    const filesRes = await window.gapi.client.drive.files.list({
-      q: `(${parentQuery}) and trashed = false`,
-      fields: 'files(id, name, mimeType, webViewLink, thumbnailLink, size, createdTime, parents)',
-      orderBy: 'createdTime desc',
-      pageSize: 50,
-      supportsAllDrives: true,
-      includeItemsFromAllDrives: true,
-    });
+    // Nivel 2: Carpetas de eventos específicos (Amazon, Cold Play, etc)
+    const level2Folders = await getFoldersRecursive(level1Folders.map(f => f.id));
 
-    // Mapeo de IDs de carpeta a nombres para categorizar
-    const folderNames = { [rootFolderId]: rootFolderName };
-    subFoldersRes.result.files.forEach(f => folderNames[f.id] = f.name);
+    const allFolders = [
+      { id: rootFolderId, name: targetFolder.name },
+      ...level1Folders,
+      ...level2Folders
+    ];
 
-    return filesRes.result.files.map(f => {
+    const folderIds = allFolders.map(f => f.id);
+    const folderNames = {};
+    allFolders.forEach(f => folderNames[f.id] = f.name);
+    
+    // 3. Buscar archivos en CUALQUIERA de estas carpetas
+    const foundFiles = [];
+    const chunkSize = 25; 
+    for (let i = 0; i < folderIds.length; i += chunkSize) {
+      const chunk = folderIds.slice(i, i + chunkSize);
+      const parentQuery = chunk.map(id => `'${id}' in parents`).join(' or ');
+      const filesRes = await window.gapi.client.drive.files.list({
+        q: `(${parentQuery}) and trashed = false and (mimeType contains 'image/' or mimeType contains 'video/')`,
+        fields: 'files(id, name, mimeType, webViewLink, thumbnailLink, size, createdTime, parents)',
+        orderBy: 'createdTime desc',
+        pageSize: 100,
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      });
+      if (filesRes.result.files) foundFiles.push(...filesRes.result.files);
+    }
+
+    return foundFiles.map(f => {
       const parentId = f.parents?.[0];
       const category = folderNames[parentId] || 'Otros';
       
@@ -286,10 +307,10 @@ export const listDriveFiles = async (rootFolderName = 'redes ecosilence') => {
         name: f.name,
         category: category,
         type: f.mimeType.includes('video') ? 'video' : 'image',
-        date: f.createdTime.split('T')[0],
-        size: f.size ? (parseInt(f.size) / (1024 * 1024)).toFixed(1) + ' MB' : 'N/A',
         link: f.webViewLink,
-        thumb: f.thumbnailLink
+        thumb: f.thumbnailLink,
+        date: new Date(f.createdTime).toLocaleDateString(),
+        size: f.size ? (f.size / (1024 * 1024)).toFixed(1) + ' MB' : 'N/A'
       };
     });
 
