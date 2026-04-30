@@ -2,8 +2,10 @@ import React, { useMemo } from 'react';
 import { useAppStore } from '../context/AppDataContext';
 import { ArrowLeft, MapPin, CalendarDays, CheckCircle } from 'lucide-react';
 
+const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
+
 const ServiciosListView = () => {
-  const { servicios, clientes, cotizaciones, navigate, viewParams, formatDateDDMMYYYY } = useAppStore();
+  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, navigate, viewParams, formatDateDDMMYYYY } = useAppStore();
   const stage = viewParams?.stage || 'Cotizado';
 
   // Sort services by date descending (newest first)
@@ -69,37 +71,65 @@ const ServiciosListView = () => {
           filteredServicios.map(s => (
             <div key={s.idServicio} style={{ 
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-              padding: '1.2rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)',
+              padding: '0.8rem 1rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)',
               border: `1px solid ${getStageColor(stage)}33`, borderLeft: `4px solid ${getStageColor(stage)}`, gap: '1rem', flexWrap: 'wrap',
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
             }}>
               <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  {s.idServicio} <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.9rem' }}>— {getClientName(s.clienteId)}</span>
+                <h3 style={{ margin: '0 0 0.3rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '1.05rem' }}>
+                  {s.idServicio} <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.85rem' }}>— {getClientName(s.clienteId)}</span>
                 </h3>
-                <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
-                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapPin size={14}/> {s.direccionEvento || 'Sin dirección'}</span>
-                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><CalendarDays size={14}/> Inicio: {s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'Por definir'}</span>
+                <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', flexWrap: 'wrap' }}>
+                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={13}/> {s.direccionEvento || 'Sin dirección'}</span>
+                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CalendarDays size={13}/> Inicio: {s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'Por definir'}</span>
                 </div>
-                {(() => {
-                   const { neto, total } = getServiceTotals(s.idServicio, s.descuento || 0);
-                   const currency = s.moneda || 'CLP';
-                   return (
-                     <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem', flexWrap: 'wrap' }}>
-                       <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.3rem 0.6rem', borderRadius: '4px' }}>Neto: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(neto, currency)}</strong></span>
-                       <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.3rem 0.6rem', borderRadius: '4px' }}>Total c/IVA: <strong style={{ color: 'var(--accent-primary)' }}>{formatCurrency(total, currency)}</strong></span>
-                     </div>
-                   );
-                })()}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+              {(() => {
+                 const { neto, total } = getServiceTotals(s.idServicio, s.descuento || 0);
+                 const currency = s.moneda || 'CLP';
+                 const sQuotations = cotizaciones.filter(c => c.servicioId === s.idServicio);
+                 let audifonos = 0; let transmisores = 0;
+                 sQuotations.forEach(q => {
+                   const eq = inventario?.find(i => i.idEquipo === q.equipoId);
+                   if (eq) {
+                      if (eq.categoria === 'Audio' || eq.nombreEquipo.toLowerCase().includes('audífono') || eq.nombreEquipo.toLowerCase().includes('audifono')) audifonos += q.cantidad;
+                      else if (eq.categoria === 'Transmisión' || eq.nombreEquipo.toLowerCase().includes('transmisor') || eq.nombreEquipo.toUpperCase().includes('TX')) transmisores += q.cantidad;
+                   }
+                 });
+
+                 return (
+                   <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                     {(audifonos > 0 || transmisores > 0) && (
+                       <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {audifonos > 0 && <span style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>🎧 Audífonos: <strong>{audifonos}</strong></span>}
+                          {transmisores > 0 && <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#facc15', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>📡 Transmisores (TX): <strong>{transmisores}</strong></span>}
+                       </div>
+                     )}
+                     <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.85rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                       <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>Neto: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(neto, currency)}</strong></span>
+                       <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>Total c/IVA: <strong style={{ color: 'var(--accent-primary)' }}>{formatCurrency(total, currency)}</strong></span>
+                     </div>
+                   </div>
+                 );
+              })()}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
+                <select 
+                  className="input-control" 
+                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', width: '130px' }} 
+                  value={s.etapa} 
+                  onChange={(e) => updateServiceStage(s.idServicio, e.target.value)}
+                >
+                  {STAGES.map(st => <option key={st} value={st}>{st}</option>)}
+                </select>
+
                 <button 
                    className="btn btn-primary" 
-                   style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} 
+                   style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }} 
                    onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}
                 >
-                  <CheckCircle size={16}/> Ver Detalles / Cotizar
+                  <CheckCircle size={15}/> Cotizar
                 </button>
               </div>
             </div>
