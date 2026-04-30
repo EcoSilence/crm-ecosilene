@@ -81,8 +81,8 @@ const MarketingView = () => {
         {[
           { id: 'estrategia', label: 'Estrategia IA', icon: <Sparkles size={18}/> },
           { id: 'drive', label: 'Contenido Drive', icon: <ImageIcon size={18}/> },
-          { id: 'calendario', label: 'Calendario Editorial', icon: <Calendar size={18}/> },
-          { id: 'funnel', label: 'Embudo de Ventas', icon: <TrendingUp size={18}/> }
+          { id: 'plan', label: 'Plan de Accion', icon: <TrendingUp size={18}/> },
+          { id: 'calendario', label: 'Calendario Editorial', icon: <Calendar size={18}/> }
         ].map(tab => (
           <button 
             key={tab.id}
@@ -114,8 +114,8 @@ const MarketingView = () => {
             onPlan={handleOpenPlanning}
           />
         )}
+        {activeTab === 'plan' && <PlanSection />}
         {activeTab === 'calendario' && <CalendarioSection plannedPosts={plannedPosts} />}
-        {activeTab === 'funnel' && <FunnelSection />}
       </div>
 
       {/* Planning Modal */}
@@ -659,52 +659,70 @@ const CalendarioSection = () => {
   );
 };
 
-const FunnelSection = () => {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-        <div className="glass-card" style={{ padding: '1.5rem' }}>
-          <h3 style={{ marginTop: 0 }}>Rendimiento del Embudo</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '2rem' }}>
-            {[
-              { label: 'Atracción (Impresiones)', value: '45.2K', color: '#6366f1', width: '100%' },
-              { label: 'Interés (Clics en Link)', value: '1.8K', color: '#818cf8', width: '60%' },
-              { label: 'Deseo (Solicitud Cotización)', value: '142', color: '#a5b4fc', width: '30%' },
-              { label: 'Acción (Clientes Cerrados)', value: '12', color: '#c7d2fe', width: '10%' }
-            ].map((s, i) => (
-              <div key={i}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-                  <span>{s.label}</span>
-                  <strong>{s.value}</strong>
-                </div>
-                <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: s.width, background: s.color }}></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+const PlanSection = () => {
+  const steps = [
+    {
+      week: 'SEMANA 1: Pilar de Autoridad',
+      type: 'Carrusel Educativo',
+      goal: 'Educar sobre el problema del ruido en eventos corporativos.',
+      idea: '5 razones por las que el audio tradicional arruina tu congreso.',
+      message: 'En EcoSilence no solo damos audifonos, resolvemos la contaminacion acustica para que tu mensaje llegue sin interferencias.',
+      action: 'Usa fotos de asistentes concentrados y graficos de "Antes vs Despues".'
+    },
+    {
+      week: 'SEMANA 2: Pilar de Prueba Social',
+      type: 'Caso de Exito',
+      goal: 'Demostrar resultados reales con marcas reconocidas.',
+      idea: 'Estudio de Caso: [Nombre del Cliente] - 3 salas simultaneas.',
+      message: 'Logramos coordinar 3 conferencias en un mismo salon sin que se cruzara el audio. Eficiencia espacial maxima.',
+      action: 'Selecciona una carpeta de un evento grande y usa el generador IA de casos de exito.'
+    },
+    {
+      week: 'SEMANA 3: Pilar de Experiencia',
+      type: 'Reel / Video',
+      goal: 'Mostrar la innovacion y la reaccion del publico.',
+      idea: 'Detras de camaras: Como montamos un sistema para 500 personas.',
+      message: 'La tecnologia no tiene por que ser complicada. Te mostramos la simplicidad y potencia de EcoSilence en accion.',
+      action: 'Usa clips de video del montaje y reacciones de la gente poniendose los audifonos.'
+    },
+    {
+      week: 'SEMANA 4: Pilar de Conversion',
+      type: 'Carrusel / Post',
+      goal: 'Convertir el interes en solicitudes de cotizacion.',
+      idea: '¿Listo para elevar tu proximo evento corporativo?',
+      message: 'Agenda una demo tecnica o solicita tu presupuesto. Somos el partner tecnologico que tu marca necesita.',
+      action: 'Usa una foto de alta calidad de tu equipo trabajando o el logo de EcoSilence con el equipo.'
+    }
+  ];
 
-        <div className="glass-card" style={{ padding: '1.5rem' }}>
-          <h3 style={{ marginTop: 0 }}>Landing Pages Activas</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {[
-              { name: 'Campaña Silent Cinema Verano', leads: 45, conversion: '5.2%' },
-              { name: 'Conferencias B2B - LinkedIn', leads: 12, conversion: '3.1%' }
-            ].map((lp, i) => (
-              <div key={i} style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{lp.name}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{lp.leads} leads • {lp.conversion} conv.</div>
-                </div>
-                <button className="btn btn-ghost" style={{ padding: '0.4rem' }}><ArrowRight size={18} /></button>
-              </div>
-            ))}
-            <button className="btn btn-ghost" style={{ marginTop: '0.5rem', border: '1px dashed var(--border-color)' }}>
-              + Crear Nueva Landing Page
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <div className="glass-card" style={{ padding: '2rem', borderLeft: '5px solid var(--accent-primary)' }}>
+        <h2 style={{ marginTop: 0 }}>Plan de Accion: Autoridad B2B</h2>
+        <p style={{ color: 'var(--text-muted)' }}>Este plan esta diseñado para posicionar a EcoSilence como el referente en tecnologia de eventos corporativos, alejandonos de la percepcion de "fiestas" y enfocandonos en soluciones de valor.</p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+        {steps.map((s, i) => (
+          <div key={i} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--accent-primary)' }}>{s.week}</span>
+              <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.7rem' }}>{s.type}</div>
+            </div>
+            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{s.idea}</h3>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', borderLeft: '2px solid var(--border-color)', paddingLeft: '1rem' }}>
+              <strong>Mensaje Clave:</strong><br />
+              "{s.message}"
+            </div>
+            <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', fontSize: '0.8rem' }}>
+              <span style={{ fontWeight: 600, color: 'var(--color-basil)' }}>Accion Recomendada:</span><br />
+              {s.action}
+            </div>
+            <button className="btn btn-ghost" style={{ width: '100%', border: '1px dashed var(--border-color)' }}>
+              Ir a Drive para seleccionar contenido
             </button>
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );
