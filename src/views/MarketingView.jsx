@@ -114,7 +114,7 @@ const MarketingView = () => {
             onPlan={handleOpenPlanning}
           />
         )}
-        {activeTab === 'plan' && <PlanSection />}
+        {activeTab === 'plan' && <PlanSection onNavigate={() => setActiveTab('drive')} />}
         {activeTab === 'calendario' && <CalendarioSection plannedPosts={plannedPosts} />}
       </div>
 
@@ -659,66 +659,101 @@ const CalendarioSection = () => {
   );
 };
 
-const PlanSection = () => {
+const PlanSection = ({ onNavigate }) => {
   const steps = [
     {
-      week: 'SEMANA 1: Pilar de Autoridad',
+      week: 'SEMANA 1 - Post 1',
       type: 'Carrusel Educativo',
-      goal: 'Educar sobre el problema del ruido en eventos corporativos.',
+      goal: 'Educar sobre el problema del ruido.',
       idea: '5 razones por las que el audio tradicional arruina tu congreso.',
-      message: 'En EcoSilence no solo damos audifonos, resolvemos la contaminacion acustica para que tu mensaje llegue sin interferencias.',
-      action: 'Usa fotos de asistentes concentrados y graficos de "Antes vs Despues".'
+      message: 'En EcoSilence no solo damos audifonos, resolvemos la contaminacion acustica.',
+      action: 'Usa fotos de asistentes concentrados y graficos.'
     },
     {
-      week: 'SEMANA 2: Pilar de Prueba Social',
+      week: 'SEMANA 1 - Post 2',
+      type: 'Reel Tactico',
+      goal: 'Mostrar la facilidad de uso.',
+      idea: 'Setup en 30 segundos: La rapidez de EcoSilence.',
+      message: 'Sin cables, sin interferencias. Montaje rapido para eventos de alto nivel.',
+      action: 'Graba un time-lapse del montaje de los audifonos.'
+    },
+    {
+      week: 'SEMANA 2 - Post 1',
       type: 'Caso de Exito',
-      goal: 'Demostrar resultados reales con marcas reconocidas.',
+      goal: 'Prueba Social B2B.',
       idea: 'Estudio de Caso: [Nombre del Cliente] - 3 salas simultaneas.',
-      message: 'Logramos coordinar 3 conferencias en un mismo salon sin que se cruzara el audio. Eficiencia espacial maxima.',
-      action: 'Selecciona una carpeta de un evento grande y usa el generador IA de casos de exito.'
+      message: 'Eficiencia espacial maxima. 3 conferencias en el mismo salon.',
+      action: 'Usa el generador IA con fotos de un evento real.'
     },
     {
-      week: 'SEMANA 3: Pilar de Experiencia',
-      type: 'Reel / Video',
-      goal: 'Mostrar la innovacion y la reaccion del publico.',
-      idea: 'Detras de camaras: Como montamos un sistema para 500 personas.',
-      message: 'La tecnologia no tiene por que ser complicada. Te mostramos la simplicidad y potencia de EcoSilence en accion.',
-      action: 'Usa clips de video del montaje y reacciones de la gente poniendose los audifonos.'
+      week: 'SEMANA 2 - Post 2',
+      type: 'Testimonio Visual',
+      goal: 'Generar confianza.',
+      idea: 'Lo que dicen los oradores sobre EcoSilence.',
+      message: '"La claridad del audio me permitio conectar con mi publico como nunca antes".',
+      action: 'Foto de un orador con audifonos y el texto del testimonio.'
     },
     {
-      week: 'SEMANA 4: Pilar de Conversion',
-      type: 'Carrusel / Post',
-      goal: 'Convertir el interes en solicitudes de cotizacion.',
-      idea: '¿Listo para elevar tu proximo evento corporativo?',
-      message: 'Agenda una demo tecnica o solicita tu presupuesto. Somos el partner tecnologico que tu marca necesita.',
-      action: 'Usa una foto de alta calidad de tu equipo trabajando o el logo de EcoSilence con el equipo.'
+      week: 'SEMANA 3 - Post 1',
+      type: 'Reel Emocional',
+      goal: 'Mostrar la experiencia del usuario.',
+      idea: 'La reaccion al ponerse los audifonos por primera vez.',
+      message: 'Ese momento de silencio total donde solo importa la voz del experto.',
+      action: 'Video corto de asistentes sonriendo al encender sus equipos.'
+    },
+    {
+      week: 'SEMANA 3 - Post 2',
+      type: 'Carrusel Tecnico',
+      goal: 'Explicar el valor diferencial.',
+      idea: '¿Como funciona la tecnologia Silent de EcoSilence?',
+      message: '3 canales de audio, largo alcance y cero latencia. Tecnologia de punta.',
+      action: 'Fotos de detalle de los transmisores y audifonos.'
+    },
+    {
+      week: 'SEMANA 4 - Post 1',
+      type: 'Caso de Exito',
+      goal: 'Reforzar autoridad.',
+      idea: 'Evento Corporativo: [Marca X] - Experiencia Inmersiva.',
+      message: 'Llevamos la marca a un nivel superior con audio personalizado.',
+      action: 'Usa el generador IA con una carpeta de activacion de marca.'
+    },
+    {
+      week: 'SEMANA 4 - Post 2',
+      type: 'Post de Conversion',
+      goal: 'Generar leads.',
+      idea: '¿Listo para tu proximo evento corporativo?',
+      message: 'Agenda una demo tecnica hoy mismo. Somos tu partner estrategico.',
+      action: 'Imagen de alta calidad del equipo EcoSilence con CTA claro.'
     }
   ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div className="glass-card" style={{ padding: '2rem', borderLeft: '5px solid var(--accent-primary)' }}>
-        <h2 style={{ marginTop: 0 }}>Plan de Accion: Autoridad B2B</h2>
-        <p style={{ color: 'var(--text-muted)' }}>Este plan esta diseñado para posicionar a EcoSilence como el referente en tecnologia de eventos corporativos, alejandonos de la percepcion de "fiestas" y enfocandonos en soluciones de valor.</p>
+      <div className="glass-card" style={{ padding: '2rem', borderLeft: '5px solid var(--accent-primary)', background: 'linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, transparent 100%)' }}>
+        <h2 style={{ marginTop: 0 }}>Plan de Accion: Dominio B2B (8 Posts/Mes)</h2>
+        <p style={{ color: 'var(--text-muted)' }}>Hemos duplicado la frecuencia para acelerar tu posicionamiento. Este plan alterna educacion, prueba social y experiencia inmersiva.</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
         {steps.map((s, i) => (
-          <div key={i} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div key={i} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, right: 0, width: '4px', height: '100%', background: i % 2 === 0 ? 'var(--accent-primary)' : 'var(--accent-secondary)' }}></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--accent-primary)' }}>{s.week}</span>
               <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.7rem' }}>{s.type}</div>
             </div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{s.idea}</h3>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', borderLeft: '2px solid var(--border-color)', paddingLeft: '1rem' }}>
-              <strong>Mensaje Clave:</strong><br />
+            <h3 style={{ margin: 0, fontSize: '1rem', lineHeight: 1.4 }}>{s.idea}</h3>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderLeft: '2px solid var(--border-color)', paddingLeft: '1rem', fontStyle: 'italic' }}>
               "{s.message}"
             </div>
-            <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', fontSize: '0.8rem' }}>
-              <span style={{ fontWeight: 600, color: 'var(--color-basil)' }}>Accion Recomendada:</span><br />
-              {s.action}
+            <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', fontSize: '0.75rem' }}>
+              <span style={{ fontWeight: 600, color: 'var(--color-basil)' }}>Accion:</span> {s.action}
             </div>
-            <button className="btn btn-ghost" style={{ width: '100%', border: '1px dashed var(--border-color)' }}>
+            <button 
+              className="btn btn-ghost" 
+              onClick={onNavigate}
+              style={{ width: '100%', border: '1px dashed var(--border-color)', fontSize: '0.8rem' }}
+            >
               Ir a Drive para seleccionar contenido
             </button>
           </div>
