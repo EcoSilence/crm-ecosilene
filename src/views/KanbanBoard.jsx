@@ -5,13 +5,20 @@ import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarD
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { servicios, updateServiceStage, removeServicio, editServicio, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto } = useAppStore();
+  const { servicios, updateServiceStage, removeServicio, editServicio, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedStage, setExpandedStage] = useState('Cotizado');
 
-  // Modal State para Editar Servicio
+  // Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingService, setEditingService] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newServiceData, setNewServiceData] = useState({
+    clienteId: '',
+    direccionEvento: '',
+    fechaInicio: '',
+    fechaFin: '',
+  });
 
   const monthNames = {
     '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
@@ -101,6 +108,13 @@ const KanbanBoard = () => {
     setEditingService(null);
   };
 
+  const handleAddSubmit = (e) => {
+    e.preventDefault();
+    addServicio(newServiceData);
+    setIsAddModalOpen(false);
+    setNewServiceData({ clienteId: '', direccionEvento: '', fechaInicio: '', fechaFin: '' });
+  };
+
   let titleMonthStr = "";
   if (selectedKanbanMonth === 'sinFecha') titleMonthStr = " - Sin Fecha";
   else if (selectedKanbanMonth) {
@@ -125,7 +139,7 @@ const KanbanBoard = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button className="btn btn-primary" onClick={() => navigate('nuevo-servicio')}>
+          <button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)}>
             <Plus size={18} /> Nuevo Servicio
           </button>
         </div>
@@ -282,6 +296,66 @@ const KanbanBoard = () => {
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsEditModalOpen(false)}>Cancelar</button>
                 <button type="submit" className="btn btn-primary">Guardar Cambios</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Nuevo Servicio */}
+      {isAddModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0 }}>Nuevo Servicio</h2>
+              <button className="btn btn-ghost" onClick={() => setIsAddModalOpen(false)}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleAddSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Cliente</label>
+                <select 
+                  className="input-control" 
+                  value={newServiceData.clienteId} 
+                  onChange={(e) => setNewServiceData({...newServiceData, clienteId: e.target.value})}
+                  required
+                >
+                  <option value="">Selecciona un cliente...</option>
+                  {clientes.map(c => (
+                    <option key={c.id} value={c.id}>{c.empresa ? `${c.empresa} — ` : ''}{c.nombre} {c.apellido}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Dirección del Evento</label>
+                <input 
+                  type="text" 
+                  className="input-control" 
+                  placeholder="Ej: Espacio Riesco"
+                  value={newServiceData.direccionEvento} 
+                  onChange={(e) => setNewServiceData({...newServiceData, direccionEvento: e.target.value})} 
+                />
+              </div>
+              <div className="form-group">
+                <label>Fecha y Hora de Inicio</label>
+                <input 
+                  type="datetime-local" 
+                  className="input-control" 
+                  value={newServiceData.fechaInicio} 
+                  onChange={(e) => setNewServiceData({...newServiceData, fechaInicio: e.target.value})} 
+                />
+              </div>
+              <div className="form-group">
+                <label>Fecha y Hora de Fin</label>
+                <input 
+                  type="datetime-local" 
+                  className="input-control" 
+                  value={newServiceData.fechaFin} 
+                  onChange={(e) => setNewServiceData({...newServiceData, fechaFin: e.target.value})} 
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setIsAddModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">Crear Servicio</button>
               </div>
             </form>
           </div>
