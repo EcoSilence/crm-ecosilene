@@ -374,7 +374,47 @@ const DriveSection = ({ isLinked, onPlan, planContext, setPlanContext }) => {
     setSelectedCarouselAssets(newAssets);
   };
 
-  const getSlideMessage = (index) => {
+  const getSlideMessage = (index, topic = "") => {
+    const topicLower = topic.toLowerCase();
+    
+    // 5 RAZONES POR LAS QUE EL AUDIO TRADICIONAL ARRUINA TU CONGRESO
+    if (topicLower.includes('5 razones') || topicLower.includes('arruina')) {
+      const reasons = [
+        "1. Eco y Reverberacion: En salones grandes, el rebote del sonido hace que se pierda hasta el 30% del mensaje del orador.",
+        "2. Distracciones Externas: El ruido de pasillos o del catering rompe la burbuja de atencion de tus asistentes.",
+        "3. Fatiga Auditiva: Forzar el oido para entender entre el ruido cansa a la audiencia y reduce la participacion.",
+        "4. Barreras de Idioma: El audio tradicional dificulta la traduccion simultanea nitida sin cabinas costosas.",
+        "5. Limitacion de Espacio: No puedes tener dos charlas juntas porque el sonido se cruza. ¡Con EcoSilence si!",
+        "La Solucion: Audio inmersivo directo al oido. Control total de la experiencia para un evento impecable."
+      ];
+      return reasons[index] || reasons[reasons.length - 1];
+    }
+
+    // SETUP EN 30 SEGUNDOS / RAPIDEZ
+    if (topicLower.includes('setup') || topicLower.includes('rapidez')) {
+      const setup = [
+        "Paso 1: Encendido instantaneo. Nuestros equipos se sincronizan en segundos sin configuraciones complejas.",
+        "Paso 2: Distribucion Higienica. Audifonos listos y desinfectados para cada asistente.",
+        "Paso 3: ¡Listo para escuchar! Sin cables, sin parlantes pesados, sin complicaciones tecnicas.",
+        "Eficiencia Operativa: Reducimos los tiempos de montaje en un 70% comparado con audio tradicional.",
+        "EcoSilence: Tecnologia diseñada para la agilidad que los eventos corporativos de hoy exigen."
+      ];
+      return setup[index] || setup[setup.length - 1];
+    }
+
+    // TECNOLOGIA / 3 CANALES
+    if (topicLower.includes('tecnologia') || topicLower.includes('3 canales')) {
+      const tech = [
+        "Multicanal: 3 frecuencias independientes para tener hasta 3 oradores en el mismo espacio fisico.",
+        "Largo Alcance: Hasta 100 metros de cobertura nitida, ideal para grandes centros de convenciones.",
+        "Bateria de Larga Duracion: Mas de 10 horas de uso continuo para jornadas intensas de congresos.",
+        "Cero Latencia: Sincronizacion perfecta entre labios y audio para una experiencia natural.",
+        "Innovacion Chilena: Liderando la transformacion de la industria de eventos en el pais."
+      ];
+      return tech[index] || tech[tech.length - 1];
+    }
+
+    // Default messages
     const messages = [
       "Concentracion total: Nuestra tecnologia elimina las distracciones externas para que tu mensaje sea lo unico que importe.",
       "Claridad absoluta: Audio de alta fidelidad directamente a los oidos de tus asistentes, sin importar la acustica del lugar.",
@@ -617,9 +657,9 @@ const DriveSection = ({ isLinked, onPlan, planContext, setPlanContext }) => {
                     {selectedCarouselAssets.length > 0 && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent-primary)' }}>MENSAJES POR DIAPOSITIVA:</div>
-                        {selectedCarouselAssets.slice(0, 3).map((_, aidx) => (
+                        {selectedCarouselAssets.slice(0, 5).map((_, aidx) => (
                           <div key={aidx} style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', fontSize: '0.75rem', borderLeft: '2px solid var(--accent-primary)' }}>
-                             <strong>Slide {aidx + 1}:</strong> {getSlideMessage(aidx)}
+                             <strong>Slide {aidx + 1}:</strong> {getSlideMessage(aidx, s.title)}
                           </div>
                         ))}
                         {selectedCarouselAssets.length > 3 && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center' }}>+ {selectedCarouselAssets.length - 3} diapositivas mas...</div>}
