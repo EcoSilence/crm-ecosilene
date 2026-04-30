@@ -30,6 +30,7 @@ const MarketingView = () => {
     { id: 'p1', title: 'Reel: Caso Marriott', date: '2026-05-05', type: 'reel', fileId: '1' },
     { id: 'p2', title: 'Carrusel: Beneficios Silent', date: '2026-05-11', type: 'carousel', fileId: '2' }
   ]);
+  const [selectedPlanStep, setSelectedPlanStep] = useState(null);
 
   const handleOpenPlanning = (file) => {
     setSelectedFile(file);
@@ -112,9 +113,18 @@ const MarketingView = () => {
           <DriveSection 
             isLinked={isGoogleLinked} 
             onPlan={handleOpenPlanning}
+            planContext={selectedPlanStep}
+            setPlanContext={setSelectedPlanStep}
           />
         )}
-        {activeTab === 'plan' && <PlanSection onNavigate={() => setActiveTab('drive')} />}
+        {activeTab === 'plan' && (
+          <PlanSection 
+            onNavigate={(step) => {
+              setSelectedPlanStep(step);
+              setActiveTab('drive');
+            }} 
+          />
+        )}
         {activeTab === 'calendario' && <CalendarioSection plannedPosts={plannedPosts} />}
       </div>
 
@@ -259,7 +269,7 @@ const EstrategiaSection = ({ servicios }) => {
   );
 };
 
-const DriveSection = ({ isLinked, onPlan }) => {
+const DriveSection = ({ isLinked, onPlan, planContext, setPlanContext }) => {
   const { listDriveContent } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [folders, setFolders] = useState([]);
@@ -275,7 +285,7 @@ const DriveSection = ({ isLinked, onPlan }) => {
   const fetchContent = async (folderId = null) => {
     setLoading(true);
     setAiSuggestions(null); 
-    setSelectedCarouselAssets([]); // Reset selection
+    setSelectedCarouselAssets([]); 
     try {
       const res = await listDriveContent(folderId);
       setFolders(res.folders || []);
@@ -299,31 +309,47 @@ const DriveSection = ({ isLinked, onPlan }) => {
       setSelectedCarouselAssets(initialImages);
       const videos = files.filter(f => f.type === 'video').slice(0, 2);
       
-      const suggestions = [
-        {
-          id: 'opt_a',
-          type: 'Carrusel Educativo (B2B)',
-          title: 'Optimizacion de Audio en Congresos',
-          desc: 'Como optimizar el audio en tu proximo congreso corporativo sin ruido ambiental.',
-          copy: `GANCHO: ¿Sabias que el ruido ambiental reduce la retencion de informacion en un 40%? 🧠\n\nVALOR: En el evento de ${folderName}, implementamos tecnologia Silent para que cada asistente escuchara al orador con claridad absoluta.\n\nCTA: Solicita tu cotizacion para eventos corporativos en el link de la bio. #SilentConference #B2BChile #EventosPro`
-        },
-        {
-          id: 'opt_b',
-          type: 'Reel de Experiencia',
-          title: 'Transformacion Sensorial',
-          desc: 'Transforma un lanzamiento de producto en una experiencia sensorial inmersiva.',
-          assets: videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1),
-          copy: `GANCHO: ¿Aburrido de los lanzamientos tradicionales? 😴\n\nVALOR: Creamos experiencias que se escuchan y se sienten. En ${folderName}, logramos una conexion profunda.\n\nCTA: Escribenos para diseñar tu proxima activacion de marca. #SilentActivation #MarketingExperiencial #Innovacion`
-        },
-        {
-          id: 'opt_c',
-          type: 'Caso de Exito',
-          title: 'Estudio de Caso: ' + folderName,
-          desc: 'Resumen de beneficios clave logrados con tecnologia ECOSILENCE.',
-          assets: initialImages.slice(0, 1),
-          copy: `TEMA: El exito del evento ${folderName} con tecnologia ECOSILENCE.\n\nVALOR: Logramos 0% de interferencia en salas simultaneas.\n\nCTA: Agenda una demo tecnica en nuestra bio. #SilentEvents #SolucionesAuditivas #B2BChile`
-        }
-      ];
+      let suggestions = [];
+
+      if (planContext) {
+        // Generate EXACTLY what the plan asked for
+        suggestions = [{
+          id: 'plan_match',
+          type: planContext.type,
+          title: planContext.idea,
+          desc: planContext.goal,
+          assets: planContext.type.includes('Carrusel') ? initialImages : (videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1)),
+          copy: `GANCHO: ${planContext.idea}\n\nVALOR: ${planContext.message}. En el evento ${folderName} logramos precisamente esto.\n\nCTA: Escribenos para mas informacion. #SilentExperience #B2BChile`
+        }];
+      } else {
+        // Generic B2B templates
+        suggestions = [
+          {
+            id: 'opt_a',
+            type: 'Carrusel Educativo (B2B)',
+            title: 'Optimizacion de Audio en Congresos',
+            desc: 'Como optimizar el audio en tu proximo congreso corporativo sin ruido ambiental.',
+            copy: `GANCHO: ¿Sabias que el ruido ambiental reduce la retencion de informacion en un 40%? 🧠\n\nVALOR: En el evento de ${folderName}, implementamos tecnologia Silent para que cada asistente escuchara al orador con claridad absoluta.\n\nCTA: Solicita tu cotizacion para eventos corporativos en el link de la bio. #SilentConference #B2BChile #EventosPro`
+          },
+          {
+            id: 'opt_b',
+            type: 'Reel de Experiencia',
+            title: 'Transformacion Sensorial',
+            desc: 'Transforma un lanzamiento de producto en una experiencia sensorial inmersiva.',
+            assets: videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1),
+            copy: `GANCHO: ¿Aburrido de los lanzamientos tradicionales? 😴\n\nVALOR: Creamos experiencias que se escuchan y se sienten. En ${folderName}, logramos una conexion profunda.\n\nCTA: Escribenos para diseñar tu proxima activacion de marca. #SilentActivation #MarketingExperiencial #Innovacion`
+          },
+          {
+            id: 'opt_c',
+            type: 'Caso de Exito',
+            title: 'Estudio de Caso: ' + folderName,
+            desc: 'Resumen de beneficios clave logrados con tecnologia ECOSILENCE.',
+            assets: initialImages.slice(0, 1),
+            copy: `TEMA: El exito del evento ${folderName} con tecnologia ECOSILENCE.\n\nVALOR: Logramos 0% de interferencia en salas simultaneas.\n\nCTA: Agenda una demo tecnica en nuestra bio. #SilentEvents #SolucionesAuditivas #B2BChile`
+          }
+        ];
+      }
+
       setAiSuggestions(suggestions);
       setIsGenerating(false);
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
@@ -392,7 +418,15 @@ const DriveSection = ({ isLinked, onPlan }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '2px solid var(--accent-primary)', padding: '1.5rem', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.02)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: '0.6rem', color: 'var(--accent-primary)', fontWeight: 800, textTransform: 'uppercase' }}>{debugMarker}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ fontSize: '0.6rem', color: 'var(--accent-primary)', fontWeight: 800, textTransform: 'uppercase' }}>{debugMarker}</div>
+          {planContext && (
+            <div style={{ background: 'rgba(99, 102, 241, 0.15)', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <strong>MODO PLAN:</strong> {planContext.week}
+              <button onClick={() => setPlanContext(null)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 800 }}>✕</button>
+            </div>
+          )}
+        </div>
         {path.length > 1 && !loading && (
           <button 
             className="btn btn-primary" 
@@ -751,7 +785,7 @@ const PlanSection = ({ onNavigate }) => {
             </div>
             <button 
               className="btn btn-ghost" 
-              onClick={onNavigate}
+              onClick={() => onNavigate(s)}
               style={{ width: '100%', border: '1px dashed var(--border-color)', fontSize: '0.8rem' }}
             >
               Ir a Drive para seleccionar contenido
