@@ -136,7 +136,7 @@ const CotizacionesView = () => {
           <button 
             className="btn btn-ghost" 
             style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)' }} 
-            onClick={() => navigate(viewParams?.from || 'kanban')}
+            onClick={() => navigate(viewParams?.from || 'kanban', viewParams)}
           >
             <ArrowLeft size={18} /> Volver
           </button>

@@ -157,10 +157,10 @@ const ServiciosListView = ({ type = 'normal' }) => {
                     <ArrowLeft size={14} style={{ display: 'none' }} /> {/* hidden hack to use DollarSign if needed but I'll use DollarSign */}
                     <DollarSign size={14} /> 50%
                   </button>
-                  <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}><Edit2 size={16}/></button>
+                  <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, from: 'lista_servicios', stage, type })}><Edit2 size={16}/></button>
                   <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--color-tomato)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={16}/></button>
                   {!isArchivedView && (
-                    <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}><CheckCircle size={16}/> Cotizar</button>
+                    <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, from: 'lista_servicios', stage, type })}><CheckCircle size={16}/> Cotizar</button>
                   )}
                 </div>
               </div>
