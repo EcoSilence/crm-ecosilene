@@ -214,7 +214,10 @@ export const deleteCalendarEvent = async (eventId) => {
  */
 
 export const listDriveFiles = async (rootFolderName = 'redes ecosilence') => {
-  if (!gapiInited || !gsisInited) return [];
+  if (!gapiInited || !gsisInited || !window.gapi.client.drive) {
+    console.error('Google Drive API not initialized');
+    return [];
+  }
   
   try {
     // 1. Buscar la carpeta raíz

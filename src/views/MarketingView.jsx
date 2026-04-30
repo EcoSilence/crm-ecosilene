@@ -30,9 +30,18 @@ const MarketingView = () => {
 
   const fetchDriveContent = async () => {
     setLoadingDrive(true);
-    const files = await listDriveFiles('redes ecosilence');
-    setDriveFiles(files);
-    setLoadingDrive(false);
+    try {
+      const files = await listDriveFiles('redes ecosilence');
+      if (files.length === 0) {
+        alert("No se encontró la carpeta 'redes ecosilence' o está vacía. Asegúrate de que los permisos de Google Drive estén activos y que la carpeta exista.");
+      }
+      setDriveFiles(files);
+    } catch (err) {
+      console.error(err);
+      alert("Error al conectar con Google Drive. Por favor, intenta cerrar sesión y volver a vincular Google en Configuración para actualizar los permisos.");
+    } finally {
+      setLoadingDrive(false);
+    }
   };
 
   const stats = [
@@ -217,11 +226,16 @@ const DriveSection = ({ files, loading, isLinked, onRetry }) => {
         <ImageIcon size={48} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
         <h3>Google Drive no vinculado</h3>
         <p style={{ color: 'var(--text-muted)', maxWidth: '400px', margin: '0.5rem auto 1.5rem auto' }}>
-          Vincula tu cuenta de Google para acceder a las carpetas de tus eventos y automatizar la creación de contenido.
+          Es posible que necesites actualizar tus permisos de Google para permitir que el CRM acceda a tus carpetas de Drive.
         </p>
-        <button className="btn btn-primary" onClick={() => alert('Ve a Configuración para vincular Google')}>
-          Vincular Google Drive
-        </button>
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+          <button className="btn btn-primary" onClick={onRetry}>
+            Intentar Sincronizar
+          </button>
+          <button className="btn btn-ghost" style={{ border: '1px solid var(--border-color)' }} onClick={() => window.location.reload()}>
+            Actualizar Permisos (Recargar)
+          </button>
+        </div>
       </div>
     );
   }
@@ -247,7 +261,8 @@ const DriveSection = ({ files, loading, isLinked, onRetry }) => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.5rem' }}>
         {files.length === 0 ? (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-            <p>No se encontraron archivos en la carpeta 'EcoSilence Eventos'.</p>
+            <p>No se encontraron archivos en la carpeta 'redes ecosilence' o sus subcarpetas.</p>
+            <p style={{ fontSize: '0.8rem' }}>Asegúrate de haber subido fotos o videos y de que los permisos de Google Drive estén activos.</p>
           </div>
         ) : (
           files.map(file => (
