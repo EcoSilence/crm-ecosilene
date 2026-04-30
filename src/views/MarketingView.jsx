@@ -30,7 +30,7 @@ const MarketingView = () => {
 
   const fetchDriveContent = async () => {
     setLoadingDrive(true);
-    const files = await listDriveFiles('EcoSilence Eventos');
+    const files = await listDriveFiles('redes ecosilence');
     setDriveFiles(files);
     setLoadingDrive(false);
   };
@@ -276,6 +276,19 @@ const DriveSection = ({ files, loading, isLinked, onRetry }) => {
                 {file.type === 'video' && <PlayCircle size={24} style={{ position: 'absolute', bottom: '10px', right: '10px', color: '#fff' }} />}
               </div>
               <div style={{ padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                   <span style={{ 
+                     fontSize: '0.65rem', 
+                     background: 'rgba(255,255,255,0.1)', 
+                     padding: '0.1rem 0.4rem', 
+                     borderRadius: '4px',
+                     color: 'var(--accent-primary)',
+                     textTransform: 'uppercase',
+                     fontWeight: 700
+                   }}>
+                     {file.category}
+                   </span>
+                </div>
                 <div style={{ fontWeight: 500, fontSize: '0.85rem', marginBottom: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
                   <span>{file.date}</span>

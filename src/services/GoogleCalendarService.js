@@ -213,39 +213,58 @@ export const deleteCalendarEvent = async (eventId) => {
  * GOOGLE DRIVE FUNCTIONS
  */
 
-export const listDriveFiles = async (folderName = 'EcoSilence Eventos') => {
+export const listDriveFiles = async (rootFolderName = 'redes ecosilence') => {
   if (!gapiInited || !gsisInited) return [];
   
   try {
-    // 1. Buscar la carpeta por nombre
-    const folderRes = await window.gapi.client.drive.files.list({
-      q: `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+    // 1. Buscar la carpeta raíz
+    const rootRes = await window.gapi.client.drive.files.list({
+      q: `name = '${rootFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
       fields: 'files(id, name)',
     });
 
-    let folderId = folderRes.result.files[0]?.id;
-
-    if (!folderId) {
-      console.warn(`Carpeta '${folderName}' no encontrada en Drive.`);
+    const rootFolderId = rootRes.result.files[0]?.id;
+    if (!rootFolderId) {
+      console.warn(`Carpeta raíz '${rootFolderName}' no encontrada.`);
       return [];
     }
 
-    // 2. Listar archivos dentro de esa carpeta
-    const filesRes = await window.gapi.client.drive.files.list({
-      q: `'${folderId}' in parents and trashed = false`,
-      fields: 'files(id, name, mimeType, webViewLink, thumbnailLink, size, createdTime)',
-      orderBy: 'createdTime desc'
+    // 2. Buscar todas las subcarpetas dentro de la raíz
+    const subFoldersRes = await window.gapi.client.drive.files.list({
+      q: `'${rootFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      fields: 'files(id, name)',
     });
 
-    return filesRes.result.files.map(f => ({
-      id: f.id,
-      name: f.name,
-      type: f.mimeType.includes('video') ? 'video' : 'image',
-      date: f.createdTime.split('T')[0],
-      size: f.size ? (parseInt(f.size) / (1024 * 1024)).toFixed(1) + ' MB' : 'N/A',
-      link: f.webViewLink,
-      thumb: f.thumbnailLink
-    }));
+    const folderIds = [rootFolderId, ...subFoldersRes.result.files.map(f => f.id)];
+    
+    // 3. Construir query para buscar archivos en CUALQUIERA de estas carpetas
+    const parentQuery = folderIds.map(id => `'${id}' in parents`).join(' or ');
+    const filesRes = await window.gapi.client.drive.files.list({
+      q: `(${parentQuery}) and trashed = false and (mimeType contains 'image/' or mimeType contains 'video/')`,
+      fields: 'files(id, name, mimeType, webViewLink, thumbnailLink, size, createdTime, parents)',
+      orderBy: 'createdTime desc',
+      pageSize: 50
+    });
+
+    // Mapeo de IDs de carpeta a nombres para categorizar
+    const folderNames = { [rootFolderId]: rootFolderName };
+    subFoldersRes.result.files.forEach(f => folderNames[f.id] = f.name);
+
+    return filesRes.result.files.map(f => {
+      const parentId = f.parents?.[0];
+      const category = folderNames[parentId] || 'Otros';
+      
+      return {
+        id: f.id,
+        name: f.name,
+        category: category,
+        type: f.mimeType.includes('video') ? 'video' : 'image',
+        date: f.createdTime.split('T')[0],
+        size: f.size ? (parseInt(f.size) / (1024 * 1024)).toFixed(1) + ' MB' : 'N/A',
+        link: f.webViewLink,
+        thumb: f.thumbnailLink
+      };
+    });
 
   } catch (err) {
     console.error('Error al listar archivos de Drive:', err);
