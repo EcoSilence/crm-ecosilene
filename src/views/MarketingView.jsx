@@ -14,7 +14,9 @@ import {
   MoreVertical,
   Plus,
   PlayCircle,
-  Folder
+  Folder,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const MarketingView = () => {
@@ -337,6 +339,15 @@ const DriveSection = ({ isLinked, onPlan }) => {
     }
   };
 
+  const moveAsset = (index, direction) => {
+    const newAssets = [...selectedCarouselAssets];
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= newAssets.length) return;
+    const [movedItem] = newAssets.splice(index, 1);
+    newAssets.splice(newIndex, 0, movedItem);
+    setSelectedCarouselAssets(newAssets);
+  };
+
   const getSlideMessage = (index) => {
     const messages = [
       "Concentracion total: Nuestra tecnologia elimina las distracciones externas para que tu mensaje sea lo unico que importe.",
@@ -538,14 +549,31 @@ const DriveSection = ({ isLinked, onPlan }) => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div style={{ display: 'flex', gap: '0.8rem', overflowX: 'auto', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)', minHeight: '100px' }}>
                       {selectedCarouselAssets.map((asset, aidx) => (
-                        <div key={aidx} style={{ position: 'relative', minWidth: '100px', height: '100px', borderRadius: '8px', backgroundSize: 'cover', backgroundImage: `url(${asset.thumb})`, border: '2px solid var(--accent-primary)' }}>
+                        <div key={aidx} style={{ position: 'relative', minWidth: '110px', height: '110px', borderRadius: '8px', backgroundSize: 'cover', backgroundImage: `url(${asset.thumb})`, border: '2px solid var(--accent-primary)', transition: 'all 0.3s ease' }}>
                            <button 
                             onClick={() => toggleAssetSelection(asset)}
-                            style={{ position: 'absolute', top: '-5px', right: '-5px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--color-tomato)', border: 'none', color: '#fff', fontSize: '10px', cursor: 'pointer' }}
+                            style={{ position: 'absolute', top: '-5px', right: '-5px', width: '22px', height: '22px', borderRadius: '50%', background: 'var(--color-tomato)', border: 'none', color: '#fff', fontSize: '10px', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            title="Eliminar"
                            >
                             ✕
                            </button>
-                           <div style={{ position: 'absolute', bottom: '0', left: '0', right: '0', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '0.6rem', padding: '2px', textAlign: 'center' }}>Slide {aidx + 1}</div>
+
+                           <div style={{ position: 'absolute', bottom: '0', left: '0', right: '0', background: 'rgba(0,0,0,0.8)', color: '#fff', fontSize: '0.65rem', padding: '4px', textAlign: 'center', fontWeight: 600 }}>Slide {aidx + 1}</div>
+                           
+                           {/* Move Controls */}
+                           <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, transform: 'translateY(-50%)', display: 'flex', justifyContent: 'space-between', padding: '0 4px', opacity: 0.8 }}>
+                              {aidx > 0 && (
+                                <button onClick={(e) => { e.stopPropagation(); moveAsset(aidx, -1); }} style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '4px', color: '#fff', padding: '2px', cursor: 'pointer' }}>
+                                  <ChevronLeft size={14} />
+                                </button>
+                              )}
+                              <div style={{ flex: 1 }}></div>
+                              {aidx < selectedCarouselAssets.length - 1 && (
+                                <button onClick={(e) => { e.stopPropagation(); moveAsset(aidx, 1); }} style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '4px', color: '#fff', padding: '2px', cursor: 'pointer' }}>
+                                  <ChevronRight size={14} />
+                                </button>
+                              )}
+                           </div>
                         </div>
                       ))}
                       {selectedCarouselAssets.length === 0 && <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', border: '1px dashed var(--border-color)', borderRadius: '8px' }}>Selecciona fotos arriba ⬆️</div>}
