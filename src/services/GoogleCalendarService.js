@@ -213,109 +213,57 @@ export const deleteCalendarEvent = async (eventId) => {
  * GOOGLE DRIVE FUNCTIONS
  */
 
-export const listDriveFiles = async (rootFolderName = 'redes ecosilence') => {
+export const listDriveContent = async (parentId = null, rootFolderName = 'redes ecosilence') => {
   if (!gapiInited || !gsisInited || !window.gapi.client.drive) {
     console.error('Google Drive API not initialized');
-    return [];
+    return { folders: [], files: [] };
   }
   
   try {
-    // 1. Buscar la carpeta raíz - Intento más profundo
-    const rootRes = await window.gapi.client.drive.files.list({
-      q: `mimeType = 'application/vnd.google-apps.folder' and trashed = false and name contains 'redes'`,
-      fields: 'files(id, name)',
+    let targetParentId = parentId;
+
+    // Si no hay parentId, buscamos la carpeta raíz por nombre
+    if (!targetParentId) {
+      const rootRes = await window.gapi.client.drive.files.list({
+        q: `name contains '${rootFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+        fields: 'files(id, name)',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      });
+      targetParentId = rootRes.result.files[0]?.id;
+      if (!targetParentId) return { folders: [], files: [] };
+    }
+
+    // Listar contenido del parentId (carpetas y archivos)
+    const res = await window.gapi.client.drive.files.list({
+      q: `'${targetParentId}' in parents and trashed = false`,
+      fields: 'files(id, name, mimeType, webViewLink, thumbnailLink, size, createdTime)',
+      orderBy: 'folder, name',
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
-      pageSize: 100
     });
 
-    console.log('Resultados de búsqueda profunda (folders con "redes"):', rootRes.result.files);
+    const items = res.result.files || [];
+    const folders = items.filter(i => i.mimeType === 'application/vnd.google-apps.folder').map(f => ({
+      id: f.id,
+      name: f.name,
+      type: 'folder'
+    }));
 
-    // Intentar encontrar la que coincida mejor
-    const targetFolder = rootRes.result.files.find(f => 
-      f.name.toLowerCase().includes('redes') && f.name.toLowerCase().includes('ecosilence')
-    ) || rootRes.result.files[0];
+    const files = items.filter(i => i.mimeType !== 'application/vnd.google-apps.folder' && (i.mimeType.includes('image/') || i.mimeType.includes('video/'))).map(f => ({
+      id: f.id,
+      name: f.name,
+      type: f.mimeType.includes('video') ? 'video' : 'image',
+      link: f.webViewLink,
+      thumb: f.thumbnailLink,
+      date: new Date(f.createdTime).toLocaleDateString(),
+      size: f.size ? (f.size / (1024 * 1024)).toFixed(1) + ' MB' : 'N/A'
+    }));
 
-    const rootFolderId = targetFolder?.id;
-    
-    if (!rootFolderId) {
-      console.warn(`No se encontró ninguna carpeta con 'redes ecosilence'.`);
-      // Listar TODAS las carpetas raíz para diagnóstico
-      const allFolders = await window.gapi.client.drive.files.list({
-        q: `mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-        pageSize: 20,
-        fields: 'files(id, name)'
-      });
-      console.log('Primeras 20 carpetas visibles:', allFolders.result.files);
-      return [];
-    }
-
-    console.log('Carpeta seleccionada:', targetFolder.name, 'ID:', rootFolderId);
-
-    // 2. Función para buscar subcarpetas recursivamente (hasta 2 niveles)
-    const getFoldersRecursive = async (parentIds) => {
-      if (!parentIds || parentIds.length === 0) return [];
-      const query = parentIds.map(id => `'${id}' in parents`).join(' or ');
-      const res = await window.gapi.client.drive.files.list({
-        q: `(${query}) and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-        fields: 'files(id, name, parents)',
-        supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
-      });
-      return res.result.files || [];
-    };
-
-    // Nivel 1: Subcarpetas principales (fotos eventos, videos eventos, etc)
-    const level1Folders = await getFoldersRecursive([rootFolderId]);
-    
-    // Nivel 2: Carpetas de eventos específicos (Amazon, Cold Play, etc)
-    const level2Folders = await getFoldersRecursive(level1Folders.map(f => f.id));
-
-    const allFolders = [
-      { id: rootFolderId, name: targetFolder.name },
-      ...level1Folders,
-      ...level2Folders
-    ];
-
-    const folderIds = allFolders.map(f => f.id);
-    const folderNames = {};
-    allFolders.forEach(f => folderNames[f.id] = f.name);
-    
-    // 3. Buscar archivos en CUALQUIERA de estas carpetas
-    const foundFiles = [];
-    const chunkSize = 25; 
-    for (let i = 0; i < folderIds.length; i += chunkSize) {
-      const chunk = folderIds.slice(i, i + chunkSize);
-      const parentQuery = chunk.map(id => `'${id}' in parents`).join(' or ');
-      const filesRes = await window.gapi.client.drive.files.list({
-        q: `(${parentQuery}) and trashed = false and (mimeType contains 'image/' or mimeType contains 'video/')`,
-        fields: 'files(id, name, mimeType, webViewLink, thumbnailLink, size, createdTime, parents)',
-        orderBy: 'createdTime desc',
-        pageSize: 100,
-        supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
-      });
-      if (filesRes.result.files) foundFiles.push(...filesRes.result.files);
-    }
-
-    return foundFiles.map(f => {
-      const parentId = f.parents?.[0];
-      const category = folderNames[parentId] || 'Otros';
-      
-      return {
-        id: f.id,
-        name: f.name,
-        category: category,
-        type: f.mimeType.includes('video') ? 'video' : 'image',
-        link: f.webViewLink,
-        thumb: f.thumbnailLink,
-        date: new Date(f.createdTime).toLocaleDateString(),
-        size: f.size ? (f.size / (1024 * 1024)).toFixed(1) + ' MB' : 'N/A'
-      };
-    });
+    return { folders, files, currentFolderId: targetParentId };
 
   } catch (err) {
-    console.error('Error al listar archivos de Drive:', err);
-    return [];
+    console.error('Error al listar contenido de Drive:', err);
+    return { folders: [], files: [] };
   }
 };

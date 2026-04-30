@@ -282,72 +282,128 @@ const EstrategiaSection = ({ servicios }) => {
   );
 };
 
-const DriveSection = ({ files, loading, isLinked, onRetry }) => {
+const DriveSection = ({ isLinked, onPlan }) => {
+  const { listDriveContent } = useAppStore();
+  const [loading, setLoading] = useState(false);
+  const [folders, setFolders] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [path, setPath] = useState([{ id: null, name: 'redes ecosilence' }]);
+
+  const fetchContent = async (folderId = null) => {
+    setLoading(true);
+    try {
+      const res = await listDriveContent(folderId);
+      setFolders(res.folders || []);
+      setFiles(res.files || []);
+      // Si es el inicio, actualizamos el ID real de la raíz
+      if (!folderId && res.currentFolderId && path[0].id === null) {
+        setPath([{ id: res.currentFolderId, name: 'redes ecosilence' }]);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isLinked) {
+      fetchContent(path[path.length - 1].id);
+    }
+  }, [isLinked]);
+
+  const navigateTo = (folder) => {
+    const newPath = [...path, folder];
+    setPath(newPath);
+    fetchContent(folder.id);
+  };
+
+  const navigateBack = (index) => {
+    const newPath = path.slice(0, index + 1);
+    setPath(newPath);
+    fetchContent(newPath[newPath.length - 1].id);
+  };
+
   if (!isLinked) {
     return (
       <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
         <ImageIcon size={48} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
         <h3>Google Drive no vinculado</h3>
         <p style={{ color: 'var(--text-muted)', maxWidth: '400px', margin: '0.5rem auto 1.5rem auto' }}>
-          Es posible que necesites actualizar tus permisos de Google para permitir que el CRM acceda a tus carpetas de Drive.
+          Vincula tu cuenta de Google en Configuración para navegar por tus carpetas.
         </p>
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-          <button className="btn btn-primary" onClick={onRetry}>
-            Intentar Sincronizar
-          </button>
-          <button className="btn btn-ghost" style={{ border: '1px solid var(--border-color)' }} onClick={() => window.location.reload()}>
-            Actualizar Permisos (Recargar)
-          </button>
-        </div>
       </div>
     );
   }
-
-  if (loading) {
-    return (
-      <div className="glass-card" style={{ padding: '4rem', textAlign: 'center' }}>
-        <div className="spinner" style={{ margin: '0 auto 1rem auto' }}></div>
-        <p>Sincronizando con Google Drive...</p>
-      </div>
-    );
-  }
-
-  // Agrupar archivos por categoría
-  const groupedFiles = files.reduce((acc, file) => {
-    const cat = file.category || 'Otros';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(file);
-    return acc;
-  }, {});
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Breadcrumbs */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+        <Folder size={16} />
+        {path.map((p, i) => (
+          <React.Fragment key={p.id || 'root'}>
+            <button 
+              onClick={() => navigateBack(i)}
+              style={{ background: 'none', border: 'none', color: i === path.length - 1 ? 'var(--accent-primary)' : 'inherit', cursor: 'pointer', fontWeight: i === path.length - 1 ? 600 : 400, fontSize: '0.85rem' }}
+            >
+              {p.name}
+            </button>
+            {i < path.length - 1 && <span>/</span>}
+          </React.Fragment>
+        ))}
+      </div>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>Explorador de Multimedia (Google Drive)</h3>
-        <button className="btn btn-ghost" style={{ fontSize: '0.85rem' }} onClick={onRetry}>
-          <Download size={16} /> Sincronizar Carpeta
+        <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{path[path.length - 1].name}</h3>
+        <button className="btn btn-ghost" onClick={() => fetchContent(path[path.length - 1].id)} disabled={loading} style={{ fontSize: '0.8rem' }}>
+          {loading ? 'Cargando...' : 'Actualizar'}
         </button>
       </div>
 
-      {Object.keys(groupedFiles).length === 0 ? (
-        <div className="glass-card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-          <p>No se encontraron archivos en la carpeta 'redes ecosilence' o sus subcarpetas.</p>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '5rem', background: 'rgba(0,0,0,0.1)', borderRadius: '12px' }}>
+          <div className="spinner" style={{ margin: '0 auto 1rem auto' }}></div>
+          <p style={{ color: 'var(--text-muted)' }}>Cargando contenido de Drive...</p>
         </div>
       ) : (
-        Object.entries(groupedFiles).map(([category, items]) => (
-          <div key={category} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: '0.8rem', color: 'var(--accent-primary)', letterSpacing: '1px', borderLeft: '3px solid var(--accent-primary)', paddingLeft: '0.8rem' }}>
-              {category} ({items.length})
-            </h4>
-            
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          {/* Carpetas */}
+          {folders.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+              {folders.map(f => (
+                <div 
+                  key={f.id} 
+                  onClick={() => navigateTo(f)}
+                  className="folder-item"
+                  style={{ 
+                    background: 'rgba(255,255,255,0.03)', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '8px', 
+                    padding: '0.8rem 1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    cursor: 'pointer',
+                    transition: 'var(--transition)'
+                  }}
+                >
+                  <div style={{ color: 'var(--accent-primary)' }}><Folder size={24} fill="currentColor" fillOpacity={0.2} /></div>
+                  <div style={{ fontWeight: 500, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Archivos */}
+          {files.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.5rem' }}>
-              {items.map(file => (
+              {files.map(file => (
                 <div key={file.id} className="drive-item" style={{ 
                   background: 'rgba(255,255,255,0.02)', 
                   border: '1px solid var(--border-color)', 
                   borderRadius: 'var(--radius-md)',
                   overflow: 'hidden',
-                  transition: 'var(--transition)',
                   position: 'relative'
                 }}>
                   <div style={{ 
@@ -370,26 +426,29 @@ const DriveSection = ({ files, loading, isLinked, onRetry }) => {
                       opacity: 0, transition: 'opacity 0.2s', gap: '0.8rem'
                     }}>
                       <a href={file.link} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ padding: '0.4rem' }} title="Ver Original"><ArrowRight size={16}/></a>
-                      <button className="btn btn-primary" style={{ padding: '0.4rem' }} title="Planificar Post" onClick={() => alert('Próximamente: Abrir editor de planificación')}><Plus size={16}/></button>
+                      <button className="btn btn-primary" style={{ padding: '0.4rem' }} title="Planificar Post" onClick={() => onPlan(file)}><Plus size={16}/></button>
                     </div>
                   </div>
                   <div style={{ padding: '1rem' }}>
-                    <div style={{ fontWeight: 500, fontSize: '0.85rem', marginBottom: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    <div style={{ fontWeight: 500, fontSize: '0.8rem', marginBottom: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.7rem' }}>
                       <span>{file.date}</span>
                       <span>{file.size}</span>
                     </div>
                   </div>
-                  
-                  <style>{`
-                    .drive-item:hover .media-overlay { opacity: 1 !important; }
-                  `}</style>
                 </div>
               ))}
             </div>
-          </div>
-        ))
+          ) : (
+            !loading && folders.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem', background: 'rgba(255,255,255,0.01)', borderRadius: '12px' }}>Esta carpeta está vacía.</div>
+          )}
+        </div>
       )}
+
+      <style>{`
+        .folder-item:hover { background: rgba(255,255,255,0.08) !important; transform: translateY(-2px); border-color: var(--accent-primary) !important; }
+        .drive-item:hover .media-overlay { opacity: 1 !important; }
+      `}</style>
     </div>
   );
 };

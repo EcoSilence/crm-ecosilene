@@ -543,7 +543,7 @@ export const AppDataProvider = ({ children }) => {
     togglePagoAdelanto,
     cotizaciones: getCotizacionesEnriched(), addItemCotizacion, removeItemCotizacion, editItemCotizacion,
     getStockActual,
-    isGoogleLinked, linkGoogle, unlinkGoogle, logout, listDriveFiles,
+    isGoogleLinked, linkGoogle, unlinkGoogle, logout, listDriveContent,
     kanbanExpandedYears, setKanbanExpandedYears,
     kanbanExpandedMonths, setKanbanExpandedMonths,
     kanbanExpandedStage, setKanbanExpandedStage,
