@@ -268,10 +268,12 @@ const DriveSection = ({ isLinked, onPlan }) => {
   // IA Suggestions State
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState(null);
+  const [selectedCarouselAssets, setSelectedCarouselAssets] = useState([]);
 
   const fetchContent = async (folderId = null) => {
     setLoading(true);
-    setAiSuggestions(null); // Reset suggestions when changing folders
+    setAiSuggestions(null); 
+    setSelectedCarouselAssets([]); // Reset selection
     try {
       const res = await listDriveContent(folderId);
       setFolders(res.folders || []);
@@ -290,9 +292,9 @@ const DriveSection = ({ isLinked, onPlan }) => {
     setIsGenerating(true);
     const folderName = path[path.length - 1].name;
     
-    // Simulate IA Analysis logic
     setTimeout(() => {
-      const images = files.filter(f => f.type === 'image').slice(0, 4);
+      const initialImages = files.filter(f => f.type === 'image').slice(0, 4);
+      setSelectedCarouselAssets(initialImages);
       const videos = files.filter(f => f.type === 'video').slice(0, 2);
       
       const suggestions = [
@@ -301,31 +303,49 @@ const DriveSection = ({ isLinked, onPlan }) => {
           type: 'Carrusel Educativo (B2B)',
           title: 'Optimizacion de Audio en Congresos',
           desc: 'Como optimizar el audio en tu proximo congreso corporativo sin ruido ambiental.',
-          assets: images,
-          copy: `GANCHO: ¿Sabias que el ruido ambiental reduce la retencion de informacion en un 40%? 🧠\n\nVALOR: En el evento de ${folderName}, implementamos tecnologia Silent para que cada asistente escuchara al orador con claridad absoluta, sin importar el eco del salon.\n\nCTA: Solicita tu cotizacion para eventos corporativos en el link de la bio. #SilentConference #B2BChile #EventosPro`
+          copy: `GANCHO: ¿Sabias que el ruido ambiental reduce la retencion de informacion en un 40%? 🧠\n\nVALOR: En el evento de ${folderName}, implementamos tecnologia Silent para que cada asistente escuchara al orador con claridad absoluta.\n\nCTA: Solicita tu cotizacion para eventos corporativos en el link de la bio. #SilentConference #B2BChile #EventosPro`
         },
         {
           id: 'opt_b',
           type: 'Reel de Experiencia',
           title: 'Transformacion Sensorial',
           desc: 'Transforma un lanzamiento de producto en una experiencia sensorial inmersiva.',
-          assets: videos.length > 0 ? [videos[0]] : images.slice(0, 1),
-          copy: `GANCHO: ¿Aburrido de los lanzamientos tradicionales? 😴\n\nVALOR: Creamos experiencias que se escuchan y se sienten. En ${folderName}, logramos una conexion profunda entre la marca y su audiencia mediante audio inmersivo de alta fidelidad.\n\nCTA: Escribenos para diseñar tu proxima activacion de marca. #SilentActivation #MarketingExperiencial #Innovacion`
+          assets: videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1),
+          copy: `GANCHO: ¿Aburrido de los lanzamientos tradicionales? 😴\n\nVALOR: Creamos experiencias que se escuchan y se sienten. En ${folderName}, logramos una conexion profunda.\n\nCTA: Escribenos para diseñar tu proxima activacion de marca. #SilentActivation #MarketingExperiencial #Innovacion`
         },
         {
           id: 'opt_c',
           type: 'Caso de Exito',
           title: 'Estudio de Caso: ' + folderName,
           desc: 'Resumen de beneficios clave logrados con tecnologia ECOSILENCE.',
-          assets: images.slice(0, 1),
-          copy: `TEMA: El exito del evento ${folderName} con tecnologia ECOSILENCE.\n\nVALOR: Logramos 0% de interferencia en salas simultaneas. Un placer haber colaborado en este gran evento, llevando la claridad del audio al siguiente nivel.\n\nCTA: Agenda una demo tecnica en nuestra bio. #SilentEvents #SolucionesAuditivas #B2BChile`
+          assets: initialImages.slice(0, 1),
+          copy: `TEMA: El exito del evento ${folderName} con tecnologia ECOSILENCE.\n\nVALOR: Logramos 0% de interferencia en salas simultaneas.\n\nCTA: Agenda una demo tecnica en nuestra bio. #SilentEvents #SolucionesAuditivas #B2BChile`
         }
       ];
       setAiSuggestions(suggestions);
       setIsGenerating(false);
-      // Scroll to suggestions
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }, 1500);
+  };
+
+  const toggleAssetSelection = (file) => {
+    if (selectedCarouselAssets.find(a => a.id === file.id)) {
+      setSelectedCarouselAssets(prev => prev.filter(a => a.id !== file.id));
+    } else {
+      if (selectedCarouselAssets.length >= 10) return alert('Máximo 10 imágenes para un carrusel');
+      setSelectedCarouselAssets(prev => [...prev, file]);
+    }
+  };
+
+  const getSlideMessage = (index) => {
+    const messages = [
+      "Concentracion total: Nuestra tecnologia elimina las distracciones externas para que tu mensaje sea lo unico que importe.",
+      "Claridad absoluta: Audio de alta fidelidad directamente a los oidos de tus asistentes, sin importar la acustica del lugar.",
+      "Experiencia Inmersiva: Creamos una burbuja de sonido que conecta a la audiencia con el contenido de forma profunda.",
+      "Versatilidad sin cables: Montajes limpios y rapidos para congresos de cualquier escala con EcoSilence Soluciones.",
+      "Lleva tu evento al siguiente nivel con nuestras soluciones de audio inmersivo B2B."
+    ];
+    return messages[index % messages.length];
   };
 
   useEffect(() => {
@@ -461,12 +481,27 @@ const DriveSection = ({ isLinked, onPlan }) => {
                       background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       opacity: 0, transition: 'opacity 0.2s', gap: '0.8rem'
                     }}>
-                      <a href={file.link} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ padding: '0.4rem' }} title="Ver Original"><ArrowRight size={16}/></a>
-                      <button className="btn btn-primary" style={{ padding: '0.4rem' }} title="Planificar Post" onClick={() => onPlan(file)}><Plus size={16}/></button>
+                      {aiSuggestions && file.type === 'image' ? (
+                        <button 
+                          className={`btn ${selectedCarouselAssets.find(a => a.id === file.id) ? 'btn-primary' : 'btn-ghost'}`} 
+                          onClick={() => toggleAssetSelection(file)}
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                        >
+                          {selectedCarouselAssets.find(a => a.id === file.id) ? 'Seleccionado' : 'Elegir para Carrusel'}
+                        </button>
+                      ) : (
+                        <>
+                          <a href={file.link} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ padding: '0.4rem' }} title="Ver Original"><ArrowRight size={16}/></a>
+                          <button className="btn btn-primary" style={{ padding: '0.4rem' }} title="Planificar Post" onClick={() => onPlan(file)}><Plus size={16}/></button>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div style={{ padding: '1rem' }}>
-                    <div style={{ fontWeight: 500, fontSize: '0.8rem', marginBottom: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <div style={{ fontWeight: 500, fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{file.name}</div>
+                      {selectedCarouselAssets.find(a => a.id === file.id) && <div style={{ width: '8px', height: '8px', background: 'var(--accent-primary)', borderRadius: '50%' }}></div>}
+                    </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.7rem' }}>
                       <span>{file.date}</span>
                       <span>{file.size}</span>
@@ -490,7 +525,7 @@ const DriveSection = ({ isLinked, onPlan }) => {
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
             {aiSuggestions.map((s, idx) => (
-              <div key={idx} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+              <div key={idx} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.2rem', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <span style={{ fontSize: '0.7rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700 }}>{s.type}</span>
                   <Plus size={18} color="var(--text-muted)" style={{ cursor: 'pointer' }} />
@@ -498,13 +533,46 @@ const DriveSection = ({ isLinked, onPlan }) => {
                 <h4 style={{ margin: 0 }}>{s.title}</h4>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>{s.desc}</p>
                 
-                <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', padding: '0.5rem 0' }}>
-                  {s.assets.map((asset, aidx) => (
-                    <div key={aidx} style={{ minWidth: '80px', height: '80px', borderRadius: '8px', backgroundSize: 'cover', backgroundImage: `url(${asset.thumb})`, border: '1px solid var(--border-color)' }}>
-                      {!asset.thumb && <ImageIcon size={20} color="var(--text-muted)" />}
+                {/* Carrusel Interactive Preview */}
+                {s.id === 'opt_a' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', gap: '0.8rem', overflowX: 'auto', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)', minHeight: '100px' }}>
+                      {selectedCarouselAssets.map((asset, aidx) => (
+                        <div key={aidx} style={{ position: 'relative', minWidth: '100px', height: '100px', borderRadius: '8px', backgroundSize: 'cover', backgroundImage: `url(${asset.thumb})`, border: '2px solid var(--accent-primary)' }}>
+                           <button 
+                            onClick={() => toggleAssetSelection(asset)}
+                            style={{ position: 'absolute', top: '-5px', right: '-5px', width: '20px', height: '20px', borderRadius: '50%', background: 'var(--color-tomato)', border: 'none', color: '#fff', fontSize: '10px', cursor: 'pointer' }}
+                           >
+                            ✕
+                           </button>
+                           <div style={{ position: 'absolute', bottom: '0', left: '0', right: '0', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '0.6rem', padding: '2px', textAlign: 'center' }}>Slide {aidx + 1}</div>
+                        </div>
+                      ))}
+                      {selectedCarouselAssets.length === 0 && <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', border: '1px dashed var(--border-color)', borderRadius: '8px' }}>Selecciona fotos arriba ⬆️</div>}
                     </div>
-                  ))}
-                </div>
+                    
+                    {/* Slide Messages */}
+                    {selectedCarouselAssets.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent-primary)' }}>MENSAJES POR DIAPOSITIVA:</div>
+                        {selectedCarouselAssets.slice(0, 3).map((_, aidx) => (
+                          <div key={aidx} style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', fontSize: '0.75rem', borderLeft: '2px solid var(--accent-primary)' }}>
+                             <strong>Slide {aidx + 1}:</strong> {getSlideMessage(aidx)}
+                          </div>
+                        ))}
+                        {selectedCarouselAssets.length > 3 && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center' }}>+ {selectedCarouselAssets.length - 3} diapositivas mas...</div>}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', padding: '0.5rem 0' }}>
+                    {s.assets.map((asset, aidx) => (
+                      <div key={aidx} style={{ minWidth: '80px', height: '80px', borderRadius: '8px', backgroundSize: 'cover', backgroundImage: `url(${asset.thumb})`, border: '1px solid var(--border-color)' }}>
+                        {!asset.thumb && <ImageIcon size={20} color="var(--text-muted)" />}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem', position: 'relative' }}>
                   <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{s.copy}</p>
