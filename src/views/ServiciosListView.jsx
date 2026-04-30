@@ -62,7 +62,7 @@ const ServiciosListView = () => {
         <p style={{ color: 'var(--text-muted)' }}>Lista de todos los servicios clasificados como {stage}. Hay {filteredServicios.length} resultados.</p>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
         {filteredServicios.length === 0 ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }} className="glass-panel">
             No hay servicios en esta etapa.
@@ -85,35 +85,41 @@ const ServiciosListView = () => {
               <div key={s.idServicio} style={{ 
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
                 padding: '0.8rem 1.2rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-color)', borderLeft: `4px solid ${getStageColor(stage)}`, gap: '1.5rem',
+                border: '1px solid var(--border-color)', borderLeft: `4px solid ${getStageColor(stage)}`, gap: '1.5rem', flexWrap: 'wrap'
               }}>
-                {/* LEFT: Info stacked vertically */}
-                <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                  <h5 style={{ margin: '0 0 0.2rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', flexWrap: 'wrap' }}>
-                    {s.idServicio} <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.8rem' }}>— {getClientName(s.clienteId)}</span>
+                {/* 1. Izquierda: ID, Cliente, Fecha, Dirección */}
+                <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
+                  <h5 style={{ margin: '0 0 0.4rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', flexWrap: 'wrap' }}>
+                    {s.idServicio} <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.85rem' }}>— {getClientName(s.clienteId)}</span>
                   </h5>
-                  <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.78rem', flexWrap: 'wrap', marginBottom: '0.4rem' }}>
-                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={12}/> {s.direccionEvento || 'Sin dirección'}</span>
-                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CalendarDays size={12}/> Inicio: {s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'Por definir'}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {audifonos > 0 && <span style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem' }}>🎧 Audífonos: <strong>{audifonos}</strong></span>}
-                    {transmisores > 0 && <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#facc15', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem' }}>📡 Transmisores (TX): <strong>{transmisores}</strong></span>}
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.8rem', flexWrap: 'wrap', marginTop: '0.3rem' }}>
-                    <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>Neto: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(neto, currency)}</strong></span>
-                    <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>Total c/IVA: <strong style={{ color: 'var(--accent-primary)' }}>{formatCurrency(total, currency)}</strong></span>
+                  <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', flexWrap: 'wrap' }}>
+                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={13}/> {s.direccionEvento || 'Sin dirección'}</span>
+                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CalendarDays size={13}/> Inicio: {s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'Por definir'}</span>
                   </div>
                 </div>
 
-                {/* RIGHT: Controls */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexShrink: 0 }}>
-                  <select className="input-control" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', width: '120px' }} value={s.etapa} onChange={(e) => updateServiceStage(s.idServicio, e.target.value)}>
+                {/* 2. Centro: Equipos y Valores */}
+                <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
+                  {(audifonos > 0 || transmisores > 0) && (
+                    <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {audifonos > 0 && <span style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>🎧 Audífonos: <strong>{audifonos}</strong></span>}
+                      {transmisores > 0 && <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#facc15', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>📡 Transmisores (TX): <strong>{transmisores}</strong></span>}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.85rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>Neto: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(neto, currency)}</strong></span>
+                    <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>Total c/IVA: <strong style={{ color: 'var(--accent-primary)' }}>{formatCurrency(total, currency)}</strong></span>
+                  </div>
+                </div>
+
+                {/* 3. Derecha: Controles */}
+                <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <select className="input-control" style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', width: '130px', margin: 0 }} value={s.etapa} onChange={(e) => updateServiceStage(s.idServicio, e.target.value)}>
                     {STAGES.map(st => <option key={st} value={st}>{st}</option>)}
                   </select>
-                  <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}><Edit2 size={15}/></button>
-                  <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', color: 'var(--color-tomato)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={15}/></button>
-                  <button className="btn btn-primary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}><CheckCircle size={15}/> Cotizar</button>
+                  <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}><Edit2 size={16}/></button>
+                  <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--color-tomato)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={16}/></button>
+                  <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}><CheckCircle size={16}/> Cotizar</button>
                 </div>
               </div>
             );

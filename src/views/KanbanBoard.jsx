@@ -1,75 +1,24 @@
 import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../context/AppDataContext';
-import { Clock, MapPin, User, CalendarDays, ChevronDown, ChevronUp, ChevronRight, CheckCircle, Plus, X, Folder, FolderOpen, Edit2, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarDays, CheckCircle, Edit2, Trash2 } from 'lucide-react';
 
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { 
-    clientes, servicios, cotizaciones, inventario, 
-    addServicio, editServicio, removeServicio, updateServiceStage, getStockActual, menuNames,
-    kanbanGroupedData, selectedKanbanMonth, kanbanExpandedStage, setKanbanExpandedStage, navigate,
-    formatDateDDMMYYYY
-  } = useAppStore();
-  
-  const expandedStage = kanbanExpandedStage;
-  const setExpandedStage = setKanbanExpandedStage;
-
-  // Modal State para Agregar / Editar Servicio
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const { servicios, updateServiceStage, removeServicio, editServicio, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
-  const [formData, setFormData] = useState({
-    clienteId: clientes.length > 0 ? clientes[0].id : '',
-    direccionEvento: '',
-    fechaInicioDate: '',
-    fechaInicioTime: '',
-    fechaFinDate: '',
-    fechaFinTime: ''
-  });
+  const [expandedYear, setExpandedYear] = useState(new Date().getFullYear().toString());
+  const [expandedMonth, setExpandedMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
+  const [expandedStage, setExpandedStage] = useState('Cotizado');
 
-  const filteredSortedClientes = useMemo(() => {
-    const search = searchTerm.toLowerCase();
-    const filtered = clientes.filter(c => {
-       const nombre = (c.nombre || '').toLowerCase();
-       const apellido = (c.apellido || '').toLowerCase();
-       const empresa = (c.empresa || '').toLowerCase();
-       return nombre.includes(search) || apellido.includes(search) || empresa.includes(search);
-    });
+  // Modal State para Editar Servicio
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingService, setEditingService] = useState(null);
 
-    return filtered.sort((a,b) => {
-       const empA = (a.empresa || 'zz_sin_empresa').toLowerCase();
-       const empB = (b.empresa || 'zz_sin_empresa').toLowerCase();
-       if (empA < empB) return -1;
-       if (empA > empB) return 1;
-       return 0;
-    });
-  }, [clientes, searchTerm]);
-
-  const openNewModal = () => {
-    setEditMode(false);
-    setEditingId(null);
-    setSearchTerm('');
-    setFormData({ clienteId: '', direccionEvento: '', fechaInicioDate: '', fechaInicioTime: '', fechaFinDate: '', fechaFinTime: '' });
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (servicio) => {
-    setEditMode(true);
-    setEditingId(servicio.idServicio);
-    setSearchTerm('');
-    const startParts = (servicio.fechaInicio || '').split('T');
-    const endParts = (servicio.fechaFin || '').split('T');
-    setFormData({
-      clienteId: servicio.clienteId,
-      direccionEvento: servicio.direccionEvento,
-      fechaInicioDate: startParts[0] || '',
-      fechaInicioTime: startParts[1] ? startParts[1].substring(0, 5) : '',
-      fechaFinDate: endParts[0] || '',
-      fechaFinTime: endParts[1] ? endParts[1].substring(0, 5) : ''
-    });
-    setIsModalOpen(true);
+  const monthNames = {
+    '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
+    '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto',
+    '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
   };
 
   const getClientName = (id) => {
@@ -77,327 +26,303 @@ const KanbanBoard = () => {
     return c ? (c.empresa ? `${c.empresa} - ${c.nombre} ${c.apellido}` : `${c.nombre} ${c.apellido}`) : 'Desconocido';
   };
 
-  const getStageColor = (stage) => {
-    switch (stage) {
+  const formatCurrency = (val, currency = 'CLP') => {
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency }).format(val || 0);
+  };
+
+  const getServiceTotals = (idServicio, descuentoData = 0) => {
+    const items = (cotizaciones || []).filter(c => c.servicioId === idServicio);
+    const subtotalBruto = items.reduce((acc, c) => acc + c.subtotal, 0);
+    const descuentoMonto = subtotalBruto * (descuentoData / 100);
+    const neto = subtotalBruto - descuentoMonto;
+    const total = neto * 1.19;
+    return { neto, total };
+  };
+
+  // Build tree data
+  const treeData = useMemo(() => {
+    const tree = {};
+    (servicios || []).forEach(s => {
+      // Filtrar por búsqueda
+      if (searchTerm) {
+        const clientName = getClientName(s.clienteId).toLowerCase();
+        const idLower = String(s.idServicio).toLowerCase();
+        const term = searchTerm.toLowerCase();
+        if (!clientName.includes(term) && !idLower.includes(term) && !(s.direccionEvento || '').toLowerCase().includes(term)) {
+          return;
+        }
+      }
+
+      const d = s.fechaInicio ? new Date(s.fechaInicio) : new Date();
+      const y = d.getFullYear().toString();
+      const m = (d.getMonth() + 1).toString().padStart(2, '0');
+
+      if (!tree[y]) tree[y] = {};
+      if (!tree[y][m]) tree[y][m] = { servicios: [] };
+      tree[y][m].servicios.push(s);
+    });
+    return tree;
+  }, [servicios, searchTerm, clientes]);
+
+  const years = Object.keys(treeData).sort((a, b) => b.localeCompare(a));
+
+  const toggleYear = (y) => {
+    setExpandedYear(expandedYear === y ? null : y);
+    setExpandedMonth(null);
+    setExpandedStage(null);
+  };
+
+  const toggleMonth = (m) => {
+    setExpandedMonth(expandedMonth === m ? null : m);
+    setExpandedStage(null);
+  };
+
+  const toggleStage = (st) => {
+    setExpandedStage(expandedStage === st ? null : st);
+  };
+
+  const getStageColor = (st) => {
+    switch(st) {
       case 'Cotizado': return 'var(--color-banana)';
       case 'Aprobado': return 'var(--color-berry)';
       case 'Por Cobrar': return 'var(--color-tomato)';
       case 'Pagado': return 'var(--color-basil)';
-      default: return 'var(--text-muted)';
+      default: return 'var(--text-main)';
     }
   };
 
-  const toggleStage = (stage) => {
-    if (expandedStage === stage) setExpandedStage(null);
-    else setExpandedStage(stage);
+  const openEditModal = (servicio) => {
+    setEditingService({ ...servicio });
+    setIsEditModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditingService(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditSubmit = (e) => {
     e.preventDefault();
-    if (!formData.clienteId) return alert('Debes seleccionar un cliente.');
-    
-    const buildDateTime = (date, time) => {
-       if (!date) return '';
-       return time ? `${date}T${time}` : date;
-    };
-    
-    const finalData = {
-       clienteId: formData.clienteId,
-       direccionEvento: formData.direccionEvento,
-       fechaInicio: buildDateTime(formData.fechaInicioDate, formData.fechaInicioTime),
-       fechaFin: buildDateTime(formData.fechaFinDate, formData.fechaFinTime)
-    };
-
-    if (editMode && editingId) {
-       editServicio(editingId, finalData);
-    } else {
-       addServicio(finalData);
-    }
-    
-    setIsModalOpen(false);
-  };
-
-  const monthNames = {
-    '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril', '05': 'Mayo', '06': 'Junio',
-    '07': 'Julio', '08': 'Agosto', '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
-  };
-
-  const getServiceTotals = (idServicio, descuentoData = 0) => {
-    const items = cotizaciones.filter(c => c.servicioId === idServicio);
-    const subtotalBruto = items.reduce((acc, c) => acc + c.subtotal, 0);
-    const descuentoMonto = subtotalBruto * (descuentoData / 100);
-    const neto = subtotalBruto - descuentoMonto;
-    const iva = neto * 0.19;
-    return { neto, total: neto + iva };
-  };
-
-  const formatCurrency = (val, currencyCode = 'CLP') => {
-    return new Intl.NumberFormat(currencyCode === 'CLP' ? 'es-CL' : (currencyCode === 'USD' ? 'en-US' : 'es-PE'), { 
-      style: 'currency', 
-      currency: currencyCode,
-      minimumFractionDigits: currencyCode === 'CLP' ? 0 : 2
-    }).format(val);
-  };
-
-  const calculateStageTotal = (servicesInStage) => {
-    return servicesInStage.reduce((acc, s) => acc + getServiceTotals(s.idServicio, s.descuento || 0).total, 0);
+    editServicio(editingService.idServicio, editingService);
+    setIsEditModalOpen(false);
+    setEditingService(null);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%', paddingBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ marginBottom: '0.5rem' }}>{menuNames.kanban || 'Pipeline de Ventas (Archivos)'}</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Despliega las carpetas por Año y Mes para acceder a los eventos.</p>
+          <h1 style={{ margin: '0 0 0.5rem 0' }}>Flujo de Trabajo</h1>
+          <p style={{ margin: 0, color: 'var(--text-muted)' }}>Despliega las carpetas por Año y Mes para acceder a los eventos.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <button className="btn btn-primary" onClick={openNewModal}>
+          <div className="search-bar" style={{ width: '250px' }}>
+            <Search size={18} />
+            <input 
+              type="text" 
+              placeholder="Buscar por ID, Cliente o Lugar..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <button className="btn btn-primary" onClick={() => navigate('nuevo-servicio')}>
             <Plus size={18} /> Nuevo Servicio
           </button>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {servicios.length === 0 && (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>No hay servicios registrados.</div>
-        )}
-
-        {servicios.length > 0 && !selectedKanbanMonth && (
-           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-             Por favor selecciona un año y un mes en el menú lateral (Flujo de Trabajo) para ver los eventos.
-           </div>
-        )}
-
-        {/* Sección de Servicios Sin Fecha */}
-        {selectedKanbanMonth === 'sinFecha' && kanbanGroupedData.sinFecha.length > 0 && (
-          <div style={{ marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+        {years.length === 0 ? (
+          <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <Calendar size={48} style={{ margin: '0 auto 1rem auto', opacity: 0.5 }} />
+            <p>No hay servicios registrados en este momento.</p>
+          </div>
+        ) : years.map(year => (
+          <div key={year} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {/* Year Folder */}
             <div 
               className="glass-panel" 
               style={{ 
-                display: 'flex', alignItems: 'center', padding: '1rem 1.5rem', 
-                borderLeft: '4px solid var(--text-muted)', marginBottom: '1rem', gap: '1rem', background: 'rgba(255,255,255,0.02)'
+                padding: '1rem', display: 'flex', alignItems: 'center', cursor: 'pointer',
+                background: expandedYear === year ? 'rgba(255,255,255,0.05)' : 'var(--bg-dark)'
               }}
+              onClick={() => toggleYear(year)}
             >
-                <CalendarDays size={24} color="var(--text-muted)"/>
-                <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-muted)' }}>Eventos por Programar / Sin Fecha</h2>
-                <span style={{ marginLeft: 'auto', background: 'var(--bg-panel)', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.8rem' }}>
-                  {kanbanGroupedData.sinFecha.length} pendientes
-                </span>
+              {expandedYear === year ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+              <span style={{ fontSize: '1.1rem', fontWeight: 600, marginLeft: '0.5rem' }}>Año {year}</span>
+              <span className="badge" style={{ marginLeft: 'auto' }}>
+                {Object.values(treeData[year]).reduce((acc, m) => acc + m.servicios.length, 0)} servicios
+              </span>
             </div>
-            <div style={{ paddingLeft: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-               {STAGES.map(stage => {
-                  const stageServices = kanbanGroupedData.sinFecha.filter(s => s.etapa === stage);
-                  if (stageServices.length === 0) return null;
-                  return (
-                    <div key={stage} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                       <h4 style={{ color: getStageColor(stage), fontSize: '0.9rem', marginBottom: '0.2rem' }}>{stage} (Sin Fecha)</h4>
-                       {stageServices.map(s => (
-                         <div key={s.idServicio} style={{ 
-                           display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                           padding: '1rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)',
-                           border: '1px solid var(--border-color)', gap: '1rem', flexWrap: 'wrap'
-                         }}>
-                            <div style={{ flex: '1 1 250px' }}>
-                              <h5 style={{ margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem' }}>
-                                {s.idServicio} <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.8rem' }}>— {getClientName(s.clienteId)}</span>
-                              </h5>
-                              <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={13}/> {s.direccionEvento || 'Ubicación pendiente'}</span>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--color-banana)' }}><Clock size={13}/> Fecha por definir</span>
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                               <button className="btn btn-primary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, fromKanban: true })}>
-                                 <CheckCircle size={15}/> Cotizar
-                               </button>
-                               <button className="btn btn-ghost" onClick={() => openEditModal(s)}><Edit2 size={15}/></button>
-                            </div>
-                         </div>
-                       ))}
+
+            {/* Months */}
+            {expandedYear === year && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginLeft: '2rem' }}>
+                {Object.keys(treeData[year]).sort((a, b) => b.localeCompare(a)).map(month => (
+                  <div key={month} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {/* Month Folder */}
+                    <div 
+                      className="glass-panel"
+                      style={{ 
+                        padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', cursor: 'pointer',
+                        background: expandedMonth === month ? 'rgba(255,255,255,0.05)' : 'var(--bg-dark)'
+                      }}
+                      onClick={() => toggleMonth(month)}
+                    >
+                      {expandedMonth === month ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                      <span style={{ fontSize: '1rem', fontWeight: 500, marginLeft: '0.5rem' }}>{monthNames[month]} {year}</span>
+                      <span className="badge" style={{ marginLeft: 'auto' }}>
+                        {treeData[year][month].servicios.length} servicios
+                      </span>
                     </div>
-                  );
-               })}
-            </div>
-          </div>
-        )}
 
-        {/* Mes Seleccionado */}
-        {selectedKanbanMonth && selectedKanbanMonth !== 'sinFecha' && (() => {
-           const [year, month] = selectedKanbanMonth.split('-');
-           const monthServices = kanbanGroupedData.years[year]?.[month] || [];
-           
-           return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                 <div className="glass-panel" style={{ padding: '1rem 1.5rem', background: 'rgba(255,255,255,0.02)', borderLeft: '4px solid var(--accent-secondary)' }}>
-                    <h2 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                       <CalendarDays size={20} color="var(--accent-secondary)"/>
-                       {monthNames[month]} {year}
-                       <span style={{ marginLeft: 'auto', background: 'var(--bg-panel)', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-muted)' }}>
-                         {monthServices.length} servicios
-                       </span>
-                    </h2>
-                 </div>
-                 
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {STAGES.map((stage) => {
-                       const stageServices = monthServices.filter(s => s.etapa === stage);
-                       const isExpanded = expandedStage === stage || expandedStage === null;
-                       
-                       return (
-                         <div key={stage} className="glass-panel" style={{ overflow: 'hidden', padding: 0 }}>
-                           <div 
-                             style={{ 
-                               display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                               padding: '0.8rem 1.2rem', cursor: 'pointer', background: 'rgba(255,255,255,0.01)',
-                               borderLeft: `4px solid ${getStageColor(stage)}`
-                             }}
-                             onClick={() => toggleStage(stage)}
-                           >
-                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                               <h4 style={{ margin: 0, color: getStageColor(stage) }}>{stage}</h4>
-                               <span style={{ background: 'var(--bg-dark)', padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}>
-                                 {stageServices.length}
-                               </span>
-                               {stageServices.length > 0 && (
-                                 <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                                   Total Acumulado: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(calculateStageTotal(stageServices), 'CLP')}</strong>
-                                 </span>
-                               )}
-                             </div>
-                             <button className="btn btn-ghost" style={{ padding: '0.2rem', border: 'none' }}>
-                               {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                             </button>
-                           </div>
+                    {/* Stages for the Month */}
+                    {expandedMonth === month && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginLeft: '1rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+                        {STAGES.map(stage => {
+                          const stageServices = treeData[year][month].servicios.filter(s => s.etapa === stage);
+                          const stageTotal = stageServices.reduce((acc, s) => {
+                             const totals = getServiceTotals(s.idServicio, s.descuento || 0);
+                             return acc + totals.total;
+                          }, 0);
 
-                           {isExpanded && (
-                             <div style={{ padding: '0 1.2rem 1.2rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '0.5rem' }}>
-                               {stageServices.length === 0 ? (
-                                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', margin: '0.5rem 0' }}>Vacío</p>
-                               ) : (
-                                 stageServices.map                                   <div key={s.idServicio} style={{ 
-                                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                                     padding: '0.8rem 1rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)',
-                                     border: '1px solid var(--border-color)', gap: '1rem', flexWrap: 'wrap'
-                                   }}>
-                                     <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
-                                       <h5 style={{ margin: '0 0 0.3rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', flexWrap: 'wrap' }}>
-                                         {s.idServicio} <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.85rem' }}>— {getClientName(s.clienteId)}</span>
-                                       </h5>
-                                       <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', flexWrap: 'wrap' }}>
-                                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={13}/> {s.direccionEvento}</span>
-                                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CalendarDays size={13}/> Inicio: {s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'Por definir'}</span>
-                                       </div>
-                                     </div>
+                          return (
+                            <div key={stage} style={{ 
+                              background: 'var(--bg-dark)', 
+                              border: '1px solid var(--border-color)', 
+                              borderRadius: 'var(--radius-md)',
+                              overflow: 'hidden'
+                            }}>
+                              {/* Stage Header */}
+                              <div 
+                                style={{ 
+                                  padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer',
+                                  borderLeft: `4px solid ${getStageColor(stage)}`,
+                                  background: expandedStage === stage ? 'rgba(255,255,255,0.02)' : 'transparent'
+                                }}
+                                onClick={() => toggleStage(stage)}
+                              >
+                                <strong style={{ color: getStageColor(stage) }}>{stage}</strong>
+                                <span className="badge" style={{ background: 'rgba(255,255,255,0.1)' }}>{stageServices.length}</span>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Total Acumulado: {formatCurrency(stageTotal)}</span>
+                                <div style={{ marginLeft: 'auto' }}>
+                                  {expandedStage === stage ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                </div>
+                              </div>
 
-                                     {(() => {
-                                        const { neto, total } = getServiceTotals(s.idServicio, s.descuento || 0);
-                                        const currency = s.moneda || 'CLP';
-                                        const sQuotations = cotizaciones.filter(c => c.servicioId === s.idServicio);
-                                        let audifonos = 0; let transmisores = 0;
-                                        sQuotations.forEach(q => {
-                                          const eq = inventario?.find(i => i.idEquipo === q.equipoId);
-                                          if (eq) {
-                                             if (eq.categoria === 'Audio' || eq.nombreEquipo.toLowerCase().includes('audífono') || eq.nombreEquipo.toLowerCase().includes('audifono')) audifonos += q.cantidad;
-                                             else if (eq.categoria === 'Transmisión' || eq.nombreEquipo.toLowerCase().includes('transmisor') || eq.nombreEquipo.toUpperCase().includes('TX')) transmisores += q.cantidad;
-                                          }
-                                        });
-                                        return (
-                                          <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.6rem', justifyContent: 'center' }}>
-                                            {(audifonos > 0 || transmisores > 0) && (
-                                              <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                                 {audifonos > 0 && <span style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>🎧 Audífonos: <strong>{audifonos}</strong></span>}
-                                                 {transmisores > 0 && <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#facc15', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>📡 Transmisores (TX): <strong>{transmisores}</strong></span>}
-                                              </div>
-                                            )}
-                                            <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.85rem', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
-                                              <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>Neto: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(neto, currency)}</strong></span>
-                                              <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>Total c/IVA: <strong style={{ color: 'var(--accent-primary)' }}>{formatCurrency(total, currency)}</strong></span>
+                              {/* Stage Content */}
+                              {expandedStage === stage && (
+                                <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                                  {stageServices.length === 0 ? (
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', margin: '0.5rem 0' }}>Vacío</p>
+                                  ) : (
+                                    stageServices.map(s => {
+                                      const { neto, total } = getServiceTotals(s.idServicio, s.descuento || 0);
+                                      const currency = s.moneda || 'CLP';
+                                      const sQuotations = cotizaciones.filter(c => c.servicioId === s.idServicio);
+                                      let audifonos = 0; let transmisores = 0;
+                                      sQuotations.forEach(q => {
+                                        const eq = inventario?.find(i => i.idEquipo === q.equipoId);
+                                        if (eq) {
+                                          if (eq.categoria === 'Audio' || eq.nombreEquipo.toLowerCase().includes('audífono') || eq.nombreEquipo.toLowerCase().includes('audifono')) audifonos += q.cantidad;
+                                          else if (eq.categoria === 'Transmisión' || eq.nombreEquipo.toLowerCase().includes('transmisor') || eq.nombreEquipo.toUpperCase().includes('TX')) transmisores += q.cantidad;
+                                        }
+                                      });
+
+                                      return (
+                                        <div key={s.idServicio} style={{ 
+                                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                                          padding: '0.8rem 1.2rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)',
+                                          border: '1px solid var(--border-color)', gap: '1.5rem', flexWrap: 'wrap'
+                                        }}>
+                                          {/* 1. Izquierda: ID, Cliente, Fecha, Dirección */}
+                                          <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
+                                            <h5 style={{ margin: '0 0 0.4rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', flexWrap: 'wrap' }}>
+                                              {s.idServicio} <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.85rem' }}>— {getClientName(s.clienteId)}</span>
+                                            </h5>
+                                            <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', flexWrap: 'wrap' }}>
+                                               <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={13}/> {s.direccionEvento || 'Sin dirección'}</span>
+                                               <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CalendarDays size={13}/> Inicio: {s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'Por definir'}</span>
                                             </div>
                                           </div>
-                                        );
-                                     })()}
 
-                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
-                                       <select className="input-control" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', width: '130px' }} value={s.etapa} onChange={(e) => updateServiceStage(s.idServicio, e.target.value)}>
-                                         {STAGES.map(st => <option key={st} value={st}>{st}</option>)}
-                                       </select>
-                                       <button className="btn btn-ghost" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', color: 'var(--text-muted)' }} onClick={() => openEditModal(s)}><Edit2 size={15}/></button>
-                                       <button className="btn btn-ghost" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', color: 'var(--color-tomato)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={15}/></button>
-                                       <button className="btn btn-primary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, fromKanban: true })}><CheckCircle size={15}/> Cotizar</button>
-                                     </div>
-                                   </div>
-                                 ))
-                               )}
-                             </div>
-                           )}
-                         </div>
-                       );
-                    })}
-                 </div>
+                                          {/* 2. Centro: Equipos y Valores */}
+                                          <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
+                                            {(audifonos > 0 || transmisores > 0) && (
+                                              <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                {audifonos > 0 && <span style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>🎧 Audífonos: <strong>{audifonos}</strong></span>}
+                                                {transmisores > 0 && <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#facc15', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>📡 Transmisores (TX): <strong>{transmisores}</strong></span>}
+                                              </div>
+                                            )}
+                                            <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.85rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                              <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>Neto: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(neto, currency)}</strong></span>
+                                              <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>Total c/IVA: <strong style={{ color: 'var(--accent-primary)' }}>{formatCurrency(total, currency)}</strong></span>
+                                            </div>
+                                          </div>
+
+                                          {/* 3. Derecha: Controles */}
+                                          <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                            <select className="input-control" style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', width: '130px', margin: 0 }} value={s.etapa} onChange={(e) => updateServiceStage(s.idServicio, e.target.value)}>
+                                              {STAGES.map(st => <option key={st} value={st}>{st}</option>)}
+                                            </select>
+                                            <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={() => openEditModal(s)}><Edit2 size={16}/></button>
+                                            <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--color-tomato)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={16}/></button>
+                                            <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}><CheckCircle size={16}/> Cotizar</button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-           );
-        })()}
+            )}
+          </div>
+        ))}
       </div>
 
-      {/* Modal Agregar / Editar Servicio */}
-      {isModalOpen && (
+      {/* Modal para Editar Servicio */}
+      {isEditModalOpen && editingService && (
         <div className="modal-overlay">
-           <div className="modal-content">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                 <h2 style={{ margin: 0, fontSize: '1.3rem' }}>{editMode ? `Editar Servicio ${editingId}` : 'Agregar Nuevo Servicio'}</h2>
-                 <button className="btn btn-ghost" style={{ padding: '0.4rem', border: 'none' }} onClick={() => setIsModalOpen(false)}>
-                    <X size={20} />
-                 </button>
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0 }}>Editar Servicio</h2>
+              <button className="btn btn-ghost" onClick={() => setIsEditModalOpen(false)}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Dirección del Evento</label>
+                <input type="text" className="input-control" name="direccionEvento" value={editingService.direccionEvento || ''} onChange={handleEditChange} required />
               </div>
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                 
-                 <div className="input-group" style={{ margin: 0 }}>
-                   <label className="input-label">Seleccionar Cliente/Empresa</label>
-                   <input 
-                     type="text" 
-                     className="input-control" 
-                     placeholder="🔍 Buscar por nombre o empresa..." 
-                     value={searchTerm} 
-                     onChange={e => setSearchTerm(e.target.value)} 
-                     style={{ marginBottom: '0.5rem' }}
-                   />
-                   <select required className="input-control" value={formData.clienteId} onChange={e => setFormData({...formData, clienteId: e.target.value})}>
-                     <option value="" disabled>-- Elige un cliente --</option>
-                     {filteredSortedClientes.map(c => (
-                       <option key={c.id} value={c.id}>
-                         {c.empresa ? `${c.empresa} - ` : ''}{c.nombre} {c.apellido}
-                       </option>
-                     ))}
-                   </select>
-                 </div>
-
-                 <div className="input-group" style={{ margin: 0 }}>
-                   <label className="input-label">Dirección del Evento (Venue)</label>
-                   <input type="text" className="input-control" placeholder="Lugar, comuna, ciudad..." value={formData.direccionEvento} onChange={e => setFormData({...formData, direccionEvento: e.target.value})} />
-                 </div>
-
-                 <div className="responsive-flex-column" style={{ display: 'flex', gap: '1rem' }}>
-                   <div className="input-group" style={{ flex: 1, margin: 0 }}>
-                     <label className="input-label">Fecha y Hora de Inicio</label>
-                     <div style={{ display: 'flex', gap: '0.5rem' }}><input type="date" className="input-control" value={formData.fechaInicioDate} onChange={e => setFormData({...formData, fechaInicioDate: e.target.value})} /><input type="time" className="input-control" value={formData.fechaInicioTime} onChange={e => setFormData({...formData, fechaInicioTime: e.target.value})} /></div>
-                   </div>
-                   <div className="input-group" style={{ flex: 1, margin: 0 }}>
-                     <label className="input-label">Fecha y Hora de Fin</label>
-                     <div style={{ display: 'flex', gap: '0.5rem' }}><input type="date" className="input-control" value={formData.fechaFinDate} onChange={e => setFormData({...formData, fechaFinDate: e.target.value})} /><input type="time" className="input-control" value={formData.fechaFinTime} onChange={e => setFormData({...formData, fechaFinTime: e.target.value})} /></div>
-                   </div>
-                 </div>
-                 
-                 <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                    <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setIsModalOpen(false)}>Cancelar</button>
-                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                       {editMode ? 'Guardar Cambios' : 'Crear Servicio'}
-                    </button>
-                 </div>
-              </form>
-           </div>
+              <div className="form-group">
+                <label>Fecha y Hora de Inicio</label>
+                <input type="datetime-local" className="input-control" name="fechaInicio" value={editingService.fechaInicio ? editingService.fechaInicio.substring(0,16) : ''} onChange={handleEditChange} required />
+              </div>
+              <div className="form-group">
+                <label>Fecha y Hora de Fin</label>
+                <input type="datetime-local" className="input-control" name="fechaFin" value={editingService.fechaFin ? editingService.fechaFin.substring(0,16) : ''} onChange={handleEditChange} required />
+              </div>
+              <div className="form-group">
+                <label>Etapa</label>
+                <select className="input-control" name="etapa" value={editingService.etapa} onChange={handleEditChange}>
+                  {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setIsEditModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">Guardar Cambios</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
-
     </div>
   );
 };
