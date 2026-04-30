@@ -109,12 +109,12 @@ const KanbanBoard = () => {
     // Combinar fecha y hora
     let fechaInicio = '';
     if (editingService.tempFecha) {
-      fechaInicio = editingService.tempHora ? `${editingService.tempFecha}T${editingService.tempHora}` : `${editingService.tempFecha}T00:00`;
+      fechaInicio = editingService.tempHora ? `${editingService.tempFecha}T${editingService.tempHora}` : editingService.tempFecha;
     }
 
     let fechaFin = '';
     if (editingService.tempFechaFin) {
-      fechaFin = editingService.tempHoraFin ? `${editingService.tempFechaFin}T${editingService.tempHoraFin}` : `${editingService.tempFechaFin}T23:59`;
+      fechaFin = editingService.tempHoraFin ? `${editingService.tempFechaFin}T${editingService.tempHoraFin}` : editingService.tempFechaFin;
     }
 
     const updated = { ...editingService, fechaInicio, fechaFin };

@@ -36,12 +36,12 @@ const NuevoServicioView = () => {
     // Combinar fecha y hora
     let fechaInicio = '';
     if (formData.fecha) {
-      fechaInicio = formData.hora ? `${formData.fecha}T${formData.hora}` : `${formData.fecha}T00:00`;
+      fechaInicio = formData.hora ? `${formData.fecha}T${formData.hora}` : formData.fecha;
     }
 
     let fechaFin = '';
     if (formData.fechaFin) {
-      fechaFin = formData.horaFin ? `${formData.fechaFin}T${formData.horaFin}` : `${formData.fechaFin}T23:59`;
+      fechaFin = formData.horaFin ? `${formData.fechaFin}T${formData.horaFin}` : formData.fechaFin;
     }
 
     addServicio({
