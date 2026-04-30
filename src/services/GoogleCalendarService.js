@@ -239,6 +239,7 @@ export const listDriveContent = async (parentId = null, rootFolderName = 'redes 
       q: `'${targetParentId}' in parents and trashed = false`,
       fields: 'files(id, name, mimeType, webViewLink, thumbnailLink, size, createdTime)',
       orderBy: 'folder, name',
+      pageSize: 1000,
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
     });
