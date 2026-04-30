@@ -260,28 +260,28 @@ const KanbanBoard = () => {
               <h2 style={{ margin: 0 }}>Editar Servicio</h2>
               <button className="btn btn-ghost" onClick={() => setIsEditModalOpen(false)}><X size={20} /></button>
             </div>
-            <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form onSubmit={handleEditSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div className="form-group">
                 <label>Dirección del Evento</label>
-                <input type="text" className="input-control" name="direccionEvento" value={editingService.direccionEvento || ''} onChange={handleEditChange} required />
+                <input type="text" className="input-control" value={editingService.direccionEvento || ''} onChange={(e) => setEditingService({...editingService, direccionEvento: e.target.value})} />
               </div>
               <div className="form-group">
                 <label>Fecha y Hora de Inicio</label>
-                <input type="datetime-local" className="input-control" name="fechaInicio" value={editingService.fechaInicio ? editingService.fechaInicio.substring(0,16) : ''} onChange={handleEditChange} required />
+                <input type="datetime-local" className="input-control" value={editingService.fechaInicio ? editingService.fechaInicio.substring(0,16) : ''} onChange={(e) => setEditingService({...editingService, fechaInicio: e.target.value})} onInvalid={(e) => e.target.setCustomValidity('')} onInput={(e) => e.target.setCustomValidity('')} />
               </div>
               <div className="form-group">
                 <label>Fecha y Hora de Fin</label>
-                <input type="datetime-local" className="input-control" name="fechaFin" value={editingService.fechaFin ? editingService.fechaFin.substring(0,16) : ''} onChange={handleEditChange} required />
+                <input type="datetime-local" className="input-control" value={editingService.fechaFin ? editingService.fechaFin.substring(0,16) : ''} onChange={(e) => setEditingService({...editingService, fechaFin: e.target.value})} onInvalid={(e) => e.target.setCustomValidity('')} onInput={(e) => e.target.setCustomValidity('')} />
               </div>
               <div className="form-group">
                 <label>Etapa</label>
-                <select className="input-control" name="etapa" value={editingService.etapa} onChange={handleEditChange}>
+                <select className="input-control" value={editingService.etapa} onChange={(e) => setEditingService({...editingService, etapa: e.target.value})}>
                   {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsEditModalOpen(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Guardar Cambios</button>
+                <button type="submit" formNoValidate className="btn btn-primary">Guardar Cambios</button>
               </div>
             </form>
           </div>
