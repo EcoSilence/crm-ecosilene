@@ -619,7 +619,7 @@ const DriveSection = ({ isLinked, onPlan, planContext, setPlanContext }) => {
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>{s.desc}</p>
                 
                 {/* Carrusel Interactive Preview */}
-                {s.id === 'opt_a' ? (
+                {s.type.includes('Carrusel') ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div style={{ display: 'flex', gap: '0.8rem', overflowX: 'auto', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)', minHeight: '100px' }}>
                       {selectedCarouselAssets.map((asset, aidx) => (
