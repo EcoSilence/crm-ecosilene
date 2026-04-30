@@ -220,15 +220,17 @@ export const listDriveFiles = async (rootFolderName = 'redes ecosilence') => {
   }
   
   try {
-    // 1. Buscar la carpeta raíz (usando contains para ser más flexible)
+    // 1. Buscar la carpeta raíz
     const rootRes = await window.gapi.client.drive.files.list({
       q: `name contains '${rootFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
       fields: 'files(id, name)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
 
     const rootFolderId = rootRes.result.files[0]?.id;
     if (!rootFolderId) {
-      console.warn(`Carpeta raíz '${rootFolderName}' no encontrada.`);
+      console.warn(`Carpeta raíz '${rootFolderName}' no encontrada. Respuesta:`, rootRes);
       return [];
     }
 
@@ -236,17 +238,21 @@ export const listDriveFiles = async (rootFolderName = 'redes ecosilence') => {
     const subFoldersRes = await window.gapi.client.drive.files.list({
       q: `'${rootFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
       fields: 'files(id, name)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
 
     const folderIds = [rootFolderId, ...subFoldersRes.result.files.map(f => f.id)];
     
-    // 3. Construir query para buscar archivos en CUALQUIERA de estas carpetas
+    // 3. Construir query para buscar archivos
     const parentQuery = folderIds.map(id => `'${id}' in parents`).join(' or ');
     const filesRes = await window.gapi.client.drive.files.list({
-      q: `(${parentQuery}) and trashed = false and (mimeType contains 'image/' or mimeType contains 'video/')`,
+      q: `(${parentQuery}) and trashed = false`,
       fields: 'files(id, name, mimeType, webViewLink, thumbnailLink, size, createdTime, parents)',
       orderBy: 'createdTime desc',
-      pageSize: 50
+      pageSize: 50,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
 
     // Mapeo de IDs de carpeta a nombres para categorizar
