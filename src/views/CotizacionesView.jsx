@@ -133,15 +133,13 @@ const CotizacionesView = () => {
 
       <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          {viewParams?.fromKanban && (
-            <button 
-              className="btn btn-ghost" 
-              style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-dark)' }} 
-              onClick={() => navigate('kanban')}
-            >
-              <ArrowLeft size={18} /> Volver al Flujo
-            </button>
-          )}
+          <button 
+            className="btn btn-ghost" 
+            style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)' }} 
+            onClick={() => navigate(viewParams?.from || 'kanban')}
+          >
+            <ArrowLeft size={18} /> Volver
+          </button>
           <div>
             <h1 style={{ margin: 0, marginBottom: '0.3rem' }}>{menuNames.cotizaciones || 'Cotización y Facturación'}</h1>
             <p style={{ color: 'var(--text-muted)', margin: 0 }}>Crea y gestiona presupuestos enlazados a tus servicios y eventos.</p>
