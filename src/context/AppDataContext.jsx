@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import { initGoogleScripts, authenticateGoogle, syncServiceToCalendar, deleteCalendarEvent } from '../services/GoogleCalendarService';
+import { initGoogleScripts, authenticateGoogle, syncServiceToCalendar, deleteCalendarEvent, listDriveFiles } from '../services/GoogleCalendarService';
 
 const AppDataContext = createContext();
 
@@ -15,7 +15,8 @@ export const AppDataProvider = ({ children }) => {
     kanban: 'Flujo de Trabajo',
     clientes: 'Clientes',
     inventario: 'Inventario',
-    cotizaciones: 'Cotizaciones'
+    cotizaciones: 'Cotizaciones',
+    marketing: 'Marketing & Growth'
   });
 
   const [clientes, setClientes] = useState([]);
@@ -530,7 +531,7 @@ export const AppDataProvider = ({ children }) => {
     togglePagoAdelanto,
     cotizaciones: getCotizacionesEnriched(), addItemCotizacion, removeItemCotizacion, editItemCotizacion,
     getStockActual,
-    isGoogleLinked, linkGoogle,
+    isGoogleLinked, linkGoogle, listDriveFiles,
     kanbanExpandedYears, setKanbanExpandedYears,
     kanbanExpandedMonths, setKanbanExpandedMonths,
     kanbanExpandedStage, setKanbanExpandedStage,

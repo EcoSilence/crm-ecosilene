@@ -4,8 +4,11 @@
 
 const CLIENT_ID = '718018729593-1j2gdsri0lfmb21llv6abc10cjpacc3d.apps.googleusercontent.com';
 const API_KEY = 'AIzaSyBWlbA1NZOtsP2b7ei6xzPLQBIdNv-KrCY';
-const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+const DISCOVERY_DOCS = [
+  'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest',
+  'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'
+];
+const SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/drive.readonly';
 
 let gapiInited = false;
 let gsisInited = false;
@@ -42,7 +45,7 @@ function gapiLoaded() {
 async function initializeGapiClient() {
   await window.gapi.client.init({
     apiKey: API_KEY,
-    discoveryDocs: [DISCOVERY_DOC],
+    discoveryDocs: DISCOVERY_DOCS,
   });
   gapiInited = true;
 }
@@ -203,5 +206,49 @@ export const deleteCalendarEvent = async (eventId) => {
     });
   } catch (err) {
     console.error('Error eliminando evento de Google Calendar:', err);
+  }
+};
+
+/**
+ * GOOGLE DRIVE FUNCTIONS
+ */
+
+export const listDriveFiles = async (folderName = 'EcoSilence Eventos') => {
+  if (!gapiInited || !gsisInited) return [];
+  
+  try {
+    // 1. Buscar la carpeta por nombre
+    const folderRes = await window.gapi.client.drive.files.list({
+      q: `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      fields: 'files(id, name)',
+    });
+
+    let folderId = folderRes.result.files[0]?.id;
+
+    if (!folderId) {
+      console.warn(`Carpeta '${folderName}' no encontrada en Drive.`);
+      return [];
+    }
+
+    // 2. Listar archivos dentro de esa carpeta
+    const filesRes = await window.gapi.client.drive.files.list({
+      q: `'${folderId}' in parents and trashed = false`,
+      fields: 'files(id, name, mimeType, webViewLink, thumbnailLink, size, createdTime)',
+      orderBy: 'createdTime desc'
+    });
+
+    return filesRes.result.files.map(f => ({
+      id: f.id,
+      name: f.name,
+      type: f.mimeType.includes('video') ? 'video' : 'image',
+      date: f.createdTime.split('T')[0],
+      size: f.size ? (parseInt(f.size) / (1024 * 1024)).toFixed(1) + ' MB' : 'N/A',
+      link: f.webViewLink,
+      thumb: f.thumbnailLink
+    }));
+
+  } catch (err) {
+    console.error('Error al listar archivos de Drive:', err);
+    return [];
   }
 };

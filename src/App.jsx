@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppStore } from './context/AppDataContext'
-import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronDown, CalendarDays, Archive } from 'lucide-react'
+import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronDown, CalendarDays, Archive, Megaphone } from 'lucide-react'
 
 import Dashboard from './views/Dashboard'
 import KanbanBoard from './views/KanbanBoard'
@@ -9,6 +9,7 @@ import InventarioView from './views/InventarioView'
 import CotizacionesView from './views/CotizacionesView'
 import ServiciosListView from './views/ServiciosListView'
 import NuevoServicioView from './views/NuevoServicioView'
+import MarketingView from './views/MarketingView'
 
 function App() {
   const { currentView, navigate, menuNames, updateMenuName, kanbanGroupedData, kanbanExpandedYears, setKanbanExpandedYears, selectedKanbanMonth, setSelectedKanbanMonth } = useAppStore();
@@ -27,6 +28,7 @@ function App() {
     { id: 'clientes', name: menuNames.clientes || 'Clientes', icon: Users },
     { id: 'inventario', name: menuNames.inventario || 'Inventario', icon: Package },
     { id: 'cotizaciones', name: menuNames.cotizaciones || 'Cotizaciones', icon: FileText },
+    { id: 'marketing', name: menuNames.marketing || 'Marketing & Growth', icon: Megaphone },
     { id: 'archivados', name: menuNames.archivados || 'Archivados sin Aprobar', icon: Archive },
   ]
 
@@ -40,6 +42,7 @@ function App() {
       case 'lista_servicios': return <ServiciosListView />
       case 'archivados': return <ServiciosListView type="archivados" />
       case 'nuevo-servicio': return <NuevoServicioView />
+      case 'marketing': return <MarketingView />
       default: return <Dashboard />
     }
   }
