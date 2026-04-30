@@ -220,27 +220,37 @@ export const listDriveFiles = async (rootFolderName = 'redes ecosilence') => {
   }
   
   try {
-    // 1. Buscar la carpeta raíz
+    // 1. Buscar la carpeta raíz - Intento más profundo
     const rootRes = await window.gapi.client.drive.files.list({
-      q: `name contains '${rootFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      q: `mimeType = 'application/vnd.google-apps.folder' and trashed = false and name contains 'redes'`,
       fields: 'files(id, name)',
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
+      pageSize: 100
     });
 
-    console.log('Búsqueda de carpeta raíz:', rootFolderName, rootRes.result.files);
+    console.log('Resultados de búsqueda profunda (folders con "redes"):', rootRes.result.files);
 
-    const rootFolderId = rootRes.result.files[0]?.id;
+    // Intentar encontrar la que coincida mejor
+    const targetFolder = rootRes.result.files.find(f => 
+      f.name.toLowerCase().includes('redes') && f.name.toLowerCase().includes('ecosilence')
+    ) || rootRes.result.files[0];
+
+    const rootFolderId = targetFolder?.id;
+    
     if (!rootFolderId) {
-      console.warn(`Carpeta raíz '${rootFolderName}' no encontrada. Respuesta completa:`, rootRes);
-      // Intento alternativo: Buscar cualquier carpeta para ver si tenemos acceso
-      const anyFolderRes = await window.gapi.client.drive.files.list({
+      console.warn(`No se encontró ninguna carpeta con 'redes ecosilence'.`);
+      // Listar TODAS las carpetas raíz para diagnóstico
+      const allFolders = await window.gapi.client.drive.files.list({
         q: `mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-        pageSize: 5
+        pageSize: 20,
+        fields: 'files(id, name)'
       });
-      console.log('Carpetas visibles para el CRM:', anyFolderRes.result.files);
+      console.log('Primeras 20 carpetas visibles:', allFolders.result.files);
       return [];
     }
+
+    console.log('Carpeta seleccionada:', targetFolder.name, 'ID:', rootFolderId);
 
     // 2. Buscar todas las subcarpetas dentro de la raíz
     const subFoldersRes = await window.gapi.client.drive.files.list({
