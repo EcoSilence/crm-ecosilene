@@ -10,9 +10,10 @@ import CotizacionesView from './views/CotizacionesView'
 import ServiciosListView from './views/ServiciosListView'
 import NuevoServicioView from './views/NuevoServicioView'
 import MarketingView from './views/MarketingView'
+import SettingsView from './views/SettingsView'
 
 function App() {
-  const { currentView, navigate, menuNames, updateMenuName, kanbanGroupedData, kanbanExpandedYears, setKanbanExpandedYears, selectedKanbanMonth, setSelectedKanbanMonth } = useAppStore();
+  const { currentView, navigate, menuNames, updateMenuName, kanbanGroupedData, kanbanExpandedYears, setKanbanExpandedYears, selectedKanbanMonth, setSelectedKanbanMonth, logout } = useAppStore();
   const [editingMenu, setEditingMenu] = useState(null);
   const [tempName, setTempName] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -43,6 +44,7 @@ function App() {
       case 'archivados': return <ServiciosListView type="archivados" />
       case 'nuevo-servicio': return <NuevoServicioView />
       case 'marketing': return <MarketingView />
+      case 'configuracion': return <SettingsView />
       default: return <Dashboard />
     }
   }
@@ -184,8 +186,20 @@ function App() {
         </nav>
 
         <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <button className="btn btn-ghost" style={{ justifyContent: 'flex-start' }}><Settings size={18}/> Configuración</button>
-          <button className="btn btn-ghost" style={{ justifyContent: 'flex-start', color: 'var(--color-tomato)' }}><LogOut size={18}/> Cerrar Sesión</button>
+          <button 
+            className="btn btn-ghost" 
+            style={{ justifyContent: 'flex-start', background: currentView === 'configuracion' ? 'var(--bg-panel-hover)' : 'transparent' }}
+            onClick={() => navigate('configuracion')}
+          >
+            <Settings size={18}/> Configuración
+          </button>
+          <button 
+            className="btn btn-ghost" 
+            style={{ justifyContent: 'flex-start', color: 'var(--color-tomato)' }}
+            onClick={() => { if(confirm('¿Seguro que deseas cerrar sesión?')) logout(); }}
+          >
+            <LogOut size={18}/> Cerrar Sesión
+          </button>
         </div>
       </aside>
 

@@ -151,6 +151,18 @@ export const AppDataProvider = ({ children }) => {
     }
   };
 
+  const unlinkGoogle = () => {
+    setIsGoogleLinked(false);
+    localStorage.removeItem('google_calendar_linked');
+    // Forzar limpieza de tokens si es necesario (recarga)
+    window.location.reload();
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    window.location.reload();
+  };
+
   const generateId = (prefix) => {
     if (prefix === 'S') return generateCorrelativeId();
     return `${prefix}-${Math.random().toString(36).substr(2, 9)}`;
@@ -531,7 +543,7 @@ export const AppDataProvider = ({ children }) => {
     togglePagoAdelanto,
     cotizaciones: getCotizacionesEnriched(), addItemCotizacion, removeItemCotizacion, editItemCotizacion,
     getStockActual,
-    isGoogleLinked, linkGoogle, listDriveFiles,
+    isGoogleLinked, linkGoogle, unlinkGoogle, logout, listDriveFiles,
     kanbanExpandedYears, setKanbanExpandedYears,
     kanbanExpandedMonths, setKanbanExpandedMonths,
     kanbanExpandedStage, setKanbanExpandedStage,
