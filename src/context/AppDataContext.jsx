@@ -29,10 +29,17 @@ export const AppDataProvider = ({ children }) => {
   const [kanbanExpandedStage, setKanbanExpandedStage] = useState(null);
   const [selectedKanbanMonth, setSelectedKanbanMonth] = useState(null);
 
+  const isArchived = (s) => {
+    if (s.etapa !== 'Cotizado' || !s.fechaInicio) return false;
+    return new Date(s.fechaInicio) < new Date();
+  };
+
   const kanbanGroupedData = useMemo(() => {
     const years = {};
     const sinFecha = [];
     (servicios || []).forEach(s => {
+      if (isArchived(s)) return; // Filter out archived from main kanban groupings
+
       if(!s.fechaInicio) {
         sinFecha.push(s);
         return;
@@ -47,6 +54,10 @@ export const AppDataProvider = ({ children }) => {
       years[y][m].push(s);
     });
     return { years, sinFecha };
+  }, [servicios]);
+
+  const archivados = useMemo(() => {
+    return (servicios || []).filter(isArchived);
   }, [servicios]);
 
   // Fetch data from Supabase
@@ -498,6 +509,7 @@ export const AppDataProvider = ({ children }) => {
     kanbanExpandedMonths, setKanbanExpandedMonths,
     kanbanExpandedStage, setKanbanExpandedStage,
     selectedKanbanMonth, setSelectedKanbanMonth, kanbanGroupedData,
+    archivados, isArchived,
     formatDateDDMMYYYY
   };
 

@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { DollarSign, Briefcase, MapPin, Calendar, Clock, Filter, CalendarDays } from 'lucide-react';
 
 const Dashboard = () => {
-  const { servicios, cotizaciones, isGoogleLinked, linkGoogle, menuNames, navigate } = useAppStore();
+  const { servicios, cotizaciones, isGoogleLinked, linkGoogle, menuNames, navigate, isArchived } = useAppStore();
   const [selectedMonth, setSelectedMonth] = useState('Todos');
 
   const availableMonths = useMemo(() => {
@@ -19,10 +19,11 @@ const Dashboard = () => {
 
   const filteredServicios = useMemo(() => {
     try {
-      if (selectedMonth === 'Todos') return servicios || [];
-      return (servicios || []).filter(s => s && s.fechaInicio && String(s.fechaInicio).startsWith(selectedMonth));
+      let base = (servicios || []).filter(s => !isArchived(s));
+      if (selectedMonth === 'Todos') return base;
+      return base.filter(s => s && s.fechaInicio && String(s.fechaInicio).startsWith(selectedMonth));
     } catch (e) { return []; }
-  }, [servicios, selectedMonth]);
+  }, [servicios, selectedMonth, isArchived]);
 
   const kpis = useMemo(() => {
     let cotizadoCount = 0;

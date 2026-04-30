@@ -5,7 +5,7 @@ import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarD
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { servicios, updateServiceStage, removeServicio, editServicio, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth } = useAppStore();
+  const { servicios, updateServiceStage, removeServicio, editServicio, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedStage, setExpandedStage] = useState('Cotizado');
 
@@ -38,7 +38,7 @@ const KanbanBoard = () => {
   };
 
   const filteredServicios = useMemo(() => {
-    let result = (servicios || []);
+    let result = (servicios || []).filter(s => !isArchived(s));
 
     if (selectedKanbanMonth === 'sinFecha') {
       result = result.filter(s => !s.fechaInicio);

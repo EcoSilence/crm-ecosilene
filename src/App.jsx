@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppStore } from './context/AppDataContext'
-import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronDown, CalendarDays } from 'lucide-react'
+import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronDown, CalendarDays, Archive } from 'lucide-react'
 
 import Dashboard from './views/Dashboard'
 import KanbanBoard from './views/KanbanBoard'
@@ -26,6 +26,7 @@ function App() {
     { id: 'clientes', name: menuNames.clientes || 'Clientes', icon: Users },
     { id: 'inventario', name: menuNames.inventario || 'Inventario', icon: Package },
     { id: 'cotizaciones', name: menuNames.cotizaciones || 'Cotizaciones', icon: FileText },
+    { id: 'archivados', name: menuNames.archivados || 'Archivados sin Aprobar', icon: Archive },
   ]
 
   const renderView = () => {
@@ -36,6 +37,7 @@ function App() {
       case 'inventario': return <InventarioView />
       case 'cotizaciones': return <CotizacionesView />
       case 'lista_servicios': return <ServiciosListView />
+      case 'archivados': return <ServiciosListView type="archivados" />
       default: return <Dashboard />
     }
   }

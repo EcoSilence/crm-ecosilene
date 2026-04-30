@@ -1,23 +1,29 @@
 import React, { useMemo } from 'react';
 import { useAppStore } from '../context/AppDataContext';
-import { ArrowLeft, MapPin, CalendarDays, CheckCircle, Edit2, Trash2 } from 'lucide-react';
+import { ArrowLeft, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, Archive } from 'lucide-react';
 
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
-const ServiciosListView = () => {
-  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, removeServicio, navigate, viewParams, formatDateDDMMYYYY } = useAppStore();
+const ServiciosListView = ({ type = 'normal' }) => {
+  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, removeServicio, navigate, viewParams, formatDateDDMMYYYY, isArchived } = useAppStore();
   const stage = viewParams?.stage || 'Cotizado';
 
   // Sort services by date descending (newest first)
   const filteredServicios = useMemo(() => {
-    return (servicios || [])
-      .filter(s => s.etapa === stage)
-      .sort((a, b) => {
-        if (!a.fechaInicio) return 1;
-        if (!b.fechaInicio) return -1;
-        return a.fechaInicio > b.fechaInicio ? -1 : 1;
-      });
-  }, [servicios, stage]);
+    let base = (servicios || []);
+    
+    if (type === 'archivados') {
+      base = base.filter(isArchived);
+    } else {
+      base = base.filter(s => s.etapa === stage && !isArchived(s));
+    }
+
+    return base.sort((a, b) => {
+      if (!a.fechaInicio) return 1;
+      if (!b.fechaInicio) return -1;
+      return a.fechaInicio > b.fechaInicio ? -1 : 1;
+    });
+  }, [servicios, stage, type, isArchived]);
 
   const getClientName = (id) => {
     const c = clientes?.find(x => x.id === id);
@@ -26,7 +32,7 @@ const ServiciosListView = () => {
 
   const getServiceTotals = (idServicio, descuentoData = 0) => {
     const items = (cotizaciones || []).filter(c => c.servicioId === idServicio);
-    const subtotalBruto = items.reduce((acc, c) => acc + c.subtotal, 0);
+    const subtotalBruto = items.reduce((acc, c) => acc + (c.subtotal || 0), 0);
     const descuentoMonto = subtotalBruto * (descuentoData / 100);
     const neto = subtotalBruto - descuentoMonto;
     const total = neto * 1.19;
@@ -47,6 +53,8 @@ const ServiciosListView = () => {
     }
   };
 
+  const isArchivedView = type === 'archivados';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '2rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -57,15 +65,24 @@ const ServiciosListView = () => {
 
       <div>
         <h1 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          Trabajos en etapa: <span style={{ color: getStageColor(stage) }}>{stage}</span>
+          {isArchivedView ? (
+            <> <Archive size={28} color="var(--color-tomato)" /> Archivados sin Aprobar </>
+          ) : (
+            <> Trabajos en etapa: <span style={{ color: getStageColor(stage) }}>{stage}</span> </>
+          )}
         </h1>
-        <p style={{ color: 'var(--text-muted)' }}>Lista de todos los servicios clasificados como {stage}. Hay {filteredServicios.length} resultados.</p>
+        <p style={{ color: 'var(--text-muted)' }}>
+          {isArchivedView 
+            ? "Servicios en etapa 'Cotizado' cuya fecha de evento ya pasó." 
+            : `Lista de todos los servicios activos en etapa ${stage}.`} 
+          Hay {filteredServicios.length} resultados.
+        </p>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
         {filteredServicios.length === 0 ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }} className="glass-panel">
-            No hay servicios en esta etapa.
+            {isArchivedView ? "No hay servicios archivados por el momento." : "No hay servicios activos en esta etapa."}
           </div>
         ) : (
           filteredServicios.map(s => {
@@ -85,7 +102,10 @@ const ServiciosListView = () => {
               <div key={s.idServicio} style={{ 
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
                 padding: '0.8rem 1.2rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-color)', borderLeft: `4px solid ${getStageColor(stage)}`, gap: '1.5rem', flexWrap: 'wrap'
+                border: '1px solid var(--border-color)', 
+                borderLeft: `4px solid ${isArchivedView ? 'var(--color-tomato)' : getStageColor(stage)}`, 
+                gap: '1.5rem', flexWrap: 'wrap',
+                opacity: isArchivedView ? 0.8 : 1
               }}>
                 {/* 1. Izquierda: ID, Cliente, Fecha, Dirección */}
                 <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
@@ -94,7 +114,7 @@ const ServiciosListView = () => {
                   </h5>
                   <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', flexWrap: 'wrap' }}>
                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={13}/> {s.direccionEvento || 'Sin dirección'}</span>
-                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CalendarDays size={13}/> Inicio: {s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'Por definir'}</span>
+                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: isArchivedView ? 'var(--color-tomato)' : 'inherit' }}><CalendarDays size={13}/> Inicio: {s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'Por definir'}</span>
                   </div>
                 </div>
 
@@ -119,7 +139,9 @@ const ServiciosListView = () => {
                   </select>
                   <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}><Edit2 size={16}/></button>
                   <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--color-tomato)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={16}/></button>
-                  <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}><CheckCircle size={16}/> Cotizar</button>
+                  {!isArchivedView && (
+                    <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}><CheckCircle size={16}/> Cotizar</button>
+                  )}
                 </div>
               </div>
             );
