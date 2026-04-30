@@ -228,9 +228,17 @@ export const listDriveFiles = async (rootFolderName = 'redes ecosilence') => {
       includeItemsFromAllDrives: true,
     });
 
+    console.log('Búsqueda de carpeta raíz:', rootFolderName, rootRes.result.files);
+
     const rootFolderId = rootRes.result.files[0]?.id;
     if (!rootFolderId) {
-      console.warn(`Carpeta raíz '${rootFolderName}' no encontrada. Respuesta:`, rootRes);
+      console.warn(`Carpeta raíz '${rootFolderName}' no encontrada. Respuesta completa:`, rootRes);
+      // Intento alternativo: Buscar cualquier carpeta para ver si tenemos acceso
+      const anyFolderRes = await window.gapi.client.drive.files.list({
+        q: `mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+        pageSize: 5
+      });
+      console.log('Carpetas visibles para el CRM:', anyFolderRes.result.files);
       return [];
     }
 
