@@ -225,7 +225,7 @@ export const listDriveContent = async (parentId = null, rootFolderName = 'redes 
     // Si no hay parentId, buscamos la carpeta raíz por nombre
     if (!targetParentId) {
       const rootRes = await window.gapi.client.drive.files.list({
-        q: `name contains '${rootFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+        q: `name = '${rootFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
         fields: 'files(id, name)',
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,

@@ -41,7 +41,8 @@ const MarketingView = () => {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', paddingBottom: '3rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', paddingBottom: '3rem', borderTop: '5px solid var(--accent-primary)' }}>
+      <div style={{ background: 'var(--accent-primary)', color: '#fff', padding: '0.2rem 1rem', fontSize: '0.7rem', fontWeight: 800 }}>VERSION 3.1 - EXPLORADOR ACTIVO</div>
       {/* Header & Stats */}
       {/* ... (Header content remains same) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1.5rem' }}>
@@ -262,6 +263,7 @@ const DriveSection = ({ isLinked, onPlan }) => {
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
   const [path, setPath] = useState([{ id: null, name: 'redes ecosilence' }]);
+  const [debugMarker] = useState("v3.1 Explorer Loaded");
 
   const fetchContent = async (folderId = null) => {
     setLoading(true);
@@ -311,7 +313,8 @@ const DriveSection = ({ isLinked, onPlan }) => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '2px solid var(--accent-primary)', padding: '1rem', borderRadius: '12px' }}>
+      <div style={{ fontSize: '0.6rem', color: 'var(--accent-primary)', textAlign: 'right' }}>{debugMarker}</div>
       {/* Breadcrumbs */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
         <Folder size={16} />
@@ -428,11 +431,11 @@ const DriveSection = ({ isLinked, onPlan }) => {
 };
 
 const CalendarioSection = () => {
-  const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  const days = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
   return (
     <div className="glass-card" style={{ padding: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h3 style={{ margin: 0 }}>Planificación Mayo 2026</h3>
+        <h3 style={{ margin: 0 }}>Planificacion Mayo 2026</h3>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="btn btn-ghost" style={{ padding: '0.4rem 0.8rem' }}>Semana</button>
           <button className="btn btn-primary" style={{ padding: '0.4rem 0.8rem' }}>Mes</button>
