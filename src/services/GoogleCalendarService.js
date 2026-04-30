@@ -220,9 +220,9 @@ export const listDriveFiles = async (rootFolderName = 'redes ecosilence') => {
   }
   
   try {
-    // 1. Buscar la carpeta raíz
+    // 1. Buscar la carpeta raíz (usando contains para ser más flexible)
     const rootRes = await window.gapi.client.drive.files.list({
-      q: `name = '${rootFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      q: `name contains '${rootFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
       fields: 'files(id, name)',
     });
 
