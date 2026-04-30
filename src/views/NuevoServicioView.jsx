@@ -8,8 +8,10 @@ const NuevoServicioView = () => {
   const [formData, setFormData] = useState({
     clienteId: '',
     direccionEvento: '',
-    fechaInicio: '',
+    fecha: '',
+    hora: '',
     fechaFin: '',
+    horaFin: ''
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,9 +32,26 @@ const NuevoServicioView = () => {
       alert('Por favor selecciona un cliente');
       return;
     }
-    // No exigimos fecha ni dirección según lo solicitado
-    addServicio(formData);
-    navigate('kanban'); // Volver al flujo de trabajo
+
+    // Combinar fecha y hora
+    let fechaInicio = '';
+    if (formData.fecha) {
+      fechaInicio = formData.hora ? `${formData.fecha}T${formData.hora}` : `${formData.fecha}T00:00`;
+    }
+
+    let fechaFin = '';
+    if (formData.fechaFin) {
+      fechaFin = formData.horaFin ? `${formData.fechaFin}T${formData.horaFin}` : `${formData.fechaFin}T23:59`;
+    }
+
+    addServicio({
+      clienteId: formData.clienteId,
+      direccionEvento: formData.direccionEvento,
+      fechaInicio,
+      fechaFin
+    });
+    
+    navigate('kanban'); 
   };
 
   return (
@@ -47,7 +66,6 @@ const NuevoServicioView = () => {
       <div className="glass-card" style={{ padding: '2rem' }}>
         <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           
-          {/* Selección de Cliente */}
           <section>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.2rem' }}>
               <div style={{ background: 'var(--accent-gradient)', padding: '0.5rem', borderRadius: '8px', color: '#fff' }}>
@@ -103,15 +121,11 @@ const NuevoServicioView = () => {
                   ))
                 )}
               </div>
-              <button type="button" className="btn btn-ghost" style={{ alignSelf: 'flex-start', fontSize: '0.85rem' }} onClick={() => navigate('clientes')}>
-                <UserPlus size={16} /> ¿Cliente nuevo? Créalo aquí
-              </button>
             </div>
           </section>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: 0 }} />
 
-          {/* Detalles del Evento */}
           <section>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.2rem' }}>
               <div style={{ background: 'var(--accent-gradient)', padding: '0.5rem', borderRadius: '8px', color: '#fff' }}>
@@ -138,35 +152,61 @@ const NuevoServicioView = () => {
               </div>
 
               <div className="form-group">
-                <label>Fecha y Hora de Inicio</label>
+                <label>Fecha de Inicio</label>
                 <div style={{ position: 'relative' }}>
                   <Calendar size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input 
-                    type="datetime-local" 
-                    name="fechaInicio"
+                    type="date" 
+                    name="fecha"
                     className="input-control" 
                     style={{ paddingLeft: '2.5rem' }}
-                    value={formData.fechaInicio}
+                    value={formData.fecha}
                     onChange={handleChange}
-                    onInvalid={(e) => e.target.setCustomValidity('')}
-                    onInput={(e) => e.target.setCustomValidity('')}
                   />
                 </div>
               </div>
 
               <div className="form-group">
-                <label>Fecha y Hora de Término</label>
+                <label>Hora de Inicio</label>
                 <div style={{ position: 'relative' }}>
                   <Clock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input 
-                    type="datetime-local" 
+                    type="time" 
+                    name="hora"
+                    className="input-control" 
+                    style={{ paddingLeft: '2.5rem' }}
+                    value={formData.hora}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Fecha de Término</label>
+                <div style={{ position: 'relative' }}>
+                  <Calendar size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input 
+                    type="date" 
                     name="fechaFin"
                     className="input-control" 
                     style={{ paddingLeft: '2.5rem' }}
                     value={formData.fechaFin}
                     onChange={handleChange}
-                    onInvalid={(e) => e.target.setCustomValidity('')}
-                    onInput={(e) => e.target.setCustomValidity('')}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Hora de Término</label>
+                <div style={{ position: 'relative' }}>
+                  <Clock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input 
+                    type="time" 
+                    name="horaFin"
+                    className="input-control" 
+                    style={{ paddingLeft: '2.5rem' }}
+                    value={formData.horaFin}
+                    onChange={handleChange}
                   />
                 </div>
               </div>
@@ -175,8 +215,8 @@ const NuevoServicioView = () => {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
             <button type="button" className="btn btn-ghost" onClick={() => navigate('kanban')}>Cancelar</button>
-            <button type="submit" formNoValidate className="btn btn-primary" style={{ padding: '0.8rem 2rem' }}>
-              <Save size={18} /> Guardar Servicio y Continuar
+            <button type="submit" className="btn btn-primary" style={{ padding: '0.8rem 2rem' }}>
+              <Save size={18} /> Guardar Servicio
             </button>
           </div>
         </form>

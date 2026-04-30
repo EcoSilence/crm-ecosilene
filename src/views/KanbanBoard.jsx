@@ -84,8 +84,17 @@ const KanbanBoard = () => {
     }
   };
 
-  const openEditModal = (servicio) => {
-    setEditingService({ ...servicio });
+  const openEditModal = (s) => {
+    // Splitear fechas para los inputs separados
+    const [f1, h1] = (s.fechaInicio || '').split('T');
+    const [f2, h2] = (s.fechaFin || '').split('T');
+    setEditingService({ 
+      ...s, 
+      tempFecha: f1 || '', 
+      tempHora: h1 ? h1.substring(0,5) : '',
+      tempFechaFin: f2 || '',
+      tempHoraFin: h2 ? h2.substring(0,5) : ''
+    });
     setIsEditModalOpen(true);
   };
 
@@ -96,7 +105,22 @@ const KanbanBoard = () => {
 
   const handleEditSubmit = (e) => {
     e.preventDefault();
-    editServicio(editingService.idServicio, editingService);
+    
+    // Combinar fecha y hora
+    let fechaInicio = '';
+    if (editingService.tempFecha) {
+      fechaInicio = editingService.tempHora ? `${editingService.tempFecha}T${editingService.tempHora}` : `${editingService.tempFecha}T00:00`;
+    }
+
+    let fechaFin = '';
+    if (editingService.tempFechaFin) {
+      fechaFin = editingService.tempHoraFin ? `${editingService.tempFechaFin}T${editingService.tempHoraFin}` : `${editingService.tempFechaFin}T23:59`;
+    }
+
+    const updated = { ...editingService, fechaInicio, fechaFin };
+    delete updated.tempFecha; delete updated.tempHora; delete updated.tempFechaFin; delete updated.tempHoraFin;
+
+    editServicio(editingService.idServicio, updated);
     setIsEditModalOpen(false);
     setEditingService(null);
   };
@@ -265,14 +289,29 @@ const KanbanBoard = () => {
                 <label>Dirección del Evento</label>
                 <input type="text" className="input-control" value={editingService.direccionEvento || ''} onChange={(e) => setEditingService({...editingService, direccionEvento: e.target.value})} />
               </div>
-              <div className="form-group">
-                <label>Fecha y Hora de Inicio</label>
-                <input type="datetime-local" className="input-control" value={editingService.fechaInicio ? editingService.fechaInicio.substring(0,16) : ''} onChange={(e) => setEditingService({...editingService, fechaInicio: e.target.value})} onInvalid={(e) => e.target.setCustomValidity('')} onInput={(e) => e.target.setCustomValidity('')} />
+              
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Fecha Inicio</label>
+                  <input type="date" className="input-control" value={editingService.tempFecha || ''} onChange={(e) => setEditingService({...editingService, tempFecha: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Hora Inicio</label>
+                  <input type="time" className="input-control" value={editingService.tempHora || ''} onChange={(e) => setEditingService({...editingService, tempHora: e.target.value})} />
+                </div>
               </div>
-              <div className="form-group">
-                <label>Fecha y Hora de Fin</label>
-                <input type="datetime-local" className="input-control" value={editingService.fechaFin ? editingService.fechaFin.substring(0,16) : ''} onChange={(e) => setEditingService({...editingService, fechaFin: e.target.value})} onInvalid={(e) => e.target.setCustomValidity('')} onInput={(e) => e.target.setCustomValidity('')} />
+
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Fecha Fin</label>
+                  <input type="date" className="input-control" value={editingService.tempFechaFin || ''} onChange={(e) => setEditingService({...editingService, tempFechaFin: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Hora Fin</label>
+                  <input type="time" className="input-control" value={editingService.tempHoraFin || ''} onChange={(e) => setEditingService({...editingService, tempHoraFin: e.target.value})} />
+                </div>
               </div>
+
               <div className="form-group">
                 <label>Etapa</label>
                 <select className="input-control" value={editingService.etapa} onChange={(e) => setEditingService({...editingService, etapa: e.target.value})}>
