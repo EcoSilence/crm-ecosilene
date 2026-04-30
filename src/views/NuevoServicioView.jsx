@@ -45,7 +45,7 @@ const NuevoServicioView = () => {
       </div>
 
       <div className="glass-card" style={{ padding: '2rem' }}>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           
           {/* Selección de Cliente */}
           <section>
@@ -148,6 +148,8 @@ const NuevoServicioView = () => {
                     style={{ paddingLeft: '2.5rem' }}
                     value={formData.fechaInicio}
                     onChange={handleChange}
+                    onInvalid={(e) => e.target.setCustomValidity('')}
+                    onInput={(e) => e.target.setCustomValidity('')}
                   />
                 </div>
               </div>
@@ -163,6 +165,8 @@ const NuevoServicioView = () => {
                     style={{ paddingLeft: '2.5rem' }}
                     value={formData.fechaFin}
                     onChange={handleChange}
+                    onInvalid={(e) => e.target.setCustomValidity('')}
+                    onInput={(e) => e.target.setCustomValidity('')}
                   />
                 </div>
               </div>
@@ -171,7 +175,7 @@ const NuevoServicioView = () => {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
             <button type="button" className="btn btn-ghost" onClick={() => navigate('kanban')}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" style={{ padding: '0.8rem 2rem' }}>
+            <button type="submit" formNoValidate className="btn btn-primary" style={{ padding: '0.8rem 2rem' }}>
               <Save size={18} /> Guardar Servicio y Continuar
             </button>
           </div>
