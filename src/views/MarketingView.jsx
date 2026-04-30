@@ -13,14 +13,13 @@ import {
   Share2,
   MoreVertical,
   Plus,
-  PlayCircle
+  PlayCircle,
+  Folder
 } from 'lucide-react';
 
 const MarketingView = () => {
-  const { servicios, isGoogleLinked, listDriveFiles } = useAppStore();
+  const { servicios, isGoogleLinked } = useAppStore();
   const [activeTab, setActiveTab] = useState('estrategia');
-  const [loadingDrive, setLoadingDrive] = useState(false);
-  const [driveFiles, setDriveFiles] = useState([]);
   
   // Estado para la planificación
   const [isPlanningModalOpen, setIsPlanningModalOpen] = useState(false);
@@ -29,28 +28,6 @@ const MarketingView = () => {
     { id: 'p1', title: 'Reel: Caso Marriott', date: '2026-05-05', type: 'reel', fileId: '1' },
     { id: 'p2', title: 'Carrusel: Beneficios Silent', date: '2026-05-11', type: 'carousel', fileId: '2' }
   ]);
-
-  useEffect(() => {
-    if (activeTab === 'drive' && isGoogleLinked && driveFiles.length === 0) {
-      fetchDriveContent();
-    }
-  }, [activeTab, isGoogleLinked]);
-
-  const fetchDriveContent = async () => {
-    setLoadingDrive(true);
-    try {
-      const files = await listDriveFiles('redes ecosilence');
-      if (files.length === 0) {
-        alert("No se encontró la carpeta 'redes ecosilence' o está vacía. Asegúrate de que los permisos de Google Drive estén activos y que la carpeta exista.");
-      }
-      setDriveFiles(files);
-    } catch (err) {
-      console.error(err);
-      alert("Error al conectar con Google Drive. Por favor, intenta cerrar sesión y volver a vincular Google en Configuración para actualizar los permisos.");
-    } finally {
-      setLoadingDrive(false);
-    }
-  };
 
   const handleOpenPlanning = (file) => {
     setSelectedFile(file);
@@ -130,10 +107,7 @@ const MarketingView = () => {
         {activeTab === 'estrategia' && <EstrategiaSection servicios={servicios} />}
         {activeTab === 'drive' && (
           <DriveSection 
-            files={driveFiles} 
-            loading={loadingDrive} 
             isLinked={isGoogleLinked} 
-            onRetry={fetchDriveContent}
             onPlan={handleOpenPlanning}
           />
         )}
