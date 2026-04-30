@@ -201,8 +201,12 @@ const KanbanBoard = () => {
                       sQuotations.forEach(q => {
                         const eq = inventario?.find(i => i.idEquipo === q.equipoId);
                         if (eq) {
-                          if (eq.categoria === 'Audio' || eq.nombreEquipo.toLowerCase().includes('audífono') || eq.nombreEquipo.toLowerCase().includes('audifono')) audifonos += q.cantidad;
-                          else if (eq.categoria === 'Transmisión' || eq.nombreEquipo.toLowerCase().includes('transmisor') || eq.nombreEquipo.toUpperCase().includes('TX')) transmisores += q.cantidad;
+                          const name = eq.nombreEquipo.toLowerCase();
+                          if (name.includes('audífono') || name.includes('audifono')) {
+                            audifonos += q.cantidad;
+                          } else if (name.includes('transmisor') || name.includes(' tx') || name.startsWith('tx') || name.includes('-tx')) {
+                            transmisores += q.cantidad;
+                          }
                         }
                       });
 
