@@ -96,7 +96,8 @@ export const AppDataProvider = ({ children }) => {
         etapa: s.etapa,
         descuento: s.descuento,
         moneda: s.moneda,
-        googleEventId: s.google_event_id
+        googleEventId: s.google_event_id,
+        pagoAdelanto: s.pago_adelanto || false
       })));
 
       // Cotizaciones
@@ -251,6 +252,27 @@ export const AppDataProvider = ({ children }) => {
     await supabase.from('servicios').update({ etapa: newStage }).eq('id_servicio', idServicio);
 
     // Sincronizar con Google Calendar si está vinculado
+    if (isGoogleLinked) {
+      const items = cotizaciones.filter(c => c.servicioId === idServicio);
+      await handleCalendarSync(updatedS, items);
+    }
+  };
+
+  const togglePagoAdelanto = async (idServicio) => {
+    const s = servicios.find(srv => srv.idServicio === idServicio);
+    if (!s) return;
+    const newVal = !s.pagoAdelanto;
+    const updatedS = { ...s, pagoAdelanto: newVal };
+    
+    setServicios(servicios.map(srv => srv.idServicio === idServicio ? updatedS : srv));
+    
+    try {
+      await supabase.from('servicios').update({ pago_adelanto: newVal }).eq('id_servicio', idServicio);
+    } catch (e) {
+      console.error("Error updating advance payment. Make sure the column 'pago_adelanto' exists in Supabase.", e);
+    }
+
+    // Sincronizar con Google Calendar
     if (isGoogleLinked) {
       const items = cotizaciones.filter(c => c.servicioId === idServicio);
       await handleCalendarSync(updatedS, items);
@@ -502,6 +524,7 @@ export const AppDataProvider = ({ children }) => {
     clientes, addCliente, editCliente, removeCliente,
     inventario, addEquipo, editEquipo, removeEquipo,
     servicios, updateServiceStage, updateServiceDiscount, updateServiceCurrency, addServicio, editServicio, removeServicio,
+    togglePagoAdelanto,
     cotizaciones: getCotizacionesEnriched(), addItemCotizacion, removeItemCotizacion, editItemCotizacion,
     getStockActual,
     isGoogleLinked, linkGoogle,

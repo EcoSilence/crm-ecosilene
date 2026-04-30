@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import { useAppStore } from '../context/AppDataContext';
-import { ArrowLeft, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, Archive } from 'lucide-react';
+import { ArrowLeft, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, Archive, DollarSign } from 'lucide-react';
 
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const ServiciosListView = ({ type = 'normal' }) => {
-  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, removeServicio, navigate, viewParams, formatDateDDMMYYYY, isArchived } = useAppStore();
+  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, removeServicio, navigate, viewParams, formatDateDDMMYYYY, isArchived, togglePagoAdelanto } = useAppStore();
   const stage = viewParams?.stage || 'Cotizado';
 
   // Sort services by date descending (newest first)
@@ -111,6 +111,7 @@ const ServiciosListView = ({ type = 'normal' }) => {
                 <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
                   <h5 style={{ margin: '0 0 0.4rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', flexWrap: 'wrap' }}>
                     {s.idServicio} <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.85rem' }}>— {getClientName(s.clienteId)}</span>
+                    {s.pagoAdelanto && <span style={{ background: 'var(--color-basil)', color: '#fff', fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', marginLeft: '0.5rem' }}>RESERVA PAGADA</span>}
                   </h5>
                   <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', flexWrap: 'wrap' }}>
                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={13}/> {s.direccionEvento || 'Sin dirección'}</span>
@@ -137,6 +138,25 @@ const ServiciosListView = ({ type = 'normal' }) => {
                   <select className="input-control" style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', width: '130px', margin: 0 }} value={s.etapa} onChange={(e) => updateServiceStage(s.idServicio, e.target.value)}>
                     {STAGES.map(st => <option key={st} value={st}>{st}</option>)}
                   </select>
+                  <button 
+                    className="btn" 
+                    onClick={() => togglePagoAdelanto(s.idServicio)}
+                    style={{ 
+                      padding: '0.4rem 0.6rem', 
+                      fontSize: '0.75rem', 
+                      background: s.pagoAdelanto ? 'var(--color-basil)' : 'transparent',
+                      border: '1px solid var(--border-color)',
+                      color: s.pagoAdelanto ? '#fff' : 'var(--text-muted)',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem'
+                    }}
+                    title="Marcar pago de reserva 50%"
+                  >
+                    <ArrowLeft size={14} style={{ display: 'none' }} /> {/* hidden hack to use DollarSign if needed but I'll use DollarSign */}
+                    <DollarSign size={14} /> 50%
+                  </button>
                   <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio })}><Edit2 size={16}/></button>
                   <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--color-tomato)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={16}/></button>
                   {!isArchivedView && (
