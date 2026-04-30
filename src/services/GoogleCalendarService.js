@@ -111,30 +111,48 @@ export const syncServiceToCalendar = async (servicio, clienteName, items = []) =
 
   const prefijoAudifonos = totalAudifonos > 0 ? `${totalAudifonos} - ` : '';
 
-  const isAllDay = !servicio.fechaInicio.includes('T');
+  // Determinar si es un evento de todo el día (si no tiene 'T' o tiene 'T00:00')
+  const isAllDay = !servicio.fechaInicio.includes('T') || servicio.fechaInicio.endsWith('T00:00');
+  
+  // Limpiar la cadena para obtener YYYY-MM-DD
+  const pureDateStart = servicio.fechaInicio.split('T')[0];
   
   const startObj = isAllDay ? 
-    { 'date': servicio.fechaInicio } : 
+    { 'date': pureDateStart } : 
     { 'dateTime': new Date(servicio.fechaInicio).toISOString(), 'timeZone': 'America/Santiago' };
 
   let endObj;
   if (servicio.fechaFin) {
-      const isEndAllDay = !servicio.fechaFin.includes('T');
-      if (isEndAllDay) {
-          const endD = new Date(servicio.fechaFin + 'T00:00:00');
-          endD.setDate(endD.getDate() + 1); // Google Calendar excluye el día final en eventos de todo el día
-          endObj = { 'date': endD.toISOString().split('T')[0] };
-      } else {
-          endObj = { 'dateTime': new Date(servicio.fechaFin).toISOString(), 'timeZone': 'America/Santiago' };
-      }
+    const isEndAllDay = !servicio.fechaFin.includes('T') || servicio.fechaFin.endsWith('T23:59');
+    if (isEndAllDay) {
+      // Para eventos de todo el día, Google requiere que el 'end' sea el día SIGUIENTE al último día del evento
+      const [y, m, d] = servicio.fechaFin.split('T')[0].split('-').map(Number);
+      const endD = new Date(y, m - 1, d); // Crear fecha local
+      endD.setDate(endD.getDate() + 1);
+      
+      const resY = endD.getFullYear();
+      const resM = String(endD.getMonth() + 1).padStart(2, '0');
+      const resD = String(endD.getDate()).padStart(2, '0');
+      
+      endObj = { 'date': `${resY}-${resM}-${resD}` };
+    } else {
+      endObj = { 'dateTime': new Date(servicio.fechaFin).toISOString(), 'timeZone': 'America/Santiago' };
+    }
   } else {
-      if (isAllDay) {
-          const startD = new Date(servicio.fechaInicio + 'T00:00:00');
-          startD.setDate(startD.getDate() + 1);
-          endObj = { 'date': startD.toISOString().split('T')[0] };
-      } else {
-          endObj = startObj;
-      }
+    // Si no hay fecha de fin, durará 1 día (si es all-day) o 1 hora
+    if (isAllDay) {
+      const [y, m, d] = pureDateStart.split('-').map(Number);
+      const endD = new Date(y, m - 1, d);
+      endD.setDate(endD.getDate() + 1);
+      const resY = endD.getFullYear();
+      const resM = String(endD.getMonth() + 1).padStart(2, '0');
+      const resD = String(endD.getDate()).padStart(2, '0');
+      endObj = { 'date': `${resY}-${resM}-${resD}` };
+    } else {
+      const endD = new Date(servicio.fechaInicio);
+      endD.setHours(endD.getHours() + 1);
+      endObj = { 'dateTime': endD.toISOString(), 'timeZone': 'America/Santiago' };
+    }
   }
 
   const event = {

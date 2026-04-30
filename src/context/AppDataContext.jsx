@@ -44,11 +44,14 @@ export const AppDataProvider = ({ children }) => {
         sinFecha.push(s);
         return;
       }
-      const [y, m] = String(s.fechaInicio).split('-');
-      if (!y || !m) {
+      // Extraer YYYY y MM de forma segura
+      const match = String(s.fechaInicio).match(/^(\d{4})-(\d{2})/);
+      if (!match) {
         sinFecha.push(s);
         return;
       }
+      const y = match[1];
+      const m = match[2];
       if (!years[y]) years[y] = {};
       if (!years[y][m]) years[y][m] = [];
       years[y][m].push(s);
