@@ -264,14 +264,18 @@ const DriveSection = ({ isLinked, onPlan }) => {
   const [files, setFiles] = useState([]);
   const [path, setPath] = useState([{ id: null, name: 'redes ecosilence' }]);
   const [debugMarker] = useState("v3.1 Explorer Loaded");
+  
+  // IA Suggestions State
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState(null);
 
   const fetchContent = async (folderId = null) => {
     setLoading(true);
+    setAiSuggestions(null); // Reset suggestions when changing folders
     try {
       const res = await listDriveContent(folderId);
       setFolders(res.folders || []);
       setFiles(res.files || []);
-      // Si es el inicio, actualizamos el ID real de la raíz
       if (!folderId && res.currentFolderId && path[0].id === null) {
         setPath([{ id: res.currentFolderId, name: 'redes ecosilence' }]);
       }
@@ -280,6 +284,48 @@ const DriveSection = ({ isLinked, onPlan }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateStrategies = () => {
+    setIsGenerating(true);
+    const folderName = path[path.length - 1].name;
+    
+    // Simulate IA Analysis logic
+    setTimeout(() => {
+      const images = files.filter(f => f.type === 'image').slice(0, 4);
+      const videos = files.filter(f => f.type === 'video').slice(0, 2);
+      
+      const suggestions = [
+        {
+          id: 'opt_a',
+          type: 'Carrusel Educativo (B2B)',
+          title: 'Optimizacion de Audio en Congresos',
+          desc: 'Como optimizar el audio en tu proximo congreso corporativo sin ruido ambiental.',
+          assets: images,
+          copy: `GANCHO: ¿Sabias que el ruido ambiental reduce la retencion de informacion en un 40%? 🧠\n\nVALOR: En el evento de ${folderName}, implementamos tecnologia Silent para que cada asistente escuchara al orador con claridad absoluta, sin importar el eco del salon.\n\nCTA: Solicita tu cotizacion para eventos corporativos en el link de la bio. #SilentConference #B2BChile #EventosPro`
+        },
+        {
+          id: 'opt_b',
+          type: 'Reel de Experiencia',
+          title: 'Transformacion Sensorial',
+          desc: 'Transforma un lanzamiento de producto en una experiencia sensorial inmersiva.',
+          assets: videos.length > 0 ? [videos[0]] : images.slice(0, 1),
+          copy: `GANCHO: ¿Aburrido de los lanzamientos tradicionales? 😴\n\nVALOR: Creamos experiencias que se escuchan y se sienten. En ${folderName}, logramos una conexion profunda entre la marca y su audiencia mediante audio inmersivo de alta fidelidad.\n\nCTA: Escribenos para diseñar tu proxima activacion de marca. #SilentActivation #MarketingExperiencial #Innovacion`
+        },
+        {
+          id: 'opt_c',
+          type: 'Caso de Exito',
+          title: 'Estudio de Caso: ' + folderName,
+          desc: 'Resumen de beneficios clave logrados con tecnologia ECOSILENCE.',
+          assets: images.slice(0, 1),
+          copy: `TEMA: El exito del evento ${folderName} con tecnologia ECOSILENCE.\n\nVALOR: Logramos 0% de interferencia en salas simultaneas. Un placer haber colaborado en este gran evento, llevando la claridad del audio al siguiente nivel.\n\nCTA: Agenda una demo tecnica en nuestra bio. #SilentEvents #SolucionesAuditivas #B2BChile`
+        }
+      ];
+      setAiSuggestions(suggestions);
+      setIsGenerating(false);
+      // Scroll to suggestions
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }, 1500);
   };
 
   useEffect(() => {
@@ -313,8 +359,21 @@ const DriveSection = ({ isLinked, onPlan }) => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '2px solid var(--accent-primary)', padding: '1rem', borderRadius: '12px' }}>
-      <div style={{ fontSize: '0.6rem', color: 'var(--accent-primary)', textAlign: 'right' }}>{debugMarker}</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '2px solid var(--accent-primary)', padding: '1.5rem', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.02)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: '0.6rem', color: 'var(--accent-primary)', fontWeight: 800, textTransform: 'uppercase' }}>{debugMarker}</div>
+        {path.length > 1 && !loading && (
+          <button 
+            className="btn btn-primary" 
+            onClick={generateStrategies} 
+            disabled={isGenerating}
+            style={{ borderRadius: 'var(--radius-full)', padding: '0.5rem 1.2rem', gap: '0.6rem', boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)' }}
+          >
+            <Sparkles size={16} /> {isGenerating ? 'Analizando Contenido...' : 'Generar Estrategia IA'}
+          </button>
+        )}
+      </div>
+
       {/* Breadcrumbs */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
         <Folder size={16} />
@@ -417,14 +476,60 @@ const DriveSection = ({ isLinked, onPlan }) => {
               ))}
             </div>
           ) : (
-            !loading && folders.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem', background: 'rgba(255,255,255,0.01)', borderRadius: '12px' }}>Esta carpeta está vacía.</div>
+            !loading && folders.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem', background: 'rgba(255,255,255,0.01)', borderRadius: '12px' }}>Esta carpeta esta vacia.</div>
           )}
+        </div>
+      )}
+
+      {/* IA SUGGESTIONS RENDERER */}
+      {aiSuggestions && (
+        <div className="animate-fade-in" style={{ marginTop: '3rem', borderTop: '2px dashed var(--accent-primary)', paddingTop: '3rem' }}>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+            <Sparkles color="var(--accent-primary)" size={28} /> Estrategia de Contenido Propuesta
+          </h2>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+            {aiSuggestions.map((s, idx) => (
+              <div key={idx} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '0.7rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700 }}>{s.type}</span>
+                  <Plus size={18} color="var(--text-muted)" style={{ cursor: 'pointer' }} />
+                </div>
+                <h4 style={{ margin: 0 }}>{s.title}</h4>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>{s.desc}</p>
+                
+                <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', padding: '0.5rem 0' }}>
+                  {s.assets.map((asset, aidx) => (
+                    <div key={aidx} style={{ minWidth: '80px', height: '80px', borderRadius: '8px', backgroundSize: 'cover', backgroundImage: `url(${asset.thumb})`, border: '1px solid var(--border-color)' }}>
+                      {!asset.thumb && <ImageIcon size={20} color="var(--text-muted)" />}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem', position: 'relative' }}>
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{s.copy}</p>
+                  <button 
+                    onClick={() => navigator.clipboard.writeText(s.copy)}
+                    style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                  >
+                    <Plus size={14} style={{ transform: 'rotate(45deg)' }} />
+                  </button>
+                </div>
+                
+                <button className="btn btn-primary" style={{ width: '100%', marginTop: 'auto' }} onClick={() => alert('Añadido al Calendario Editorial')}>
+                  Planificar Publicacion
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       <style>{`
         .folder-item:hover { background: rgba(255,255,255,0.08) !important; transform: translateY(-2px); border-color: var(--accent-primary) !important; }
         .drive-item:hover .media-overlay { opacity: 1 !important; }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.5s ease forwards; }
       `}</style>
     </div>
   );
