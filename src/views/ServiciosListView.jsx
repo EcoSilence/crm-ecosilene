@@ -5,8 +5,12 @@ import { ArrowLeft, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, Archive, D
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const ServiciosListView = ({ type = 'normal' }) => {
-  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, removeServicio, navigate, viewParams, formatDateDDMMYYYY, isArchived, togglePagoAdelanto } = useAppStore();
+  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, removeServicio, editServicio, navigate, viewParams, formatDateDDMMYYYY, isArchived, togglePagoAdelanto } = useAppStore();
   const stage = viewParams?.stage || 'Cotizado';
+
+  // Modal States
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
+  const [editingService, setEditingService] = React.useState(null);
 
   // Sort services by date descending (newest first)
   const filteredServicios = useMemo(() => {
@@ -24,6 +28,36 @@ const ServiciosListView = ({ type = 'normal' }) => {
       return a.fechaInicio > b.fechaInicio ? -1 : 1;
     });
   }, [servicios, stage, type, isArchived]);
+
+  const openEditModal = (s) => {
+    const [f1, h1] = (s.fechaInicio || '').split('T');
+    const [f2, h2] = (s.fechaFin || '').split('T');
+    setEditingService({ 
+      ...s, 
+      tempFecha: f1 || '', 
+      tempHora: h1 ? h1.substring(0,5) : '',
+      tempFechaFin: f2 || '',
+      tempHoraFin: h2 ? h2.substring(0,5) : ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = (e) => {
+    e.preventDefault();
+    let fechaInicio = '';
+    if (editingService.tempFecha) {
+      fechaInicio = editingService.tempHora ? `${editingService.tempFecha}T${editingService.tempHora}` : `${editingService.tempFecha}T00:00`;
+    }
+    let fechaFin = '';
+    if (editingService.tempFechaFin) {
+      fechaFin = editingService.tempHoraFin ? `${editingService.tempFechaFin}T${editingService.tempHoraFin}` : `${editingService.tempFechaFin}T23:59`;
+    }
+    const updated = { ...editingService, fechaInicio, fechaFin };
+    delete updated.tempFecha; delete updated.tempHora; delete updated.tempFechaFin; delete updated.tempHoraFin;
+    editServicio(editingService.idServicio, updated);
+    setIsEditModalOpen(false);
+    setEditingService(null);
+  };
 
   const getClientName = (id) => {
     const c = clientes?.find(x => x.id === id);
@@ -157,7 +191,7 @@ const ServiciosListView = ({ type = 'normal' }) => {
                     <ArrowLeft size={14} style={{ display: 'none' }} /> {/* hidden hack to use DollarSign if needed but I'll use DollarSign */}
                     <DollarSign size={14} /> 50%
                   </button>
-                  <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, from: 'lista_servicios', stage, type })}><Edit2 size={16}/></button>
+                  <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={() => openEditModal(s)}><Edit2 size={16}/></button>
                   <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--color-tomato)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={16}/></button>
                   {!isArchivedView && (
                     <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, from: 'lista_servicios', stage, type })}><CheckCircle size={16}/> Cotizar</button>
@@ -168,6 +202,59 @@ const ServiciosListView = ({ type = 'normal' }) => {
           })
         )}
       </div>
+
+      {/* Modal para Editar Servicio */}
+      {isEditModalOpen && editingService && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0 }}>Editar Servicio</h2>
+              <button className="btn btn-ghost" onClick={() => { setIsEditModalOpen(false); setEditingService(null); }}>
+                <Edit2 size={20} style={{ display: 'none' }} /> Cerrar
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Dirección del Evento</label>
+                <input type="text" className="input-control" value={editingService.direccionEvento || ''} onChange={(e) => setEditingService({...editingService, direccionEvento: e.target.value})} />
+              </div>
+              
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Fecha Inicio</label>
+                  <input type="date" className="input-control" value={editingService.tempFecha || ''} onChange={(e) => setEditingService({...editingService, tempFecha: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Hora Inicio</label>
+                  <input type="time" className="input-control" value={editingService.tempHora || ''} onChange={(e) => setEditingService({...editingService, tempHora: e.target.value})} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Fecha Fin</label>
+                  <input type="date" className="input-control" value={editingService.tempFechaFin || ''} onChange={(e) => setEditingService({...editingService, tempFechaFin: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Hora Fin</label>
+                  <input type="time" className="input-control" value={editingService.tempHoraFin || ''} onChange={(e) => setEditingService({...editingService, tempHoraFin: e.target.value})} />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Etapa</label>
+                <select className="input-control" value={editingService.etapa} onChange={(e) => setEditingService({...editingService, etapa: e.target.value})}>
+                  {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setIsEditModalOpen(false)}>Cancelar</button>
+                <button type="submit" formNoValidate className="btn btn-primary">Guardar Cambios</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
