@@ -20,16 +20,12 @@ import {
 } from 'lucide-react';
 
 const MarketingView = () => {
-  const { servicios, isGoogleLinked } = useAppStore();
+  const { servicios, isGoogleLinked, plannedPosts, addPlannedPost } = useAppStore();
   const [activeTab, setActiveTab] = useState('estrategia');
   
   // Estado para la planificación
   const [isPlanningModalOpen, setIsPlanningModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [plannedPosts, setPlannedPosts] = useState([
-    { id: 'p1', title: 'Reel: Caso Marriott', date: '2026-05-05', type: 'reel', fileId: '1' },
-    { id: 'p2', title: 'Carrusel: Beneficios Silent', date: '2026-05-11', type: 'carousel', fileId: '2' }
-  ]);
   const [selectedPlanStep, setSelectedPlanStep] = useState(null);
 
   const handleOpenPlanning = (file) => {
@@ -113,6 +109,7 @@ const MarketingView = () => {
           <DriveSection 
             isLinked={isGoogleLinked} 
             onPlan={handleOpenPlanning}
+            onSchedule={addPlannedPost}
             planContext={selectedPlanStep}
             setPlanContext={setSelectedPlanStep}
           />
@@ -269,7 +266,7 @@ const EstrategiaSection = ({ servicios }) => {
   );
 };
 
-const DriveSection = ({ isLinked, onPlan, planContext, setPlanContext }) => {
+const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContext }) => {
   const { listDriveContent } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [folders, setFolders] = useState([]);
@@ -686,7 +683,22 @@ const DriveSection = ({ isLinked, onPlan, planContext, setPlanContext }) => {
                   </button>
                 </div>
                 
-                <button className="btn btn-primary" style={{ width: '100%', marginTop: 'auto' }} onClick={() => alert('Añadido al Calendario Editorial')}>
+                <button 
+                  className="btn btn-primary" 
+                  style={{ width: '100%', marginTop: 'auto' }} 
+                  onClick={() => {
+                    const newPost = {
+                      id: Date.now(),
+                      title: s.title,
+                      type: s.type.toLowerCase().includes('reel') ? 'reel' : 'carousel',
+                      date: new Date(2026, 4, 1 + (planContext ? (parseInt(planContext.week.match(/\d/)[0]) - 1) * 7 + (planContext.week.includes('Post 2') ? 3 : 0) : 5)).toISOString().split('T')[0],
+                      copy: s.copy,
+                      assets: s.id === 'plan_match' ? selectedCarouselAssets : s.assets
+                    };
+                    onSchedule(newPost);
+                    alert(`¡Post "${s.title}" planificado con éxito para el ${newPost.date}!`);
+                  }}
+                >
                   Planificar Publicacion
                 </button>
               </div>
@@ -705,8 +717,14 @@ const DriveSection = ({ isLinked, onPlan, planContext, setPlanContext }) => {
   );
 };
 
-const CalendarioSection = () => {
+const CalendarioSection = ({ plannedPosts = [] }) => {
   const days = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
+  
+  const getPostsForDay = (dayNum) => {
+    const dateStr = `2026-05-${String(dayNum).padStart(2, '0')}`;
+    return plannedPosts.filter(p => p.date === dateStr);
+  };
+
   return (
     <div className="glass-card" style={{ padding: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -721,13 +739,25 @@ const CalendarioSection = () => {
         {days.map(d => (
           <div key={d} style={{ background: 'var(--bg-dark)', padding: '0.8rem', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>{d}</div>
         ))}
-        {Array.from({ length: 28 }).map((_, i) => (
-          <div key={i} style={{ background: 'var(--bg-dark)', minHeight: '100px', padding: '0.5rem', position: 'relative' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{i + 1}</span>
-            {i === 4 && <div style={{ background: 'rgba(99, 102, 241, 0.2)', borderLeft: '3px solid #6366f1', padding: '0.3rem', fontSize: '0.7rem', marginTop: '0.3rem', borderRadius: '2px' }}>🎬 Reel: Caso Marriott</div>}
-            {i === 10 && <div style={{ background: 'rgba(16, 185, 129, 0.2)', borderLeft: '3px solid #10b981', padding: '0.3rem', fontSize: '0.7rem', marginTop: '0.3rem', borderRadius: '2px' }}>📸 Carrusel: Beneficios Silent</div>}
-          </div>
-        ))}
+        {Array.from({ length: 28 }).map((_, i) => {
+          const dayNum = i + 1;
+          const posts = getPostsForDay(dayNum);
+          return (
+            <div key={i} style={{ background: 'var(--bg-dark)', minHeight: '100px', padding: '0.5rem', position: 'relative' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{dayNum}</span>
+              {posts.map(p => (
+                <div key={p.id} style={{ 
+                  background: p.type === 'reel' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(16, 185, 129, 0.2)', 
+                  borderLeft: `3px solid ${p.type === 'reel' ? '#6366f1' : '#10b981'}`, 
+                  padding: '0.3rem', fontSize: '0.65rem', marginTop: '0.3rem', borderRadius: '2px',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                }}>
+                  {p.type === 'reel' ? '🎬' : '📸'} {p.title}
+                </div>
+              ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

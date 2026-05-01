@@ -13,10 +13,11 @@ import MarketingView from './views/MarketingView'
 import SettingsView from './views/SettingsView'
 
 function App() {
-  const { currentView, navigate, menuNames, updateMenuName, kanbanGroupedData, kanbanExpandedYears, setKanbanExpandedYears, selectedKanbanMonth, setSelectedKanbanMonth, logout } = useAppStore();
+  const { currentView, navigate, menuNames, updateMenuName, kanbanGroupedData, kanbanExpandedYears, setKanbanExpandedYears, selectedKanbanMonth, setSelectedKanbanMonth, logout, notifications } = useAppStore();
   const [editingMenu, setEditingMenu] = useState(null);
   const [tempName, setTempName] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showAlerts, setShowAlerts] = useState(false);
 
   const monthNames = {
     '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril', '05': 'Mayo', '06': 'Junio',
@@ -225,10 +226,34 @@ function App() {
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-            <button className="bell-btn" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', position: 'relative' }}>
-              <Bell size={22} />
-              <span style={{ position: 'absolute', top: 0, right: 0, width: '8px', height: '8px', background: 'var(--color-tomato)', borderRadius: '50%' }}></span>
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button 
+                className="bell-btn" 
+                onClick={() => setShowAlerts(!showAlerts)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', position: 'relative' }}
+              >
+                <Bell size={22} />
+                {notifications.length > 0 && (
+                  <span style={{ position: 'absolute', top: -2, right: -2, width: '16px', height: '16px', background: 'var(--color-tomato)', borderRadius: '50%', color: '#fff', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+              
+              {showAlerts && notifications.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', right: 0, width: '280px', background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: '8px', marginTop: '0.8rem', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', zIndex: 1000, padding: '0.5rem' }}>
+                  <div style={{ padding: '0.5rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-primary)', borderBottom: '1px solid var(--border-color)', marginBottom: '0.5rem' }}>NOTIFICACIONES</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    {notifications.map(n => (
+                      <div key={n.id} style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', fontSize: '0.8rem' }}>
+                        <div style={{ fontWeight: 600, color: n.type === 'today' ? 'var(--color-tomato)' : 'var(--accent-primary)' }}>{n.title}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{n.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid var(--border-color)', paddingLeft: '1.5rem' }}>
             <div className="text-right" style={{ textAlign: 'right' }}>
                 <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>Administrador</p>

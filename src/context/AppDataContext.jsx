@@ -29,6 +29,38 @@ export const AppDataProvider = ({ children }) => {
   const [kanbanExpandedMonths, setKanbanExpandedMonths] = useState({});
   const [kanbanExpandedStage, setKanbanExpandedStage] = useState(null);
   const [selectedKanbanMonth, setSelectedKanbanMonth] = useState(null);
+  
+  // Marketing State
+  const [plannedPosts, setPlannedPosts] = useState(() => {
+    const saved = localStorage.getItem('planned_posts');
+    return saved ? JSON.parse(saved) : [
+      { id: 'p1', title: 'Reel: Caso Marriott', date: '2026-05-05', type: 'reel' },
+      { id: 'p2', title: 'Carrusel: Beneficios Silent', date: '2026-05-11', type: 'carousel' }
+    ];
+  });
+
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    localStorage.setItem('planned_posts', JSON.stringify(plannedPosts));
+    
+    const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    
+    const alerts = [];
+    plannedPosts.forEach(post => {
+      if (post.date === today) {
+        alerts.push({ id: `today-${post.id}`, type: 'today', title: '¡Hoy toca publicar!', text: post.title, date: post.date });
+      } else if (post.date === tomorrow) {
+        alerts.push({ id: `tom-${post.id}`, type: 'tomorrow', title: 'Mañana publicas', text: post.title, date: post.date });
+      }
+    });
+    setNotifications(alerts);
+  }, [plannedPosts]);
+
+  const addPlannedPost = (post) => {
+    setPlannedPosts(prev => [...prev, post]);
+  };
 
   const isArchived = (s) => {
     if (s.etapa !== 'Cotizado' || !s.fechaInicio) return false;
@@ -548,6 +580,7 @@ export const AppDataProvider = ({ children }) => {
     kanbanExpandedMonths, setKanbanExpandedMonths,
     kanbanExpandedStage, setKanbanExpandedStage,
     selectedKanbanMonth, setSelectedKanbanMonth, kanbanGroupedData,
+    plannedPosts, addPlannedPost, notifications,
     archivados, isArchived,
     formatDateDDMMYYYY
   };
