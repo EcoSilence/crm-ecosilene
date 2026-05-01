@@ -126,7 +126,7 @@ const MarketingView = () => {
             }} 
           />
         )}
-        {activeTab === 'calendario' && <CalendarioSection plannedPosts={plannedPosts} />}
+        {activeTab === 'calendario' && <CalendarioSection plannedPosts={plannedPosts} account={selectedMarketingAccount} />}
       </div>
 
       {/* Planning Modal */}
@@ -749,21 +749,28 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
   );
 };
 
-const CalendarioSection = ({ plannedPosts = [] }) => {
+const CalendarioSection = ({ plannedPosts = [], account }) => {
   const days = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
+  const isEvents = account === '@ecosilence.event';
+  const accentColor = isEvents ? '#a855f7' : '#6366f1';
   
   const getPostsForDay = (dayNum) => {
     const dateStr = `2026-05-${String(dayNum).padStart(2, '0')}`;
     return plannedPosts.filter(p => p.date === dateStr);
   };
 
+  // Mayo 2026 comienza un Viernes (getDay() === 5)
+  // En un calendario que empieza el Lunes, esto significa 4 espacios vacios (L, M, X, J)
+  const firstDay = new Date(2026, 4, 1).getDay(); // 5 (Viernes)
+  const emptySlots = (firstDay + 6) % 7; // 4
+
   return (
-    <div className="glass-card" style={{ padding: '1.5rem' }}>
+    <div className="glass-card" style={{ padding: '1.5rem', borderTop: `4px solid ${accentColor}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h3 style={{ margin: 0 }}>Planificacion Mayo 2026</h3>
+        <h3 style={{ margin: 0 }}>Planificacion Mayo 2026 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>({account})</span></h3>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="btn btn-ghost" style={{ padding: '0.4rem 0.8rem' }}>Semana</button>
-          <button className="btn btn-primary" style={{ padding: '0.4rem 0.8rem' }}>Mes</button>
+          <button className="btn btn-primary" style={{ padding: '0.4rem 0.8rem', background: accentColor }}>Mes</button>
         </div>
       </div>
       
@@ -771,16 +778,18 @@ const CalendarioSection = ({ plannedPosts = [] }) => {
         {days.map(d => (
           <div key={d} style={{ background: 'var(--bg-dark)', padding: '0.8rem', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>{d}</div>
         ))}
-        {Array.from({ length: 28 }).map((_, i) => {
-          const dayNum = i + 1;
-          const posts = getPostsForDay(dayNum);
+        {Array.from({ length: 31 + emptySlots }).map((_, i) => {
+          const dayNum = i - emptySlots + 1;
+          const isCurrentMonth = dayNum > 0 && dayNum <= 31;
+          const posts = isCurrentMonth ? getPostsForDay(dayNum) : [];
+          
           return (
-            <div key={i} style={{ background: 'var(--bg-dark)', minHeight: '100px', padding: '0.5rem', position: 'relative' }}>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{dayNum}</span>
+            <div key={i} style={{ background: isCurrentMonth ? 'var(--bg-dark)' : 'rgba(255,255,255,0.02)', minHeight: '100px', padding: '0.5rem', position: 'relative', opacity: isCurrentMonth ? 1 : 0.3 }}>
+              {isCurrentMonth && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{dayNum}</span>}
               {posts.map(p => (
                 <div key={p.id} style={{ 
-                  background: p.type === 'reel' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(16, 185, 129, 0.2)', 
-                  borderLeft: `3px solid ${p.type === 'reel' ? '#6366f1' : '#10b981'}`, 
+                  background: p.type === 'reel' ? `rgba(${isEvents ? '168, 85, 247' : '99, 102, 241'}, 0.2)` : 'rgba(16, 185, 129, 0.2)', 
+                  borderLeft: `3px solid ${p.type === 'reel' ? accentColor : '#10b981'}`, 
                   padding: '0.3rem', fontSize: '0.65rem', marginTop: '0.3rem', borderRadius: '2px',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                 }}>
@@ -795,8 +804,14 @@ const CalendarioSection = ({ plannedPosts = [] }) => {
   );
 };
 
-const PlanSection = ({ onNavigate }) => {
-  const steps = [
+const PlanSection = ({ onNavigate, account }) => {
+  const isEvents = account === '@ecosilence.event';
+  const accentColor = isEvents ? '#a855f7' : '#6366f1';
+  const gradient = isEvents 
+    ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)'
+    : 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)';
+
+  const b2bSteps = [
     {
       week: 'SEMANA 1 - Post 1',
       type: 'Carrusel Educativo',
@@ -828,54 +843,59 @@ const PlanSection = ({ onNavigate }) => {
       idea: 'Lo que dicen los oradores sobre EcoSilence.',
       message: '"La claridad del audio me permitio conectar con mi publico como nunca antes".',
       action: 'Foto de un orador con audifonos y el texto del testimonio.'
-    },
-    {
-      week: 'SEMANA 3 - Post 1',
-      type: 'Reel Emocional',
-      goal: 'Mostrar la experiencia del usuario.',
-      idea: 'La reaccion al ponerse los audifonos por primera vez.',
-      message: 'Ese momento de silencio total donde solo importa la voz del experto.',
-      action: 'Video corto de asistentes sonriendo al encender sus equipos.'
-    },
-    {
-      week: 'SEMANA 3 - Post 2',
-      type: 'Carrusel Tecnico',
-      goal: 'Explicar el valor diferencial.',
-      idea: '¿Como funciona la tecnologia Silent de EcoSilence?',
-      message: '3 canales de audio, largo alcance y cero latencia. Tecnologia de punta.',
-      action: 'Fotos de detalle de los transmisores y audifonos.'
-    },
-    {
-      week: 'SEMANA 4 - Post 1',
-      type: 'Caso de Exito',
-      goal: 'Reforzar autoridad.',
-      idea: 'Evento Corporativo: [Marca X] - Experiencia Inmersiva.',
-      message: 'Llevamos la marca a un nivel superior con audio personalizado.',
-      action: 'Usa el generador IA con una carpeta de activacion de marca.'
-    },
-    {
-      week: 'SEMANA 4 - Post 2',
-      type: 'Post de Conversion',
-      goal: 'Generar leads.',
-      idea: '¿Listo para tu proximo evento corporativo?',
-      message: 'Agenda una demo tecnica hoy mismo. Somos tu partner estrategico.',
-      action: 'Imagen de alta calidad del equipo EcoSilence con CTA claro.'
     }
   ];
 
+  const socialSteps = [
+    {
+      week: 'SEMANA 1 - Post 1',
+      type: 'Reel de Experiencia',
+      goal: 'Mostrar la energía de la fiesta.',
+      idea: 'La mejor Silent Party de Santiago.',
+      message: 'Experiencia neón, 3 canales de música y cero ruido externo. ¡La fiesta no para!',
+      action: 'Usa videos de gente bailando con luces LED y efectos neón.'
+    },
+    {
+      week: 'SEMANA 1 - Post 2',
+      type: 'Post de Beneficio',
+      goal: 'Vender la libertad de horario.',
+      idea: 'Baila sin molestar a los vecinos.',
+      message: '¿Fiesta en casa o departamento? Disfruta al máximo sin quejas ni multas.',
+      action: 'Graba un video mostrando el contraste: silencio vs fiesta total.'
+    },
+    {
+      week: 'SEMANA 2 - Post 1',
+      type: 'Carrusel de Tendencia',
+      goal: 'Captar novios innovadores.',
+      idea: 'Matrimonios Silenciosos: La tendencia 2026.',
+      message: 'Elegancia, modernidad y una fiesta épica que todos recordarán.',
+      action: 'Usa fotos emotivas de novios y amigos con audífonos LED.'
+    },
+    {
+      week: 'SEMANA 2 - Post 2',
+      type: 'Testimonio Social',
+      goal: 'Prueba social festiva.',
+      idea: 'Lo que dicen los invitados de nuestras fiestas.',
+      message: '"Nunca me había divertido tanto en un matrimonio. ¡Pude elegir mi música!"',
+      action: 'Video corto de invitados dando su opinión en la pista.'
+    }
+  ];
+
+  const steps = isEvents ? socialSteps : b2bSteps;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div className="glass-card" style={{ padding: '2rem', borderLeft: '5px solid var(--accent-primary)', background: 'linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, transparent 100%)' }}>
-        <h2 style={{ marginTop: 0 }}>Plan de Accion: Dominio B2B (8 Posts/Mes)</h2>
-        <p style={{ color: 'var(--text-muted)' }}>Hemos duplicado la frecuencia para acelerar tu posicionamiento. Este plan alterna educacion, prueba social y experiencia inmersiva.</p>
+      <div className="glass-card" style={{ padding: '2rem', borderLeft: `5px solid ${accentColor}`, background: gradient }}>
+        <h2 style={{ marginTop: 0 }}>Plan de Accion: {isEvents ? 'Dominio Social/Fiestas' : 'Dominio B2B'} (8 Posts/Mes)</h2>
+        <p style={{ color: 'var(--text-muted)' }}>{isEvents ? 'Este plan se enfoca en la diversión, la libertad y la tendencia de las fiestas silenciosas.' : 'Hemos duplicado la frecuencia para acelerar tu posicionamiento corporativo.'}</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
         {steps.map((s, i) => (
           <div key={i} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, right: 0, width: '4px', height: '100%', background: i % 2 === 0 ? 'var(--accent-primary)' : 'var(--accent-secondary)' }}></div>
+            <div style={{ position: 'absolute', top: 0, right: 0, width: '4px', height: '100%', background: i % 2 === 0 ? accentColor : (isEvents ? '#ec4899' : 'var(--accent-secondary)') }}></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--accent-primary)' }}>{s.week}</span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: accentColor }}>{s.week}</span>
               <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.7rem' }}>{s.type}</div>
             </div>
             <h3 style={{ margin: 0, fontSize: '1rem', lineHeight: 1.4 }}>{s.idea}</h3>
@@ -883,7 +903,7 @@ const PlanSection = ({ onNavigate }) => {
               "{s.message}"
             </div>
             <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', fontSize: '0.75rem' }}>
-              <span style={{ fontWeight: 600, color: 'var(--color-basil)' }}>Accion:</span> {s.action}
+              <span style={{ fontWeight: 600, color: isEvents ? '#ec4899' : 'var(--color-basil)' }}>Accion:</span> {s.action}
             </div>
             <button 
               className="btn btn-ghost" 
