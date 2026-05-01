@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 const MarketingView = () => {
-  const { servicios, isGoogleLinked, plannedPosts, addPlannedPost } = useAppStore();
+  const { servicios, isGoogleLinked, plannedPosts, addPlannedPost, selectedMarketingAccount } = useAppStore();
   const [activeTab, setActiveTab] = useState('estrategia');
   
   // Estado para la planificación
@@ -47,7 +47,10 @@ const MarketingView = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1.5rem' }}>
         <div>
           <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-            <Megaphone size={32} color="var(--accent-primary)" /> Marketing & Automatización
+            <Megaphone size={32} color="var(--accent-primary)" /> Marketing & Automatización 
+            <span style={{ fontSize: '1.2rem', color: 'var(--accent-primary)', background: 'rgba(99, 102, 241, 0.1)', padding: '0.2rem 0.8rem', borderRadius: '20px', marginLeft: '0.5rem' }}>
+              {selectedMarketingAccount}
+            </span>
           </h1>
           <p style={{ color: 'var(--text-muted)', margin: '0.5rem 0 0 0' }}>Gestiona tu contenido, crea estrategias de growth y mide tu embudo de ventas.</p>
         </div>

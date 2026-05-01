@@ -29,6 +29,8 @@ export const AppDataProvider = ({ children }) => {
   const [kanbanExpandedMonths, setKanbanExpandedMonths] = useState({});
   const [kanbanExpandedStage, setKanbanExpandedStage] = useState(null);
   const [selectedKanbanMonth, setSelectedKanbanMonth] = useState(null);
+  const [selectedMarketingAccount, setSelectedMarketingAccount] = useState('@ecosilence.soluciones');
+  const marketingAccounts = ['@ecosilence.soluciones', '@ecosilence.event'];
   
   // Marketing State
   const [plannedPosts, setPlannedPosts] = useState(() => {
@@ -585,6 +587,7 @@ export const AppDataProvider = ({ children }) => {
     kanbanExpandedStage, setKanbanExpandedStage,
     selectedKanbanMonth, setSelectedKanbanMonth, kanbanGroupedData,
     plannedPosts, addPlannedPost, notifications,
+    marketingAccounts, selectedMarketingAccount, setSelectedMarketingAccount,
     archivados, isArchived,
     formatDateDDMMYYYY
   };

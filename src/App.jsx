@@ -13,7 +13,12 @@ import MarketingView from './views/MarketingView'
 import SettingsView from './views/SettingsView'
 
 function App() {
-  const { currentView, navigate, menuNames, updateMenuName, kanbanGroupedData, kanbanExpandedYears, setKanbanExpandedYears, selectedKanbanMonth, setSelectedKanbanMonth, logout, notifications } = useAppStore();
+  const { 
+    currentView, navigate, menuNames, updateMenuName, 
+    kanbanGroupedData, kanbanExpandedYears, setKanbanExpandedYears, 
+    selectedKanbanMonth, setSelectedKanbanMonth, logout, notifications,
+    marketingAccounts, selectedMarketingAccount, setSelectedMarketingAccount
+  } = useAppStore();
   const [editingMenu, setEditingMenu] = useState(null);
   const [tempName, setTempName] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -180,6 +185,34 @@ function App() {
                         </div>
                       ))}
                    </div>
+                )}
+
+                {/* Marketing Submenu */}
+                {item.id === 'marketing' && currentView === 'marketing' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', paddingLeft: '0.5rem', marginTop: '0.2rem', borderLeft: '2px solid rgba(255,255,255,0.05)', marginLeft: '1rem', marginBottom: '0.5rem' }}>
+                    {(marketingAccounts || []).map(account => {
+                      const isSelected = selectedMarketingAccount === account;
+                      return (
+                        <div
+                          key={account}
+                          onClick={() => setSelectedMarketingAccount(account)}
+                          style={{ 
+                            padding: '0.4rem 0.8rem', cursor: 'pointer', borderRadius: '4px', 
+                            background: isSelected ? 'var(--bg-panel-hover)' : 'transparent', 
+                            color: isSelected ? 'var(--text-main)' : 'var(--text-muted)', 
+                            display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem',
+                            fontWeight: isSelected ? 600 : 400
+                          }}
+                        >
+                          <Megaphone size={14} color={isSelected ? 'var(--accent-primary)' : 'currentColor'} />
+                          {account}
+                        </div>
+                      );
+                    })}
+                    <div style={{ padding: '0.4rem 0.8rem', cursor: 'pointer', border: '1px dashed var(--border-color)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.3rem', textAlign: 'center' }}>
+                      + Vincular Cuenta
+                    </div>
+                  </div>
                 )}
               </div>
             )
