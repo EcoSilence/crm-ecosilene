@@ -118,6 +118,7 @@ const MarketingView = () => {
             onSchedule={addPlannedPost}
             planContext={selectedPlanStep}
             setPlanContext={setSelectedPlanStep}
+            account={selectedMarketingAccount}
           />
         )}
         {activeTab === 'plan' && (
@@ -273,8 +274,10 @@ const EstrategiaSection = ({ servicios }) => {
   );
 };
 
-const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContext }) => {
+const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContext, account }) => {
   const { listDriveContent } = useAppStore();
+  const isEvents = account === '@ecosilence.event';
+  const accentColor = isEvents ? '#a855f7' : '#6366f1';
   const [loading, setLoading] = useState(false);
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
