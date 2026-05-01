@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 const MarketingView = () => {
-  const { servicios, isGoogleLinked, plannedPosts, addPlannedPost, selectedMarketingAccount } = useAppStore();
+  const { servicios, isGoogleLinked, plannedPosts, addPlannedPost, selectedMarketingAccount, brandProfile } = useAppStore();
   const [activeTab, setActiveTab] = useState('estrategia');
   
   // Estado para la planificación
@@ -34,9 +34,9 @@ const MarketingView = () => {
   };
 
   const stats = [
-    { label: 'Leads de Redes', value: '24', change: '+12%', icon: <TrendingUp size={20}/> },
+    { label: 'Leads de Redes', value: brandProfile?.stats.leads || '0', change: '+12%', icon: <TrendingUp size={20}/> },
     { label: 'Contenido Planificado', value: plannedPosts.length.toString(), change: 'En curso', icon: <Calendar size={20}/> },
-    { label: 'Tasa de Conversión', value: '4.5%', change: '+0.8%', icon: <Sparkles size={20}/> },
+    { label: 'Tasa de Conversión', value: brandProfile?.stats.conv || '0%', change: '+0.8%', icon: <Sparkles size={20}/> },
   ];
 
   return (
@@ -119,6 +119,7 @@ const MarketingView = () => {
         )}
         {activeTab === 'plan' && (
           <PlanSection 
+            account={selectedMarketingAccount}
             onNavigate={(step) => {
               setSelectedPlanStep(step);
               setActiveTab('drive');
@@ -310,42 +311,56 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
       const videos = files.filter(f => f.type === 'video').slice(0, 2);
       
       let suggestions = [];
+      const isEvents = selectedMarketingAccount === '@ecosilence.event';
 
       if (planContext) {
-        // Generate EXACTLY what the plan asked for
+        // Generate EXACTLY what the plan asked for with account-aware touch
         suggestions = [{
           id: 'plan_match',
           type: planContext.type,
-          title: planContext.idea,
+          title: planContext.title || planContext.idea,
           desc: planContext.goal,
           assets: planContext.type.includes('Carrusel') ? initialImages : (videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1)),
-          copy: `GANCHO: ${planContext.idea}\n\nVALOR: ${planContext.message}. En el evento ${folderName} logramos precisamente esto.\n\nCTA: Escribenos para mas informacion. #SilentExperience #B2BChile`
+          copy: `GANCHO: ${planContext.title || planContext.idea}\n\nVALOR: ${planContext.message}. En el evento ${folderName} logramos precisamente esto.\n\nCTA: Escribenos para mas informacion. #SilentExperience ${isEvents ? '#PartyMode #EcoSilenceEvent' : '#B2BChile #EventTech'}`
         }];
+      } else if (isEvents) {
+        // B2C / Party templates
+        suggestions = [
+          {
+            id: 'event_opt_a',
+            type: 'Reel Experiencial (Fiesta)',
+            title: 'La Magia de la Noche Silent',
+            desc: 'Mostrar la vibración, las luces LED y la libertad de bailar.',
+            assets: videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1),
+            copy: `GANCHO: ¿Buscas la mejor fiesta del año? 🕺✨\n\nVALOR: Con EcoSilence la música no para. 3 canales de pura energía directamente a tus oídos. En ${folderName} la vibra fue total.\n\nCTA: Reserva tu fecha para Silent Party ahora. #SilentParty #EcoSilenceEvent #FiestaSinLimites`
+          },
+          {
+            id: 'event_opt_b',
+            type: 'Carrusel de Tips',
+            title: 'Libertad de Bailar sin Restricciones',
+            desc: 'Educar sobre las ventajas de no hacer ruido externo.',
+            assets: initialImages,
+            copy: `GANCHO: Olvida los problemas con los vecinos o multas de ruido. 🤫🔥\n\nVALOR: Nuestra tecnologia permite celebrar eventos epicos en cualquier lugar y a cualquier hora. Mira como lo hicimos en ${folderName}.\n\nCTA: Agenda tu Silent Event hoy mismo. #NoNoise #PartyFreedom #Innovacion`
+          }
+        ];
       } else {
-        // Generic B2B templates
+        // Generic B2B templates (Soluciones)
         suggestions = [
           {
             id: 'opt_a',
             type: 'Carrusel Educativo (B2B)',
             title: 'Optimizacion de Audio en Congresos',
             desc: 'Como optimizar el audio en tu proximo congreso corporativo sin ruido ambiental.',
+            assets: initialImages,
             copy: `GANCHO: ¿Sabias que el ruido ambiental reduce la retencion de informacion en un 40%? 🧠\n\nVALOR: En el evento de ${folderName}, implementamos tecnologia Silent para que cada asistente escuchara al orador con claridad absoluta.\n\nCTA: Solicita tu cotizacion para eventos corporativos en el link de la bio. #SilentConference #B2BChile #EventosPro`
           },
           {
             id: 'opt_b',
             type: 'Reel de Experiencia',
-            title: 'Transformacion Sensorial',
+            title: 'Transformacion Sensorial Corporativa',
             desc: 'Transforma un lanzamiento de producto en una experiencia sensorial inmersiva.',
             assets: videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1),
-            copy: `GANCHO: ¿Aburrido de los lanzamientos tradicionales? 😴\n\nVALOR: Creamos experiencias que se escuchan y se sienten. En ${folderName}, logramos una conexion profunda.\n\nCTA: Escribenos para diseñar tu proxima activacion de marca. #SilentActivation #MarketingExperiencial #Innovacion`
-          },
-          {
-            id: 'opt_c',
-            type: 'Caso de Exito',
-            title: 'Estudio de Caso: ' + folderName,
-            desc: 'Resumen de beneficios clave logrados con tecnologia ECOSILENCE.',
-            assets: initialImages.slice(0, 1),
-            copy: `TEMA: El exito del evento ${folderName} con tecnologia ECOSILENCE.\n\nVALOR: Logramos 0% de interferencia en salas simultaneas.\n\nCTA: Agenda una demo tecnica en nuestra bio. #SilentEvents #SolucionesAuditivas #B2BChile`
+            copy: `GANCHO: ¿Aburrido de los lanzamientos tradicionales? 😴\n\nVALOR: Creamos experiencias que se escuchan y se sienten. En ${folderName}, logramos una conexion profunda con la marca.\n\nCTA: Escribenos para diseñar tu proxima activacion de marca. #SilentActivation #MarketingExperiencial #Innovacion`
           }
         ];
       }
@@ -375,8 +390,22 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
   };
 
   const getSlideMessage = (index, topic = "") => {
+    const isEvents = selectedMarketingAccount === '@ecosilence.event';
     const topicLower = topic.toLowerCase();
     
+    // MODO EVENTOS (B2C / FIESTA)
+    if (isEvents) {
+      const partyMessages = [
+        "La magia de la Silent Party: Todos bailando al mismo ritmo pero en silencio absoluto.",
+        "3 Canales, 3 Ambientes: Del Tech-House al Reggaetón en un solo click.",
+        "Sin restricciones: Celebramos hasta el amanecer sin preocuparte por ruidos o vecinos.",
+        "Luces LED vibrantes: Tus audífonos son el alma de la fiesta y cambian según el canal.",
+        "Calidad Hi-Fi: Beats profundos y voces claras directamente a tus oídos para una noche épica."
+      ];
+      return partyMessages[index % partyMessages.length];
+    }
+
+    // MODO SOLUCIONES (B2B / CORPORATIVO)
     // 5 RAZONES POR LAS QUE EL AUDIO TRADICIONAL ARRUINA TU CONGRESO
     if (topicLower.includes('5 razones') || topicLower.includes('arruina')) {
       const reasons = [

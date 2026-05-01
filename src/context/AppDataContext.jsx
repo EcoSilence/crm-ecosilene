@@ -31,30 +31,53 @@ export const AppDataProvider = ({ children }) => {
   const [selectedKanbanMonth, setSelectedKanbanMonth] = useState(null);
   const [selectedMarketingAccount, setSelectedMarketingAccount] = useState('@ecosilence.soluciones');
   const marketingAccounts = ['@ecosilence.soluciones', '@ecosilence.event'];
-  
-  // Marketing State
-  const [plannedPosts, setPlannedPosts] = useState(() => {
-    const saved = localStorage.getItem('planned_posts');
-    return saved ? JSON.parse(saved) : [
-      { id: 'p1', title: 'Reel: Caso Marriott', date: '2026-05-05', type: 'reel' },
-      { id: 'p2', title: 'Carrusel: Beneficios Silent', date: '2026-05-11', type: 'carousel' }
-    ];
+
+  const brandProfiles = {
+    '@ecosilence.soluciones': {
+      name: 'EcoSilence Soluciones',
+      niche: 'Corporativo / B2B',
+      tone: 'Profesional, tecnológico y eficiente.',
+      goals: ['ROI', 'Claridad de mensaje', 'Eventos simultáneos'],
+      drivePriority: ['Conferencias', 'Adolfo Rodriguez', 'Empresas'],
+      stats: { leads: '24', conv: '4.5%', planned: '3' }
+    },
+    '@ecosilence.event': {
+      name: 'EcoSilence Events',
+      niche: 'Celebración / B2C',
+      tone: 'Vibrante, divertido y experiencial.',
+      goals: ['Mejor fiesta del año', 'Libertad de bailar', 'Estética LED'],
+      drivePriority: ['Bermuda', 'Creamfield', 'Cumpleaños', 'Festivales'],
+      stats: { leads: '158', conv: '12.2%', planned: '1' }
+    }
+  };
+
+  // Marketing State (Separado por cuenta)
+  const [plannedPostsMap, setPlannedPostsMap] = useState(() => {
+    const saved = localStorage.getItem('planned_posts_map');
+    return saved ? JSON.parse(saved) : {
+      '@ecosilence.soluciones': [
+        { id: 'p1', title: 'Reel: Caso Marriott', date: '2026-05-05', type: 'reel' },
+        { id: 'p2', title: 'Carrusel: Beneficios Silent', date: '2026-05-11', type: 'carousel' }
+      ],
+      '@ecosilence.event': [
+        { id: 'p3', title: 'Aftermovie: Bermuda 2026', date: '2026-05-02', type: 'reel' }
+      ]
+    };
   });
 
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    localStorage.setItem('planned_posts', JSON.stringify(plannedPosts));
+    localStorage.setItem('planned_posts_map', JSON.stringify(plannedPostsMap));
     
-    // Usar fecha local para evitar errores de zona horaria (UTC)
     const now = new Date();
     const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-    
     const tom = new Date(now.getTime() + 86400000);
     const tomorrow = tom.getFullYear() + '-' + String(tom.getMonth() + 1).padStart(2, '0') + '-' + String(tom.getDate()).padStart(2, '0');
     
     const alerts = [];
-    plannedPosts.forEach(post => {
+    const currentPosts = plannedPostsMap[selectedMarketingAccount] || [];
+    currentPosts.forEach(post => {
       if (post.date === today) {
         alerts.push({ id: `today-${post.id}`, type: 'today', title: '¡Hoy toca publicar!', text: post.title, date: post.date });
       } else if (post.date === tomorrow) {
@@ -62,10 +85,13 @@ export const AppDataProvider = ({ children }) => {
       }
     });
     setNotifications(alerts);
-  }, [plannedPosts]);
+  }, [plannedPostsMap, selectedMarketingAccount]);
 
   const addPlannedPost = (post) => {
-    setPlannedPosts(prev => [...prev, post]);
+    setPlannedPostsMap(prev => ({
+      ...prev,
+      [selectedMarketingAccount]: [...(prev[selectedMarketingAccount] || []), post]
+    }));
   };
 
   const isArchived = (s) => {
@@ -586,8 +612,10 @@ export const AppDataProvider = ({ children }) => {
     kanbanExpandedMonths, setKanbanExpandedMonths,
     kanbanExpandedStage, setKanbanExpandedStage,
     selectedKanbanMonth, setSelectedKanbanMonth, kanbanGroupedData,
-    plannedPosts, addPlannedPost, notifications,
+    plannedPosts: plannedPostsMap[selectedMarketingAccount] || [], 
+    addPlannedPost, notifications,
     marketingAccounts, selectedMarketingAccount, setSelectedMarketingAccount,
+    brandProfile: brandProfiles[selectedMarketingAccount],
     archivados, isArchived,
     formatDateDDMMYYYY
   };
