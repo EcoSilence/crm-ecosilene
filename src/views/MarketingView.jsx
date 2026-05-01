@@ -33,6 +33,9 @@ const MarketingView = () => {
     setIsPlanningModalOpen(true);
   };
 
+  const isEvents = selectedMarketingAccount === '@ecosilence.event';
+  const accentColor = isEvents ? '#a855f7' : '#6366f1';
+
   const stats = [
     { label: 'Leads de Redes', value: brandProfile?.stats.leads || '0', change: '+12%', icon: <TrendingUp size={20}/> },
     { label: 'Contenido Planificado', value: plannedPosts.length.toString(), change: 'En curso', icon: <Calendar size={20}/> },
@@ -305,69 +308,77 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
     setIsGenerating(true);
     const folderName = path[path.length - 1].name;
     
-    setTimeout(() => {
-      const initialImages = files.filter(f => f.type === 'image').slice(0, 4);
-      setSelectedCarouselAssets(initialImages);
-      const videos = files.filter(f => f.type === 'video').slice(0, 2);
-      
-      let suggestions = [];
-      const isEvents = selectedMarketingAccount === '@ecosilence.event';
-
-      if (planContext) {
-        // Generate EXACTLY what the plan asked for with account-aware touch
-        suggestions = [{
-          id: 'plan_match',
-          type: planContext.type,
-          title: planContext.title || planContext.idea,
-          desc: planContext.goal,
-          assets: planContext.type.includes('Carrusel') ? initialImages : (videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1)),
-          copy: `GANCHO: ${planContext.title || planContext.idea}\n\nVALOR: ${planContext.message}. En el evento ${folderName} logramos precisamente esto.\n\nCTA: Escribenos para mas informacion. #SilentExperience ${isEvents ? '#PartyMode #EcoSilenceEvent' : '#B2BChile #EventTech'}`
-        }];
-      } else if (isEvents) {
-        // B2C / Party templates
-        suggestions = [
-          {
-            id: 'event_opt_a',
-            type: 'Reel Experiencial (Fiesta)',
-            title: 'La Magia de la Noche Silent',
-            desc: 'Mostrar la vibración, las luces LED y la libertad de bailar.',
-            assets: videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1),
-            copy: `GANCHO: ¿Buscas la mejor fiesta del año? 🕺✨\n\nVALOR: Con EcoSilence la música no para. 3 canales de pura energía directamente a tus oídos. En ${folderName} la vibra fue total.\n\nCTA: Reserva tu fecha para Silent Party ahora. #SilentParty #EcoSilenceEvent #FiestaSinLimites`
-          },
-          {
-            id: 'event_opt_b',
-            type: 'Carrusel de Tips',
-            title: 'Libertad de Bailar sin Restricciones',
-            desc: 'Educar sobre las ventajas de no hacer ruido externo.',
-            assets: initialImages,
-            copy: `GANCHO: Olvida los problemas con los vecinos o multas de ruido. 🤫🔥\n\nVALOR: Nuestra tecnologia permite celebrar eventos epicos en cualquier lugar y a cualquier hora. Mira como lo hicimos en ${folderName}.\n\nCTA: Agenda tu Silent Event hoy mismo. #NoNoise #PartyFreedom #Innovacion`
-          }
-        ];
-      } else {
-        // Generic B2B templates (Soluciones)
-        suggestions = [
-          {
-            id: 'opt_a',
-            type: 'Carrusel Educativo (B2B)',
-            title: 'Optimizacion de Audio en Congresos',
-            desc: 'Como optimizar el audio en tu proximo congreso corporativo sin ruido ambiental.',
-            assets: initialImages,
-            copy: `GANCHO: ¿Sabias que el ruido ambiental reduce la retencion de informacion en un 40%? 🧠\n\nVALOR: En el evento de ${folderName}, implementamos tecnologia Silent para que cada asistente escuchara al orador con claridad absoluta.\n\nCTA: Solicita tu cotizacion para eventos corporativos en el link de la bio. #SilentConference #B2BChile #EventosPro`
-          },
-          {
-            id: 'opt_b',
-            type: 'Reel de Experiencia',
-            title: 'Transformacion Sensorial Corporativa',
-            desc: 'Transforma un lanzamiento de producto en una experiencia sensorial inmersiva.',
-            assets: videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1),
-            copy: `GANCHO: ¿Aburrido de los lanzamientos tradicionales? 😴\n\nVALOR: Creamos experiencias que se escuchan y se sienten. En ${folderName}, logramos una conexion profunda con la marca.\n\nCTA: Escribenos para diseñar tu proxima activacion de marca. #SilentActivation #MarketingExperiencial #Innovacion`
-          }
-        ];
-      }
-
-      setAiSuggestions(suggestions);
+    // Safety Timeout (10s) para evitar loop infinito
+    const safetyTimer = setTimeout(() => {
       setIsGenerating(false);
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }, 10000);
+
+    setTimeout(() => {
+      try {
+        clearTimeout(safetyTimer);
+        const initialImages = files.filter(f => f.type === 'image').slice(0, 4);
+        setSelectedCarouselAssets(initialImages);
+        const videos = files.filter(f => f.type === 'video').slice(0, 2);
+        
+        let suggestions = [];
+        const isEvents = selectedMarketingAccount === '@ecosilence.event';
+
+        if (planContext) {
+          suggestions = [{
+            id: 'plan_match',
+            type: planContext.type,
+            title: planContext.idea || planContext.title,
+            desc: planContext.goal,
+            assets: planContext.type.includes('Carrusel') ? initialImages : (videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1)),
+            copy: `GANCHO: ${planContext.idea || planContext.title}\n\nVALOR: ${planContext.message}. En el evento ${folderName} logramos precisamente esto.\n\nCTA: Escríbenos para mas informacion. #SilentExperience ${isEvents ? '#PartyMode #EcoSilenceEvent' : '#B2BChile #EventTech'}`
+          }];
+        } else if (isEvents) {
+          suggestions = [
+            {
+              id: 'event_opt_a',
+              type: 'Reel Experiencial (Fiesta)',
+              title: 'La Magia de la Noche Silent',
+              desc: 'Mostrar la vibración, las luces LED y la libertad de bailar.',
+              assets: videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1),
+              copy: `GANCHO: ¿Buscas la mejor fiesta del año? 🕺✨\n\nVALOR: Con EcoSilence la música no para. 3 canales de pura energía directamente a tus oídos. En ${folderName} la vibra fue total.\n\nCTA: Reserva tu fecha para Silent Party ahora. #SilentParty #EcoSilenceEvent #FiestaSinLimites`
+            },
+            {
+              id: 'event_opt_b',
+              type: 'Carrusel de Tips',
+              title: 'Libertad de Bailar sin Restricciones',
+              desc: 'Educar sobre las ventajas de no hacer ruido externo.',
+              assets: initialImages,
+              copy: `GANCHO: Olvídate de los problemas con los vecinos o multas de ruido. 🤫🔥\n\nVALOR: Nuestra tecnologia permite celebrar eventos epicos en cualquier lugar y a cualquier hora. Mira como lo hicimos en ${folderName}.\n\nCTA: Agenda tu Silent Event hoy mismo. #NoNoise #PartyFreedom #Innovacion`
+            }
+          ];
+        } else {
+          suggestions = [
+            {
+              id: 'opt_a',
+              type: 'Carrusel Educativo (B2B)',
+              title: '5 razones por las que el audio tradicional arruina tu congreso.',
+              desc: 'Educar sobre el problema del ruido.',
+              assets: initialImages,
+              copy: `GANCHO: 5 razones por las que el audio tradicional arruina tu congreso.\n\nVALOR: En EcoSilence no solo damos audifonos, resolvemos la contaminacion acustica.. En el evento ${folderName} logramos precisamente esto.\n\nCTA: Escríbenos para mas informacion. #SilentExperience #B2BChile`
+            },
+            {
+              id: 'opt_b',
+              type: 'Reel de Experiencia',
+              title: 'Transformacion Sensorial Corporativa',
+              desc: 'Transforma un lanzamiento de producto en una experiencia sensorial inmersiva.',
+              assets: videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1),
+              copy: `GANCHO: ¿Aburrido de los lanzamientos tradicionales? 😴\n\nVALOR: Creamos experiencias que se escuchan y se sienten. En ${folderName}, logramos una conexion profunda con la marca.\n\nCTA: Escribenos para diseñar tu proxima activacion de marca. #SilentActivation #MarketingExperiencial #Innovacion`
+            }
+          ];
+        }
+
+        setAiSuggestions(suggestions);
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      } catch (err) {
+        console.error("IA Generation Error:", err);
+      } finally {
+        setIsGenerating(false);
+      }
     }, 1500);
   };
 
@@ -630,94 +641,63 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
         </div>
       )}
 
-      {/* IA SUGGESTIONS RENDERER */}
+      {/* IA SUGGESTIONS RENDERER - Restauración image_6.png */}
       {aiSuggestions && (
-        <div className="animate-fade-in" style={{ marginTop: '3rem', borderTop: '2px dashed var(--accent-primary)', paddingTop: '3rem' }}>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-            <Sparkles color="var(--accent-primary)" size={28} /> Estrategia de Contenido Propuesta
+        <div className="animate-fade-in" style={{ marginTop: '3rem', borderTop: `2px dashed ${accentColor}`, paddingTop: '3rem' }}>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem', fontSize: '1.8rem' }}>
+            <Sparkles color={accentColor} size={32} /> Estrategia de Contenido Propuesta
           </h2>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
             {aiSuggestions.map((s, idx) => (
-              <div key={idx} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.2rem', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: '0.7rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700 }}>{s.type}</span>
-                  <Plus size={18} color="var(--text-muted)" style={{ cursor: 'pointer' }} />
-                </div>
-                <h4 style={{ margin: 0 }}>{s.title}</h4>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>{s.desc}</p>
+              <div key={idx} style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid var(--border-color)', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
                 
-                {/* Carrusel Interactive Preview */}
-                {s.type.includes('Carrusel') ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div style={{ display: 'flex', gap: '0.8rem', overflowX: 'auto', padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)', minHeight: '100px' }}>
-                      {selectedCarouselAssets.map((asset, aidx) => (
-                        <div key={aidx} style={{ position: 'relative', minWidth: '110px', height: '110px', borderRadius: '8px', backgroundSize: 'cover', backgroundImage: `url(${asset.thumb})`, border: '2px solid var(--accent-primary)', transition: 'all 0.3s ease' }}>
-                           <button 
-                            onClick={() => toggleAssetSelection(asset)}
-                            style={{ position: 'absolute', top: '-5px', right: '-5px', width: '22px', height: '22px', borderRadius: '50%', background: 'var(--color-tomato)', border: 'none', color: '#fff', fontSize: '10px', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            title="Eliminar"
-                           >
-                            ✕
-                           </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '0.75rem', background: 'rgba(99, 102, 241, 0.1)', color: accentColor, padding: '0.3rem 0.8rem', borderRadius: '6px', fontWeight: 700, border: `1px solid ${accentColor}33` }}>
+                    {s.type}
+                  </span>
+                  <Plus size={20} color="var(--text-muted)" style={{ cursor: 'pointer', opacity: 0.5 }} />
+                </div>
 
-                           <div style={{ position: 'absolute', bottom: '0', left: '0', right: '0', background: 'rgba(0,0,0,0.8)', color: '#fff', fontSize: '0.65rem', padding: '4px', textAlign: 'center', fontWeight: 600 }}>Slide {aidx + 1}</div>
-                           
-                           {/* Move Controls */}
-                           <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, transform: 'translateY(-50%)', display: 'flex', justifyContent: 'space-between', padding: '0 4px', opacity: 0.8 }}>
-                              {aidx > 0 && (
-                                <button onClick={(e) => { e.stopPropagation(); moveAsset(aidx, -1); }} style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '4px', color: '#fff', padding: '2px', cursor: 'pointer' }}>
-                                  <ChevronLeft size={14} />
-                                </button>
-                              )}
-                              <div style={{ flex: 1 }}></div>
-                              {aidx < selectedCarouselAssets.length - 1 && (
-                                <button onClick={(e) => { e.stopPropagation(); moveAsset(aidx, 1); }} style={{ background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '4px', color: '#fff', padding: '2px', cursor: 'pointer' }}>
-                                  <ChevronRight size={14} />
-                                </button>
-                              )}
-                           </div>
-                        </div>
-                      ))}
-                      {selectedCarouselAssets.length === 0 && <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', border: '1px dashed var(--border-color)', borderRadius: '8px' }}>Selecciona fotos arriba ⬆️</div>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>{s.title}</h3>
+                  <p style={{ fontSize: '1rem', color: 'var(--text-muted)', margin: 0 }}>{s.desc}</p>
+                </div>
+                
+                {/* Visual Preview (4 thumbnails like image_6.png) */}
+                <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '0.5rem 0' }}>
+                  {(s.assets && s.assets.length > 0 ? s.assets : selectedCarouselAssets).slice(0, 4).map((asset, aidx) => (
+                    <div key={aidx} style={{ 
+                      minWidth: '120px', height: '120px', borderRadius: '12px', 
+                      backgroundSize: 'cover', backgroundPosition: 'center', 
+                      backgroundImage: `url(${asset.thumb})`, 
+                      border: '1px solid var(--border-color)',
+                      boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
+                    }}>
+                      {!asset.thumb && <ImageIcon size={24} color="var(--text-muted)" />}
                     </div>
-                    
-                    {/* Slide Messages */}
-                    {selectedCarouselAssets.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent-primary)' }}>MENSAJES POR DIAPOSITIVA:</div>
-                        {selectedCarouselAssets.slice(0, 5).map((_, aidx) => (
-                          <div key={aidx} style={{ padding: '0.6rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', fontSize: '0.75rem', borderLeft: '2px solid var(--accent-primary)' }}>
-                             <strong>Slide {aidx + 1}:</strong> {getSlideMessage(aidx, s.title)}
-                          </div>
-                        ))}
-                        {selectedCarouselAssets.length > 3 && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center' }}>+ {selectedCarouselAssets.length - 3} diapositivas mas...</div>}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', padding: '0.5rem 0' }}>
-                    {s.assets.map((asset, aidx) => (
-                      <div key={aidx} style={{ minWidth: '80px', height: '80px', borderRadius: '8px', backgroundSize: 'cover', backgroundImage: `url(${asset.thumb})`, border: '1px solid var(--border-color)' }}>
-                        {!asset.thumb && <ImageIcon size={20} color="var(--text-muted)" />}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  ))}
+                </div>
 
-                <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.85rem', position: 'relative' }}>
-                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{s.copy}</p>
+                {/* Copy Text Box */}
+                <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '0.9rem', position: 'relative', marginTop: '1rem' }}>
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.8, color: 'var(--text-main)', letterSpacing: '0.02em' }}>
+                    {s.copy}
+                  </p>
                   <button 
-                    onClick={() => navigator.clipboard.writeText(s.copy)}
-                    style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                    onClick={() => {
+                      navigator.clipboard.writeText(s.copy);
+                      alert('¡Copy copiado al portapapeles!');
+                    }}
+                    style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                   >
-                    <Plus size={14} style={{ transform: 'rotate(45deg)' }} />
+                    <Plus size={16} style={{ transform: 'rotate(45deg)', opacity: 0.5 }} />
                   </button>
                 </div>
                 
                 <button 
                   className="btn btn-primary" 
-                  style={{ width: '100%', marginTop: 'auto' }} 
+                  style={{ width: '100%', padding: '1.2rem', fontSize: '1rem', fontWeight: 700, borderRadius: '12px', background: accentColor, boxShadow: `0 8px 25px ${accentColor}44` }} 
                   onClick={() => {
                     const newPost = {
                       id: Date.now(),
