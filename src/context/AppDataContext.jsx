@@ -44,8 +44,12 @@ export const AppDataProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('planned_posts', JSON.stringify(plannedPosts));
     
-    const today = new Date().toISOString().split('T')[0];
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    // Usar fecha local para evitar errores de zona horaria (UTC)
+    const now = new Date();
+    const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    
+    const tom = new Date(now.getTime() + 86400000);
+    const tomorrow = tom.getFullYear() + '-' + String(tom.getMonth() + 1).padStart(2, '0') + '-' + String(tom.getDate()).padStart(2, '0');
     
     const alerts = [];
     plannedPosts.forEach(post => {
