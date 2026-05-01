@@ -359,11 +359,59 @@ const PlanSection = ({ onNavigate, account }) => {
   );
 };
 
-const CalendarioSection = ({ plannedPosts }) => (
-  <div className="glass-card" style={{ padding: '2rem' }}>
-    <h3>Calendario</h3>
-    {plannedPosts.map(p => <div key={p.id}>{p.date} - {p.title}</div>)}
-  </div>
-);
+const CalendarioSection = ({ plannedPosts = [], account }) => {
+  const isEvents = account === '@ecosilence.event';
+  const accentColor = isEvents ? '#ec4899' : '#3b82f6';
+  const days = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'];
+  
+  // Mayo 2026: Comienza Viernes (index 4 en 0-6 L-D)
+  const daysInMonth = 31;
+  const startOffset = 4; // L=0, M=1, X=2, J=3, V=4
+  
+  const calendarDays = [];
+  for (let i = 0; i < startOffset; i++) calendarDays.push(null);
+  for (let i = 1; i <= daysInMonth; i++) calendarDays.push(i);
+
+  const getPostsForDay = (day) => {
+    if (!day) return [];
+    const dateStr = `2026-05-${String(day).padStart(2, '0')}`;
+    return plannedPosts.filter(p => p.date === dateStr);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0 }}>Mayo 2026</h3>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn btn-ghost" style={{ fontSize: '0.8rem' }}>Anterior</button>
+          <button className="btn btn-primary" style={{ background: accentColor, fontSize: '0.8rem' }}>Hoy</button>
+          <button className="btn btn-ghost" style={{ fontSize: '0.8rem' }}>Siguiente</button>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px', background: 'var(--border-color)', border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden' }}>
+        {days.map(d => (
+          <div key={d} style={{ background: 'var(--bg-panel)', padding: '1rem', textAlign: 'center', fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)' }}>{d}</div>
+        ))}
+        {calendarDays.map((day, idx) => (
+          <div key={idx} style={{ background: day ? 'var(--bg-dark)' : 'rgba(0,0,0,0.2)', minHeight: '120px', padding: '0.5rem', border: '1px solid rgba(255,255,255,0.02)' }}>
+            {day && (
+              <>
+                <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem', color: day === 30 ? accentColor : 'inherit' }}>{day}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {getPostsForDay(day).map(post => (
+                    <div key={post.id} style={{ fontSize: '0.65rem', background: `${accentColor}22`, borderLeft: `3px solid ${accentColor}`, padding: '4px 6px', borderRadius: '4px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {post.type === 'reel' ? '🎥' : '📁'} {post.title}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export default MarketingView;
