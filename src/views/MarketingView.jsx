@@ -305,10 +305,13 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
   };
 
   const generateStrategies = () => {
+    if (isGenerating) return;
     setIsGenerating(true);
-    const folderName = path[path.length - 1].name;
+    setAiSuggestions(null); // Reset anterior
+
+    const folderName = path[path.length - 1]?.name || "Contenido";
     
-    // Safety Timeout (10s) para evitar loop infinito
+    // Safety Timeout (10s)
     const safetyTimer = setTimeout(() => {
       setIsGenerating(false);
     }, 10000);
@@ -316,12 +319,13 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
     setTimeout(() => {
       try {
         clearTimeout(safetyTimer);
-        const initialImages = files.filter(f => f.type === 'image').slice(0, 4);
+        const images = files.filter(f => f.type === 'image');
+        const initialImages = images.slice(0, 6);
         setSelectedCarouselAssets(initialImages);
         const videos = files.filter(f => f.type === 'video').slice(0, 2);
         
-        let suggestions = [];
         const isEvents = selectedMarketingAccount === '@ecosilence.event';
+        let suggestions = [];
 
         if (planContext) {
           suggestions = [{
@@ -357,29 +361,34 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
               id: 'opt_a',
               type: 'Carrusel Educativo (B2B)',
               title: '5 razones por las que el audio tradicional arruina tu congreso.',
-              desc: 'Educar sobre el problema del ruido.',
+              desc: 'Educar sobre el problema del ruido y la pérdida de atención.',
               assets: initialImages,
-              copy: `GANCHO: 5 razones por las que el audio tradicional arruina tu congreso.\n\nVALOR: En EcoSilence no solo damos audifonos, resolvemos la contaminacion acustica.. En el evento ${folderName} logramos precisamente esto.\n\nCTA: Escríbenos para mas informacion. #SilentExperience #B2BChile`
+              copy: `GANCHO: 5 razones por las que el audio tradicional arruina tu congreso. 📉\n\nVALOR: En EcoSilence no solo damos audifonos, resolvemos la contaminacion acustica.. En el evento ${folderName} logramos precisamente esto.\n\nCTA: Escríbenos para mas informacion. #SilentExperience #B2BChile #EventTech`
             },
             {
               id: 'opt_b',
-              type: 'Reel de Experiencia',
-              title: 'Transformacion Sensorial Corporativa',
-              desc: 'Transforma un lanzamiento de producto en una experiencia sensorial inmersiva.',
-              assets: videos.length > 0 ? [videos[0]] : initialImages.slice(0, 1),
-              copy: `GANCHO: ¿Aburrido de los lanzamientos tradicionales? 😴\n\nVALOR: Creamos experiencias que se escuchan y se sienten. En ${folderName}, logramos una conexion profunda con la marca.\n\nCTA: Escribenos para diseñar tu proxima activacion de marca. #SilentActivation #MarketingExperiencial #Innovacion`
+              type: 'Reel de Montaje',
+              title: 'Setup en 30 segundos: Agilidad B2B',
+              desc: 'Demostrar la rapidez logística de EcoSilence.',
+              assets: initialImages.slice(0, 1),
+              copy: `GANCHO: ¿Setup en 30 segundos? ¡Es posible! ⏱️\n\nVALOR: Olvida los cables y parlantes pesados. En ${folderName}, montamos audio para 200 personas en tiempo récord.\n\nCTA: Optimiza la logística de tu próximo evento. #QuickSetup #LogisticaEventos #EcoSilence`
             }
           ];
         }
 
         setAiSuggestions(suggestions);
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        // Scroll suave al resultado
+        setTimeout(() => {
+          const el = document.getElementById('ai-results-anchor');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+        
       } catch (err) {
-        console.error("IA Generation Error:", err);
+        console.error("IA Error:", err);
       } finally {
         setIsGenerating(false);
       }
-    }, 1500);
+    }, 1200);
   };
 
   const toggleAssetSelection = (file) => {
@@ -641,7 +650,10 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
         </div>
       )}
 
-      {/* IA SUGGESTIONS RENDERER - Restauración image_6.png */}
+      {/* Anchor para scroll automático */}
+      <div id="ai-results-anchor" style={{ height: '1px' }} />
+
+      {/* IA SUGGESTIONS RENDERER - Restauración Storytelling image_6.png */}
       {aiSuggestions && (
         <div className="animate-fade-in" style={{ marginTop: '3rem', borderTop: `2px dashed ${accentColor}`, paddingTop: '3rem' }}>
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem', fontSize: '1.8rem' }}>
@@ -664,7 +676,7 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
                   <p style={{ fontSize: '1rem', color: 'var(--text-muted)', margin: 0 }}>{s.desc}</p>
                 </div>
                 
-                {/* Visual Preview (4 thumbnails like image_6.png) */}
+                {/* Visual Preview */}
                 <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '0.5rem 0' }}>
                   {(s.assets && s.assets.length > 0 ? s.assets : selectedCarouselAssets).slice(0, 4).map((asset, aidx) => (
                     <div key={aidx} style={{ 
@@ -672,15 +684,35 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
                       backgroundSize: 'cover', backgroundPosition: 'center', 
                       backgroundImage: `url(${asset.thumb})`, 
                       border: '1px solid var(--border-color)',
-                      boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
+                      boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                      position: 'relative'
                     }}>
                       {!asset.thumb && <ImageIcon size={24} color="var(--text-muted)" />}
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '0.6rem', padding: '2px', textAlign: 'center' }}>Slide {aidx + 1}</div>
                     </div>
                   ))}
+                  {(!s.assets || s.assets.length === 0) && selectedCarouselAssets.length === 0 && (
+                    <div style={{ width: '100%', height: '120px', border: '1px dashed var(--border-color)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                      Cargando previsualización de imágenes...
+                    </div>
+                  )}
+                </div>
+
+                {/* Storytelling Estratégico (Slide Messages) - Restaurado */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: 'rgba(255,255,255,0.01)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: accentColor, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Estructura de Storytelling Sugerida:</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {[0, 1, 2, 3, 4, 5].map((_, aidx) => (
+                      <div key={aidx} style={{ fontSize: '0.85rem', display: 'flex', gap: '0.8rem', alignItems: 'flex-start' }}>
+                        <span style={{ color: accentColor, fontWeight: 800, minWidth: '50px' }}>Slide {aidx + 1}:</span>
+                        <span style={{ color: 'var(--text-main)' }}>{getSlideMessage(aidx, s.title)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Copy Text Box */}
-                <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '0.9rem', position: 'relative', marginTop: '1rem' }}>
+                <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '0.9rem', position: 'relative' }}>
                   <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.8, color: 'var(--text-main)', letterSpacing: '0.02em' }}>
                     {s.copy}
                   </p>
