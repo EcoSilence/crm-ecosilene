@@ -27,6 +27,11 @@ const MarketingView = () => {
   const [isPlanningModalOpen, setIsPlanningModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedPlanStep, setSelectedPlanStep] = useState(null);
+  
+  // Persistencia de Estrategia IA
+  const [aiSuggestions, setAiSuggestions] = useState(null);
+  const [selectedCarouselAssets, setSelectedCarouselAssets] = useState([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleOpenPlanning = (file) => {
     setSelectedFile(file);
@@ -119,6 +124,12 @@ const MarketingView = () => {
             planContext={selectedPlanStep}
             setPlanContext={setSelectedPlanStep}
             account={selectedMarketingAccount}
+            aiSuggestions={aiSuggestions}
+            setAiSuggestions={setAiSuggestions}
+            selectedCarouselAssets={selectedCarouselAssets}
+            setSelectedCarouselAssets={setSelectedCarouselAssets}
+            isGenerating={isGenerating}
+            setIsGenerating={setIsGenerating}
           />
         )}
         {activeTab === 'plan' && (
@@ -274,20 +285,19 @@ const EstrategiaSection = ({ servicios }) => {
   );
 };
 
-const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContext, account }) => {
+const DriveSection = ({ 
+  isLinked, onPlan, onSchedule, planContext, setPlanContext, account,
+  aiSuggestions, setAiSuggestions, selectedCarouselAssets, setSelectedCarouselAssets,
+  isGenerating, setIsGenerating
+}) => {
   const { listDriveContent } = useAppStore();
   const isEvents = account === '@ecosilence.event';
-  const accentColor = isEvents ? '#a855f7' : '#6366f1';
+  const accentColor = isEvents ? '#ec4899' : '#3b82f6'; // Colores más vibrantes y distintos
   const [loading, setLoading] = useState(false);
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
   const [path, setPath] = useState([{ id: null, name: 'redes ecosilence' }]);
-  const [debugMarker] = useState("v3.1 Explorer Loaded");
-  
-  // IA Suggestions State
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState(null);
-  const [selectedCarouselAssets, setSelectedCarouselAssets] = useState([]);
+  const [debugMarker] = useState("v3.3 Engine Active");
 
   const fetchContent = async (folderId = null) => {
     setLoading(true);
@@ -323,7 +333,11 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
     setTimeout(() => {
       try {
         clearTimeout(safetyTimer);
-        const images = files.filter(f => f.type === 'image');
+        // Detección mejorada de imágenes (incluyendo RAW)
+        const images = files.filter(f => {
+          const name = f.name.toLowerCase();
+          return f.type === 'image' || name.endsWith('.arw') || name.endsWith('.jpg') || name.endsWith('.png');
+        });
         const initialImages = images.slice(0, 6);
         setSelectedCarouselAssets(initialImages);
         const videos = files.filter(f => f.type === 'video').slice(0, 2);
@@ -392,7 +406,7 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
       } finally {
         setIsGenerating(false);
       }
-    }, 1200);
+    }, 2500);
   };
 
   const toggleAssetSelection = (file) => {
@@ -553,7 +567,7 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
           )}
         </h3>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.8rem', color: '#fff', background: 'red', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 900, animation: 'pulse 1s infinite' }}>v3.3 FORCE DEPLOY</span>
+          <span style={{ fontSize: '0.8rem', color: '#000', background: '#39ff14', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 900 }}>v3.4 FINAL ENGINE</span>
           <button className="btn btn-ghost" onClick={() => fetchContent(path[path.length - 1].id)} disabled={loading} style={{ fontSize: '0.8rem' }}>
             {loading ? 'Cargando...' : 'Actualizar'}
           </button>
