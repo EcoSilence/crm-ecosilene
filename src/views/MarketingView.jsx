@@ -309,8 +309,9 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
 
   const generateStrategies = () => {
     if (isGenerating) return;
+    console.log("IA: Iniciando generación...");
     setIsGenerating(true);
-    setAiSuggestions(null); // Reset anterior
+    setAiSuggestions(null); 
 
     const folderName = path[path.length - 1]?.name || "Contenido";
     
@@ -552,12 +553,22 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
           )}
         </h3>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>v3.2 ACTIVE</span>
+          <span style={{ fontSize: '0.8rem', color: '#fff', background: 'red', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 900, animation: 'pulse 1s infinite' }}>v3.3 FORCE DEPLOY</span>
           <button className="btn btn-ghost" onClick={() => fetchContent(path[path.length - 1].id)} disabled={loading} style={{ fontSize: '0.8rem' }}>
             {loading ? 'Cargando...' : 'Actualizar'}
           </button>
         </div>
       </div>
+      
+      {isGenerating && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(99, 102, 241, 0.2)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+          <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', border: '2px solid var(--accent-primary)' }}>
+            <Sparkles className="animate-spin" size={48} color="var(--accent-primary)" style={{ margin: '0 auto 1rem auto' }} />
+            <h3 style={{ margin: 0 }}>IA Analizando Contenido...</h3>
+            <p style={{ color: 'var(--text-muted)' }}>Estamos redactando tu storytelling estratégico.</p>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '5rem', background: 'rgba(0,0,0,0.1)', borderRadius: '12px' }}>
