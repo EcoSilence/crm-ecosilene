@@ -302,12 +302,62 @@ const EstrategiaSection = () => (
   </div>
 );
 
-const PlanSection = ({ onNavigate, account }) => (
-  <div style={{ display: 'grid', gap: '1rem' }}>
-    <h3>Plan de Accion - {account}</h3>
-    <button className="btn btn-ghost" onClick={() => onNavigate({ week: 'SEMANA 1', idea: 'Post de Prueba', goal: 'Test' })}>Post de Prueba (Ir a Drive)</button>
-  </div>
-);
+const PlanSection = ({ onNavigate, account }) => {
+  const isEvents = account === '@ecosilence.event';
+  
+  const b2bPlan = [
+    { week: 'Semana 1 - Post 1', title: '5 razones: Audio que arruina congresos', type: 'Carrusel Educativo', goal: 'Educar sobre ruido', idea: 'Problemas de acústica en salones', message: 'EcoSilence resuelve la inteligibilidad del mensaje.' },
+    { week: 'Semana 1 - Post 2', title: 'Setup en 30 segundos: Agilidad', type: 'Reel Logística', goal: 'Mostrar eficiencia', idea: 'Montaje rápido sin cables', message: 'Optimizamos los tiempos de tu evento corporativo.' },
+    { week: 'Semana 2 - Post 1', title: 'Caso de Éxito: Workshop Masivo', type: 'Carrusel Portafolio', goal: 'Generar autoridad', idea: 'Evento de 500 personas simultáneas', message: 'Capacidad técnica sin límites.' },
+    { week: 'Semana 2 - Post 2', title: 'Traducción Simultánea 3 Canales', type: 'Reel Tech', goal: 'Vender servicio Pro', idea: 'Uso de canales para idiomas', message: 'Rompe la barrera del idioma sin cabinas.' },
+    { week: 'Semana 3 - Post 1', title: 'Testimonio: Director de TI', type: 'Post Testimonio', goal: 'Social Proof', idea: 'Entrevista corta post-evento', message: 'La confianza de las grandes empresas.' },
+    { week: 'Semana 3 - Post 2', title: 'Workshop Silencioso: Productividad', type: 'Carrusel Tip', goal: 'Nicho Educación', idea: 'Concentración total en talleres', message: 'Elimina distracciones externas en tus capacitaciones.' },
+    { week: 'Semana 4 - Post 1', title: 'ROI: ¿Cuánto vale el mensaje?', type: 'Post Estratégico', goal: 'Conversión', idea: 'Costo de que no te escuchen', message: 'Invertir en audio es invertir en resultados.' },
+    { week: 'Semana 4 - Post 2', title: 'Portfolio: Grandes Marcas', type: 'Reel Resumen', goal: 'Branding', idea: 'Logos y fotos de clientes B2B', message: 'El estándar de la industria en Chile.' }
+  ];
+
+  const b2cPlan = [
+    { week: 'Semana 1 - Post 1', title: 'La Magia de la Silent Party', type: 'Reel Experiencial', goal: 'Generar deseo', idea: 'Vibración y luces LED en la noche', message: 'La fiesta que todos comentarán.' },
+    { week: 'Semana 1 - Post 2', title: 'Baila sin molestar a los vecinos', type: 'Carrusel Tip', goal: 'Resolver objeción', idea: 'Fiestas en casas/departamentos', message: 'Cero denuncias por ruido, 100% diversión.' },
+    { week: 'Semana 2 - Post 1', title: 'Matrimonios Silenciosos 2026', type: 'Reel Eventos', goal: 'Nicho Bodas', idea: 'Baile entretenido con audífonos', message: 'Tendencia mundial para celebraciones exclusivas.' },
+    { week: 'Semana 2 - Post 2', title: '3 Canales, 3 Vibras distintas', type: 'Reel Tech-Fun', goal: 'Mostrar variedad', idea: 'Cambio de géneros musicales', message: 'Un canal para cada invitado, música para todos.' },
+    { week: 'Semana 3 - Post 1', title: 'Testimonio: Cumpleaños Épico', type: 'Post Social Proof', goal: 'Confianza', idea: 'Reacción de cumpleañero', message: 'Creamos momentos inolvidables.' },
+    { week: 'Semana 3 - Post 2', title: 'Silent Yoga & Wellness', type: 'Carrusel Nicho', goal: 'Explorar mercados', idea: 'Conexión interna con audio Hi-Fi', message: 'Más allá de las fiestas: Bienestar total.' },
+    { week: 'Semana 4 - Post 1', title: 'Aftermovie: Evento Masivo', type: 'Reel Recap', goal: 'Branding', idea: 'Resumen de la mejor fiesta del mes', message: 'EcoSilence Eventos: Elevamos la energía.' },
+    { week: 'Semana 4 - Post 2', title: '¿Cómo reservar tu Silent Party?', type: 'Post Directo', goal: 'Venta', idea: 'Pasos para el arriendo', message: 'Agenda tu fecha antes de que se agote.' }
+  ];
+
+  const currentPlan = isEvents ? b2cPlan : b2bPlan;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <div className="glass-card" style={{ padding: '2rem', borderLeft: `6px solid ${isEvents ? '#ec4899' : '#3b82f6'}` }}>
+        <h2 style={{ marginTop: 0 }}>Estrategia Mensual: {isEvents ? 'Social & Fiestas' : 'Corporativo & B2B'}</h2>
+        <p style={{ color: 'var(--text-muted)' }}>Hemos planificado 8 contenidos estratégicos para potenciar @ecosilence.{isEvents ? 'event' : 'soluciones'}.</p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+        {currentPlan.map((post, idx) => (
+          <div key={idx} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(255,255,255,0.05)', transition: '0.3s' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: isEvents ? '#ec4899' : '#3b82f6', textTransform: 'uppercase' }}>{post.week}</span>
+              <span style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px' }}>{post.type}</span>
+            </div>
+            <h4 style={{ margin: 0, fontSize: '1rem' }}>{post.title}</h4>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', flex: 1 }}>{post.idea}</p>
+            <button 
+              className="btn btn-primary" 
+              style={{ background: isEvents ? '#ec4899' : '#3b82f6', fontSize: '0.8rem', padding: '0.5rem' }}
+              onClick={() => onNavigate(post)}
+            >
+              Ir a Drive para Generar
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const CalendarioSection = ({ plannedPosts }) => (
   <div className="glass-card" style={{ padding: '2rem' }}>
