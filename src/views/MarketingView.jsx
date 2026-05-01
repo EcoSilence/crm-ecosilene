@@ -51,13 +51,15 @@ const MarketingView = () => {
         setSelectedCarouselAssets(initialAssets);
         
         let suggestions = [];
+        const brandMsg = brandProfile?.message || "Soluciones de audio inmersivo de alta fidelidad";
+        
         if (selectedPlanStep) {
           suggestions = [{
             id: 'plan_match',
             type: selectedPlanStep.type,
             title: selectedPlanStep.idea || selectedPlanStep.title,
             desc: selectedPlanStep.goal,
-            copy: `GANCHO: ${selectedPlanStep.idea || selectedPlanStep.title}\n\nVALOR: ${selectedPlanStep.message}. En el evento ${folderName} logramos precisamente esto.\n\nCTA: Escríbenos para mas informacion. #SilentExperience ${isEvents ? '#PartyMode #EcoSilenceEvent' : '#B2BChile #EventTech'}`
+            copy: `GANCHO: ${selectedPlanStep.idea || selectedPlanStep.title}\n\nVALOR: ${selectedPlanStep.message || brandMsg}. En el evento ${folderName} logramos precisamente esto.\n\nCTA: Escríbenos para mas informacion. #SilentExperience ${isEvents ? '#PartyMode #EcoSilenceEvent' : '#B2BChile #EventTech'}`
           }];
         } else if (isEvents) {
           suggestions = [{
@@ -65,7 +67,7 @@ const MarketingView = () => {
             type: 'Reel Experiencial (Fiesta)',
             title: 'La Magia de la Noche Silent',
             desc: 'Mostrar la vibración, las luces LED y la libertad de bailar.',
-            copy: `GANCHO: ¿Buscas la mejor fiesta del año? 🕺✨\n\nVALOR: Con EcoSilence la música no para. 3 canales de pura energía directamente a tus oídos. En ${folderName} la vibra fue total.\n\nCTA: Reserva tu fecha para Silent Party ahora. #SilentParty #EcoSilenceEvent #FiestaSinLimites`
+            copy: `GANCHO: ¿Buscas la mejor fiesta del año? 🕺✨\n\nVALOR: ${brandMsg}. En ${folderName} la vibra fue total.\n\nCTA: Reserva tu fecha para Silent Party ahora. #SilentParty #EcoSilenceEvent #FiestaSinLimites`
           }];
         } else {
           suggestions = [{
@@ -73,7 +75,7 @@ const MarketingView = () => {
             type: 'Carrusel Educativo (B2B)',
             title: '5 razones por las que el audio tradicional arruina tu congreso.',
             desc: 'Educar sobre el problema del ruido y la pérdida de atención.',
-            copy: `GANCHO: 5 razones por las que el audio tradicional arruina tu congreso. 📉\n\nVALOR: En EcoSilence no solo damos audifonos, resolvemos la contaminacion acustica.. En el evento ${folderName} logramos precisamente esto.\n\nCTA: Escríbenos para mas informacion. #SilentExperience #B2BChile #EventTech`
+            copy: `GANCHO: 5 razones por las que el audio tradicional arruina tu congreso. 📉\n\nVALOR: ${brandMsg}. En el evento ${folderName} logramos precisamente esto.\n\nCTA: Escríbenos para mas informacion. #SilentExperience #B2BChile #EventTech`
           }];
         }
         setAiSuggestions(suggestions);
@@ -141,10 +143,38 @@ const MarketingView = () => {
             <h2 style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: accentColor }}><Sparkles size={32} /> Estrategia Generada</h2>
             {aiSuggestions.map((s, idx) => (
               <div key={idx} style={{ background: 'var(--bg-dark)', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <h3 style={{ margin: 0 }}>{s.title}</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0 }}>{s.title}</h3>
+                  <button onClick={() => setAiSuggestions(null)} className="btn btn-ghost" style={{ padding: '0.4rem' }}>Cerrar</button>
+                </div>
+
+                {/* PREVIEW DEL CARRUSEL SELECCIONADO */}
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '12px', border: '1px dashed var(--border-color)' }}>
+                  <div style={{ fontSize: '0.7rem', color: accentColor, fontWeight: 800, marginBottom: '0.8rem', textTransform: 'uppercase' }}>Preview de Slides ({selectedCarouselAssets.length}/10):</div>
+                  <div style={{ display: 'flex', gap: '0.8rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+                    {selectedCarouselAssets.map((asset, aIdx) => (
+                      <div key={asset.id} style={{ flexShrink: 0, width: '100px', height: '100px', borderRadius: '8px', overflow: 'hidden', position: 'relative', border: `2px solid ${accentColor}` }}>
+                        <img src={asset.thumb} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div style={{ position: 'absolute', top: '2px', right: '2px', display: 'flex', gap: '2px' }}>
+                          <button onClick={() => {
+                            const newAssets = [...selectedCarouselAssets];
+                            newAssets.splice(aIdx, 1);
+                            setSelectedCarouselAssets(newAssets);
+                          }} style={{ background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', padding: '2px', cursor: 'pointer', borderRadius: '2px' }}>×</button>
+                        </div>
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '10px', textAlign: 'center' }}>Slide {aIdx + 1}</div>
+                      </div>
+                    ))}
+                    {selectedCarouselAssets.length === 0 && <div style={{ padding: '2rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Selecciona imágenes abajo para tu carrusel</div>}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                   {[0,1,2,3,4,5].map(i => (
-                    <div key={i} style={{ fontSize: '0.85rem' }}><span style={{ color: accentColor, fontWeight: 800 }}>Slide {i+1}:</span> {getSlideMessage(i, s.title)}</div>
+                    <div key={i} style={{ fontSize: '0.85rem', display: 'flex', gap: '0.8rem' }}>
+                      <span style={{ color: accentColor, fontWeight: 800, minWidth: '60px' }}>Slide {i+1}:</span> 
+                      <span>{getSlideMessage(i, s.title)}</span>
+                    </div>
                   ))}
                 </div>
                 <pre style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', whiteSpace: 'pre-wrap', fontSize: '0.85rem' }}>{s.copy}</pre>
@@ -250,9 +280,9 @@ const DriveSection = ({ isLinked, onPlan, account, onGenerate, isGenerating, sel
           {files.map(file => (
             <div key={file.id} style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
               <div style={{ height: '120px', backgroundImage: `url(${file.thumb})`, backgroundSize: 'cover', position: 'relative' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: '0.2s' }} onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0}>
-                  <button onClick={() => toggleAssetSelection(file)} style={{ padding: '4px 8px', fontSize: '0.7rem' }}>
-                    {selectedCarouselAssets.find(a => a.id === file.id) ? 'Deseleccionar' : 'Elegir para IA'}
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: selectedCarouselAssets.find(a => a.id === file.id) ? 1 : 0, transition: '0.2s' }} onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => { if(!selectedCarouselAssets.find(a => a.id === file.id)) e.currentTarget.style.opacity = 0 }}>
+                  <button onClick={() => toggleAssetSelection(file)} className={`btn ${selectedCarouselAssets.find(a => a.id === file.id) ? 'btn-primary' : 'btn-ghost'}`} style={{ padding: '4px 12px', fontSize: '0.75rem', background: selectedCarouselAssets.find(a => a.id === file.id) ? accentColor : 'transparent' }}>
+                    {selectedCarouselAssets.find(a => a.id === file.id) ? 'Seleccionado' : 'Elegir Slide'}
                   </button>
                 </div>
               </div>
