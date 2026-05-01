@@ -516,16 +516,6 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
             </div>
           )}
         </div>
-        {path.length > 1 && !loading && (
-          <button 
-            className="btn btn-primary" 
-            onClick={generateStrategies} 
-            disabled={isGenerating}
-            style={{ borderRadius: 'var(--radius-full)', padding: '0.5rem 1.2rem', gap: '0.6rem', boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)' }}
-          >
-            <Sparkles size={16} /> {isGenerating ? 'Analizando Contenido...' : 'Generar Estrategia IA'}
-          </button>
-        )}
       </div>
 
       {/* Breadcrumbs */}
@@ -545,10 +535,25 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{path[path.length - 1].name}</h3>
-        <button className="btn btn-ghost" onClick={() => fetchContent(path[path.length - 1].id)} disabled={loading} style={{ fontSize: '0.8rem' }}>
-          {loading ? 'Cargando...' : 'Actualizar'}
-        </button>
+        <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {path[path.length - 1].name}
+          {path.length > 1 && !loading && (
+            <button 
+              className="btn btn-primary" 
+              onClick={generateStrategies} 
+              disabled={isGenerating}
+              style={{ padding: '0.4rem 1rem', fontSize: '0.75rem', borderRadius: 'var(--radius-full)', background: accentColor, boxShadow: `0 4px 15px ${accentColor}44`, display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <Sparkles size={14} /> {isGenerating ? 'Analizando...' : 'Generar Estrategia IA'}
+            </button>
+          )}
+        </h3>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>v3.2 ACTIVE</span>
+          <button className="btn btn-ghost" onClick={() => fetchContent(path[path.length - 1].id)} disabled={loading} style={{ fontSize: '0.8rem' }}>
+            {loading ? 'Cargando...' : 'Actualizar'}
+          </button>
+        </div>
       </div>
 
       {loading ? (
