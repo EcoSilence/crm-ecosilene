@@ -566,6 +566,60 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          {/* IA SUGGESTIONS RENDERER - Movid al principio para visibilidad */}
+          {aiSuggestions && (
+            <div className="animate-fade-in" style={{ background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: `2px solid ${accentColor}`, padding: '2rem', marginBottom: '2rem' }}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem', fontSize: '1.6rem', color: accentColor }}>
+                <Sparkles size={32} /> Estrategia Generada: {path[path.length - 1].name}
+              </h2>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                {aiSuggestions.map((s, idx) => (
+                  <div key={idx} style={{ background: 'var(--bg-dark)', borderRadius: '12px', border: '1px solid var(--border-color)', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.8rem', background: 'rgba(99, 102, 241, 0.1)', color: accentColor, padding: '0.3rem 0.8rem', borderRadius: '6px', fontWeight: 700 }}>{s.type}</span>
+                    </div>
+                    <h3 style={{ margin: 0, fontSize: '1.3rem' }}>{s.title}</h3>
+                    <p style={{ color: 'var(--text-muted)', margin: 0 }}>{s.desc}</p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '12px' }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 800, color: accentColor }}>STORYTELLING SUGERIDO:</div>
+                      {[0,1,2,3,4,5].map(i => (
+                        <div key={i} style={{ fontSize: '0.85rem', display: 'flex', gap: '0.8rem' }}>
+                          <span style={{ color: accentColor, fontWeight: 800 }}>Slide {i+1}:</span>
+                          <span>{getSlideMessage(i, s.title)}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1.2rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '0.9rem' }}>
+                      <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{s.copy}</p>
+                    </div>
+
+                    <button 
+                      className="btn btn-primary" 
+                      style={{ background: accentColor }}
+                      onClick={() => {
+                        const newPost = {
+                          id: Date.now(),
+                          title: s.title,
+                          type: s.type.toLowerCase().includes('reel') ? 'reel' : 'carousel',
+                          date: new Date(2026, 4, 1 + (planContext ? (parseInt(planContext.week.match(/\d/)[0]) - 1) * 7 + (planContext.week.includes('Post 2') ? 3 : 0) : 5)).toISOString().split('T')[0],
+                          copy: s.copy,
+                          assets: s.id === 'plan_match' ? selectedCarouselAssets : s.assets
+                        };
+                        onSchedule(newPost);
+                        alert(`¡Post "${s.title}" planificado con éxito para el ${newPost.date}!`);
+                      }}
+                    >
+                      Planificar esta Estrategia
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Carpetas */}
           {folders.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
@@ -660,104 +714,6 @@ const DriveSection = ({ isLinked, onPlan, onSchedule, planContext, setPlanContex
 
       {/* Anchor para scroll automático */}
       <div id="ai-results-anchor" style={{ height: '1px' }} />
-
-      {/* IA SUGGESTIONS RENDERER - Restauración Storytelling image_6.png */}
-      {aiSuggestions && (
-        <div className="animate-fade-in" style={{ marginTop: '3rem', borderTop: `2px dashed ${accentColor}`, paddingTop: '3rem' }}>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem', fontSize: '1.8rem' }}>
-            <Sparkles color={accentColor} size={32} /> Estrategia de Contenido Propuesta
-          </h2>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-            {aiSuggestions.map((s, idx) => (
-              <div key={idx} style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid var(--border-color)', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: '0.75rem', background: 'rgba(99, 102, 241, 0.1)', color: accentColor, padding: '0.3rem 0.8rem', borderRadius: '6px', fontWeight: 700, border: `1px solid ${accentColor}33` }}>
-                    {s.type}
-                  </span>
-                  <Plus size={20} color="var(--text-muted)" style={{ cursor: 'pointer', opacity: 0.5 }} />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>{s.title}</h3>
-                  <p style={{ fontSize: '1rem', color: 'var(--text-muted)', margin: 0 }}>{s.desc}</p>
-                </div>
-                
-                {/* Visual Preview */}
-                <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '0.5rem 0' }}>
-                  {(s.assets && s.assets.length > 0 ? s.assets : selectedCarouselAssets).slice(0, 4).map((asset, aidx) => (
-                    <div key={aidx} style={{ 
-                      minWidth: '120px', height: '120px', borderRadius: '12px', 
-                      backgroundSize: 'cover', backgroundPosition: 'center', 
-                      backgroundImage: `url(${asset.thumb})`, 
-                      border: '1px solid var(--border-color)',
-                      boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-                      position: 'relative'
-                    }}>
-                      {!asset.thumb && <ImageIcon size={24} color="var(--text-muted)" />}
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '0.6rem', padding: '2px', textAlign: 'center' }}>Slide {aidx + 1}</div>
-                    </div>
-                  ))}
-                  {(!s.assets || s.assets.length === 0) && selectedCarouselAssets.length === 0 && (
-                    <div style={{ width: '100%', height: '120px', border: '1px dashed var(--border-color)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                      Cargando previsualización de imágenes...
-                    </div>
-                  )}
-                </div>
-
-                {/* Storytelling Estratégico (Slide Messages) - Restaurado */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: 'rgba(255,255,255,0.01)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: accentColor, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Estructura de Storytelling Sugerida:</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {[0, 1, 2, 3, 4, 5].map((_, aidx) => (
-                      <div key={aidx} style={{ fontSize: '0.85rem', display: 'flex', gap: '0.8rem', alignItems: 'flex-start' }}>
-                        <span style={{ color: accentColor, fontWeight: 800, minWidth: '50px' }}>Slide {aidx + 1}:</span>
-                        <span style={{ color: 'var(--text-main)' }}>{getSlideMessage(aidx, s.title)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Copy Text Box */}
-                <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '0.9rem', position: 'relative' }}>
-                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.8, color: 'var(--text-main)', letterSpacing: '0.02em' }}>
-                    {s.copy}
-                  </p>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(s.copy);
-                      alert('¡Copy copiado al portapapeles!');
-                    }}
-                    style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                  >
-                    <Plus size={16} style={{ transform: 'rotate(45deg)', opacity: 0.5 }} />
-                  </button>
-                </div>
-                
-                <button 
-                  className="btn btn-primary" 
-                  style={{ width: '100%', padding: '1.2rem', fontSize: '1rem', fontWeight: 700, borderRadius: '12px', background: accentColor, boxShadow: `0 8px 25px ${accentColor}44` }} 
-                  onClick={() => {
-                    const newPost = {
-                      id: Date.now(),
-                      title: s.title,
-                      type: s.type.toLowerCase().includes('reel') ? 'reel' : 'carousel',
-                      date: new Date(2026, 4, 1 + (planContext ? (parseInt(planContext.week.match(/\d/)[0]) - 1) * 7 + (planContext.week.includes('Post 2') ? 3 : 0) : 5)).toISOString().split('T')[0],
-                      copy: s.copy,
-                      assets: s.id === 'plan_match' ? selectedCarouselAssets : s.assets
-                    };
-                    onSchedule(newPost);
-                    alert(`¡Post "${s.title}" planificado con éxito para el ${newPost.date}!`);
-                  }}
-                >
-                  Planificar Publicacion
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <style>{`
         .folder-item:hover { background: rgba(255,255,255,0.08) !important; transform: translateY(-2px); border-color: var(--accent-primary) !important; }
