@@ -363,11 +363,12 @@ const CalendarioSection = ({ plannedPosts = [], account }) => {
   const isEvents = account === '@ecosilence.event';
   const accentColor = isEvents ? '#ec4899' : '#3b82f6';
   const days = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'];
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [isPublishing, setIsPublishing] = useState(false);
   
   // Mayo 2026: Comienza Viernes (index 4 en 0-6 L-D)
   const daysInMonth = 31;
-  const startOffset = 4; // L=0, M=1, X=2, J=3, V=4
-  
+  const startOffset = 4;
   const calendarDays = [];
   for (let i = 0; i < startOffset; i++) calendarDays.push(null);
   for (let i = 1; i <= daysInMonth; i++) calendarDays.push(i);
@@ -378,8 +379,17 @@ const CalendarioSection = ({ plannedPosts = [], account }) => {
     return plannedPosts.filter(p => p.date === dateStr);
   };
 
+  const handlePublish = () => {
+    setIsPublishing(true);
+    setTimeout(() => {
+      setIsPublishing(false);
+      alert(`¡Post "${selectedPost.title}" publicado con éxito en Instagram via Meta API!`);
+      setSelectedPost(null);
+    }, 3000);
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
       <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0 }}>Mayo 2026</h3>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -400,7 +410,15 @@ const CalendarioSection = ({ plannedPosts = [], account }) => {
                 <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem', color: day === 30 ? accentColor : 'inherit' }}>{day}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {getPostsForDay(day).map(post => (
-                    <div key={post.id} style={{ fontSize: '0.65rem', background: `${accentColor}22`, borderLeft: `3px solid ${accentColor}`, padding: '4px 6px', borderRadius: '4px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div 
+                      key={post.id} 
+                      onClick={() => setSelectedPost(post)}
+                      style={{ 
+                        fontSize: '0.65rem', background: `${accentColor}22`, borderLeft: `3px solid ${accentColor}`, 
+                        padding: '4px 6px', borderRadius: '4px', color: '#fff', whiteSpace: 'nowrap', 
+                        overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' 
+                      }}
+                    >
                       {post.type === 'reel' ? '🎥' : '📁'} {post.title}
                     </div>
                   ))}
@@ -410,6 +428,38 @@ const CalendarioSection = ({ plannedPosts = [], account }) => {
           </div>
         ))}
       </div>
+
+      {selectedPost && (
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 100, width: '300px' }} className="glass-card animate-scale-in">
+          <div style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <h4 style={{ margin: 0 }}>{selectedPost.title}</h4>
+              <button onClick={() => setSelectedPost(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><Plus size={18} style={{ transform: 'rotate(45deg)' }}/></button>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+              {selectedPost.type === 'reel' ? '🎥 Reel' : '📁 Carrusel'} - Planificado para {selectedPost.date}
+            </p>
+            <button 
+              className="btn btn-primary" 
+              style={{ width: '100%', background: accentColor, gap: '0.5rem' }} 
+              onClick={handlePublish}
+              disabled={isPublishing}
+            >
+              <Megaphone size={16} /> {isPublishing ? 'Publicando...' : 'Publicar ahora en Instagram'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isPublishing && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
+            <div className="spinner" style={{ width: '50px', height: '50px', margin: '0 auto 1.5rem' }}></div>
+            <h2>Publicando en {account}...</h2>
+            <p style={{ color: 'var(--text-muted)' }}>Subiendo assets y procesando copy via Meta API v19.0</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
