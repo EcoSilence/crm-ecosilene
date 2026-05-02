@@ -34,6 +34,15 @@ export const AppDataProvider = ({ children }) => {
     const saved = localStorage.getItem('marketing_accounts');
     return saved ? JSON.parse(saved) : ['@ecosilence.soluciones', '@ecosilence.event'];
   });
+  const [metaAccessToken, setMetaAccessToken] = useState(localStorage.getItem('meta_access_token') || '');
+  const [instagramAccountId, setInstagramAccountId] = useState(localStorage.getItem('instagram_account_id') || '');
+
+  const saveMetaCredentials = (token, id) => {
+    setMetaAccessToken(token);
+    setInstagramAccountId(id);
+    localStorage.setItem('meta_access_token', token);
+    localStorage.setItem('instagram_account_id', id);
+  };
 
   const connectSocialAccount = async (handle) => {
     // Simulación de OAuth Meta/Instagram
@@ -633,6 +642,7 @@ export const AppDataProvider = ({ children }) => {
     addPlannedPost, notifications,
     marketingAccounts, selectedMarketingAccount, setSelectedMarketingAccount,
     connectSocialAccount,
+    metaAccessToken, instagramAccountId, saveMetaCredentials,
     brandProfile: brandProfiles[selectedMarketingAccount],
     archivados, isArchived,
     formatDateDDMMYYYY
