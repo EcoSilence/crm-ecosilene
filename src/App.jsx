@@ -21,6 +21,7 @@ function App() {
   } = useAppStore();
   const [editingMenu, setEditingMenu] = useState(null);
   const [tempName, setTempName] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
 
