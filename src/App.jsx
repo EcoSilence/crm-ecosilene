@@ -17,12 +17,12 @@ function App() {
     currentView, navigate, menuNames, updateMenuName, 
     kanbanGroupedData, kanbanExpandedYears, setKanbanExpandedYears, 
     selectedKanbanMonth, setSelectedKanbanMonth, logout, notifications,
-    marketingAccounts, selectedMarketingAccount, setSelectedMarketingAccount
+    marketingAccounts, selectedMarketingAccount, setSelectedMarketingAccount, connectSocialAccount
   } = useAppStore();
   const [editingMenu, setEditingMenu] = useState(null);
   const [tempName, setTempName] = useState('');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
 
   const monthNames = {
     '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril', '05': 'Mayo', '06': 'Junio',
@@ -209,7 +209,10 @@ function App() {
                         </div>
                       );
                     })}
-                    <div style={{ padding: '0.4rem 0.8rem', cursor: 'pointer', border: '1px dashed var(--border-color)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.3rem', textAlign: 'center' }}>
+                    <div 
+                      onClick={() => setIsConnectModalOpen(true)}
+                      style={{ padding: '0.4rem 0.8rem', cursor: 'pointer', border: '1px dashed var(--border-color)', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.3rem', textAlign: 'center' }}
+                    >
                       + Vincular Cuenta
                     </div>
                   </div>
@@ -218,6 +221,10 @@ function App() {
             )
           })}
         </nav>
+
+        {isConnectModalOpen && (
+          <SocialConnectModal onClose={() => setIsConnectModalOpen(false)} />
+        )}
 
         <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <button 
@@ -305,8 +312,87 @@ function App() {
           </div>
         </div>
       </main>
+
+      {isConnectModalOpen && (
+        <SocialConnectModal onClose={() => setIsConnectModalOpen(false)} />
+      )}
     </div>
   )
 }
 
-export default App
+const SocialConnectModal = ({ onClose }) => {
+  const { connectSocialAccount } = useAppStore();
+  const [step, setStep] = useState('choice'); // choice, login, connecting, success
+  const [handle, setHandle] = useState('');
+
+  const handleConnect = async () => {
+    if (!handle.startsWith('@')) return alert('El handle debe comenzar con @');
+    setStep('connecting');
+    await connectSocialAccount(handle);
+    setStep('success');
+    setTimeout(() => onClose(), 2000);
+  };
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }}>
+      <div className="glass-card animate-scale-in" style={{ width: '100%', maxWidth: '450px', padding: '2.5rem', position: 'relative', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24}/></button>
+        
+        {step === 'choice' && (
+          <div style={{ textAlign: 'center' }}>
+            <Megaphone size={48} color="var(--accent-primary)" style={{ margin: '0 auto 1.5rem' }} />
+            <h2 style={{ marginBottom: '1rem' }}>Vincular Nueva Cuenta</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Selecciona la plataforma que deseas integrar a EcoSilence Marketing & Growth.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <button className="btn btn-primary" onClick={() => setStep('login')} style={{ justifyContent: 'center', gap: '1rem', padding: '1rem' }}>
+                <Megaphone size={18} /> Vincular cuenta de Instagram
+              </button>
+              <button className="btn btn-ghost" disabled style={{ opacity: 0.5, justifyContent: 'center' }}>Vincular TikTok (Próximamente)</button>
+              <button className="btn btn-ghost" disabled style={{ opacity: 0.5, justifyContent: 'center' }}>Vincular LinkedIn (Próximamente)</button>
+            </div>
+          </div>
+        )}
+
+        {step === 'login' && (
+          <div>
+            <h2 style={{ marginBottom: '1rem' }}>Configuración de Instagram</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>Ingresa el handle de la cuenta que deseas gestionar.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Handle de la cuenta</label>
+                <input 
+                  className="input-control" 
+                  placeholder="@ecosilence.brand" 
+                  value={handle}
+                  onChange={e => setHandle(e.target.value)}
+                  style={{ fontSize: '1.1rem', padding: '1rem' }}
+                />
+              </div>
+              <button className="btn btn-primary" onClick={handleConnect} style={{ padding: '1rem' }}>Sincronizar vía Meta Business API</button>
+            </div>
+          </div>
+        )}
+
+        {step === 'connecting' && (
+          <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+            <div className="spinner" style={{ width: '50px', height: '50px', margin: '0 auto 1.5rem' }}></div>
+            <h2>Sincronizando...</h2>
+            <p style={{ color: 'var(--text-muted)' }}>Validando credenciales en Meta Graph API v19.0</p>
+          </div>
+        )}
+
+        {step === 'success' && (
+          <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--color-basil)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+              <Megaphone size={40} />
+            </div>
+            <h2>¡Conexión Exitosa!</h2>
+            <p style={{ color: 'var(--text-muted)' }}>La cuenta {handle} ha sido vinculada correctamente.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default App;

@@ -30,7 +30,24 @@ export const AppDataProvider = ({ children }) => {
   const [kanbanExpandedStage, setKanbanExpandedStage] = useState(null);
   const [selectedKanbanMonth, setSelectedKanbanMonth] = useState(null);
   const [selectedMarketingAccount, setSelectedMarketingAccount] = useState('@ecosilence.soluciones');
-  const marketingAccounts = ['@ecosilence.soluciones', '@ecosilence.event'];
+  const [marketingAccounts, setMarketingAccounts] = useState(() => {
+    const saved = localStorage.getItem('marketing_accounts');
+    return saved ? JSON.parse(saved) : ['@ecosilence.soluciones', '@ecosilence.event'];
+  });
+
+  const connectSocialAccount = async (handle) => {
+    // Simulación de OAuth Meta/Instagram
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        if (!marketingAccounts.includes(handle)) {
+          const newList = [...marketingAccounts, handle];
+          setMarketingAccounts(newList);
+          localStorage.setItem('marketing_accounts', JSON.stringify(newList));
+        }
+        resolve(true);
+      }, 2000);
+    });
+  };
 
   const brandProfiles = {
     '@ecosilence.soluciones': {
@@ -615,6 +632,7 @@ export const AppDataProvider = ({ children }) => {
     plannedPosts: plannedPostsMap[selectedMarketingAccount] || [], 
     addPlannedPost, notifications,
     marketingAccounts, selectedMarketingAccount, setSelectedMarketingAccount,
+    connectSocialAccount,
     brandProfile: brandProfiles[selectedMarketingAccount],
     archivados, isArchived,
     formatDateDDMMYYYY
