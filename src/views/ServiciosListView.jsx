@@ -232,9 +232,9 @@ const ServiciosListView = ({ type = 'normal' }) => {
                     style={{ 
                       padding: '0.4rem 0.8rem', 
                       fontSize: '0.85rem', 
-                      background: s.pagoAdelanto ? 'var(--color-basil)' : 'var(--color-basil)',
-                      border: 'none',
-                      color: '#fff',
+                      background: s.pagoAdelanto ? 'var(--color-basil)' : 'transparent',
+                      border: s.pagoAdelanto ? 'none' : '1px solid var(--border-color)',
+                      color: s.pagoAdelanto ? '#fff' : 'var(--text-muted)',
                       borderRadius: '4px',
                       display: 'flex',
                       alignItems: 'center',
