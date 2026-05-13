@@ -533,42 +533,11 @@ const KanbanBoard = () => {
                     />
                   </div>
 
-                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.2rem', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                      <label className="btn btn-ghost" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', background: 'rgba(255,255,255,0.05)' }}>
-                        <Upload size={18} /> {isUploading ? 'Subiendo...' : 'Subir PDF desde PC'}
-                        <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handleFileUpload} disabled={isUploading} />
-                      </label>
-                      
-                      <button type="button" className="btn btn-ghost" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)' }} onClick={openDrivePicker}>
-                        <Folder size={18} /> Buscar en Drive
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label>URL Directa (Si ya la tienes)</label>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <input 
-                        type="url" 
-                        className="input-control" 
-                        placeholder="https://..." 
-                        value={invoiceData.url} 
-                        onChange={(e) => setInvoiceData({...invoiceData, url: e.target.value})} 
-                      />
-                      <button 
-                        type="button" 
-                        className="btn btn-primary"
-                        onClick={() => {
-                          if (invoiceData.url) {
-                            setAttachedInvoices([...attachedInvoices, { folio: invoiceData.folio || 'N/A', url: invoiceData.url }]);
-                            setInvoiceData({ folio: '', url: '' });
-                          }
-                        }}
-                      >
-                        Añadir
-                      </button>
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <label className="btn btn-ghost" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', padding: '1.2rem', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                      <Upload size={18} /> {isUploading ? 'Subiendo archivo, por favor espera...' : 'Haz clic aquí para subir PDF desde tu PC'}
+                      <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handleFileUpload} disabled={isUploading} />
+                    </label>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
