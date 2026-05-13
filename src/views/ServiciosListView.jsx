@@ -1,16 +1,68 @@
 import React, { useMemo } from 'react';
 import { useAppStore } from '../context/AppDataContext';
-import { ArrowLeft, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, Archive, DollarSign } from 'lucide-react';
+import { ArrowLeft, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, Archive, DollarSign, FileText, Eye, ExternalLink, Upload, X } from 'lucide-react';
 
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const ServiciosListView = ({ type = 'normal' }) => {
-  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, removeServicio, editServicio, navigate, viewParams, formatDateDDMMYYYY, isArchived, togglePagoAdelanto } = useAppStore();
+  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, removeServicio, editServicio, navigate, viewParams, formatDateDDMMYYYY, isArchived, togglePagoAdelanto, uploadServiceInvoiceFile, updateServiceInvoice } = useAppStore();
   const stage = viewParams?.stage || 'Cotizado';
 
   // Modal States
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [editingService, setEditingService] = React.useState(null);
+
+  // Invoice States
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = React.useState(false);
+  const [invoiceData, setInvoiceData] = React.useState({ folio: '', url: '' });
+  const [attachedInvoices, setAttachedInvoices] = React.useState([]);
+  const [isUploading, setIsUploading] = React.useState(false);
+
+  // Preview State
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = React.useState(false);
+  const [previewUrl, setPreviewUrl] = React.useState('');
+
+  const parseInvoices = (urlFactura, folioFactura) => {
+    if (!urlFactura) return [];
+    try {
+      if (typeof urlFactura === 'string' && urlFactura.trim().startsWith('[')) {
+        return JSON.parse(urlFactura);
+      }
+    } catch(e) {}
+    return [{ folio: folioFactura || '', url: urlFactura }];
+  };
+
+  const openInvoiceModal = (s) => {
+    setEditingService(s);
+    setAttachedInvoices(parseInvoices(s.urlFactura, s.folioFactura));
+    setInvoiceData({ folio: '', url: '' });
+    setIsInvoiceModalOpen(true);
+  };
+
+  const handleInvoiceSubmit = async (e) => {
+    if (e) e.preventDefault();
+    const ok = await updateServiceInvoice(editingService.idServicio, attachedInvoices);
+    if (ok) setIsInvoiceModalOpen(false);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setIsUploading(true);
+    const url = await uploadServiceInvoiceFile(editingService.idServicio, file);
+    if (url) {
+      let defaultFolio = file.name.replace(/\.[^/.]+$/, "");
+      const folio = invoiceData.folio || defaultFolio;
+      setAttachedInvoices(prev => [...prev, { folio, url }]);
+      setInvoiceData({ folio: '', url: '' });
+    }
+    setIsUploading(false);
+  };
+
+  const openPreview = (url) => {
+    setPreviewUrl(url);
+    setIsPreviewModalOpen(true);
+  };
 
   // Sort services by date descending (newest first)
   const filteredServicios = useMemo(() => {
@@ -191,6 +243,38 @@ const ServiciosListView = ({ type = 'normal' }) => {
                     <ArrowLeft size={14} style={{ display: 'none' }} /> {/* hidden hack to use DollarSign if needed but I'll use DollarSign */}
                     <DollarSign size={14} /> 50%
                   </button>
+                  <button 
+                    className="btn btn-ghost" 
+                    style={{ padding: '0.4rem', color: s.urlFactura ? 'var(--color-basil)' : 'var(--text-muted)' }} 
+                    onClick={() => openInvoiceModal(s)}
+                    title="Vincular Factura SII"
+                  >
+                    <FileText size={16}/>
+                  </button>
+
+                  {parseInvoices(s.urlFactura, s.folioFactura).map((inv, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '0.2rem', alignItems: 'center' }}>
+                      <button 
+                        className="btn btn-ghost" 
+                        style={{ padding: '0.4rem', color: 'var(--accent-primary)' }}
+                        onClick={() => openPreview(inv.url)}
+                        title={`Previsualizar Factura ${inv.folio ? `#${inv.folio}` : ''}`}
+                      >
+                        <Eye size={16}/>
+                      </button>
+                      <a 
+                        href={inv.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="btn btn-ghost" 
+                        style={{ padding: '0.4rem', color: 'var(--text-muted)' }}
+                        title={`Abrir Factura ${inv.folio ? `#${inv.folio}` : ''} en pestaña nueva`}
+                      >
+                        <ExternalLink size={16}/>
+                      </a>
+                    </div>
+                  ))}
+
                   <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={() => openEditModal(s)}><Edit2 size={16}/></button>
                   <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--color-tomato)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={16}/></button>
                   {!isArchivedView && (
@@ -252,6 +336,87 @@ const ServiciosListView = ({ type = 'normal' }) => {
                 <button type="submit" formNoValidate className="btn btn-primary">Guardar Cambios</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Vincular Factura */}
+      {isInvoiceModalOpen && editingService && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0 }}>Vincular Factura</h2>
+              <button className="btn btn-ghost" onClick={() => setIsInvoiceModalOpen(false)}><X size={20} /></button>
+            </div>
+
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+              Sube un PDF desde tu PC para el servicio <strong>{editingService.idServicio}</strong>.
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+              {attachedInvoices.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Facturas Adjuntas</label>
+                  {attachedInvoices.map((inv, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.8rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                        <FileText size={16} color="var(--accent-primary)" />
+                        <span>Folio: {inv.folio || 'N/A'}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button className="btn btn-ghost" style={{ padding: '0.3rem' }} onClick={() => openPreview(inv.url)}><Eye size={16}/></button>
+                        <button className="btn btn-ghost" style={{ padding: '0.3rem', color: 'var(--color-danger)' }} onClick={() => setAttachedInvoices(attachedInvoices.filter((_, i) => i !== idx))}><Trash2 size={16}/></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.5rem 0' }}></div>
+              <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Agregar Nueva Factura</label>
+              
+              <div className="form-group">
+                <label>Número de Folio (Opcional)</label>
+                <input 
+                  type="text" 
+                  className="input-control" 
+                  placeholder="Ej: 1245" 
+                  value={invoiceData.folio} 
+                  onChange={(e) => setInvoiceData({...invoiceData, folio: e.target.value})} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <label className="btn btn-ghost" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', padding: '1.2rem', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                  <Upload size={18} /> {isUploading ? 'Subiendo archivo, por favor espera...' : 'Haz clic aquí para subir PDF desde tu PC'}
+                  <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handleFileUpload} disabled={isUploading} />
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setIsInvoiceModalOpen(false)}>Cancelar</button>
+                <button type="button" className="btn btn-primary" onClick={handleInvoiceSubmit}>Guardar Todo</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Previsualizar PDF */}
+      {isPreviewModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsPreviewModalOpen(false)}>
+          <div className="modal-content" style={{ maxWidth: '900px', width: '95%', height: '90vh', padding: '1rem', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Previsualización de Factura</h3>
+              <button className="btn btn-ghost" onClick={() => setIsPreviewModalOpen(false)}><X size={20} /></button>
+            </div>
+            <div style={{ flex: 1, background: '#fff', borderRadius: '8px', overflow: 'hidden' }}>
+              <iframe 
+                src={previewUrl} 
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title="Invoice Preview"
+              />
+            </div>
           </div>
         </div>
       )}
