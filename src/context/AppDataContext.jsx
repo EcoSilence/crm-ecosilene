@@ -440,6 +440,36 @@ export const AppDataProvider = ({ children }) => {
     }
   };
 
+  const uploadServiceInvoiceFile = async (idServicio, file) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${idServicio}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('Facturas')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('Facturas')
+        .getPublicUrl(filePath);
+
+      const publicUrl = data.publicUrl;
+      
+      // Actualizar el servicio con la URL del archivo (manteniendo el folio si existe)
+      const currentService = servicios.find(s => s.idServicio === idServicio);
+      await updateServiceInvoice(idServicio, currentService?.folioFactura || '', publicUrl);
+      
+      return publicUrl;
+    } catch (error) { 
+      console.error('Error uploading invoice file:', error); 
+      alert('Error al subir factura. Asegúrate de que el bucket "facturas" exista en Supabase Storage y sea público.'); 
+      return null;
+    }
+  };
+
   const formatDateDDMMYYYY = (dateStr) => {
     if (!dateStr) return '';
     const [d, t] = dateStr.split('T');
@@ -547,6 +577,10 @@ export const AppDataProvider = ({ children }) => {
       cargo: updatedData.cargo,
       tipo_evento: updatedData.tipoEvento
     }).eq('id', id);
+  };
+
+  const listDriveContentAction = async (parentId, type = 'media') => {
+    return await listDriveContent(parentId, 'redes ecosilence', type);
   };
 
   const removeCliente = async (id) => {
@@ -670,7 +704,7 @@ export const AppDataProvider = ({ children }) => {
     menuNames, updateMenuName,
     clientes, addCliente, editCliente, removeCliente,
     inventario, addEquipo, editEquipo, removeEquipo,
-    servicios, updateServiceStage, updateServiceDiscount, updateServiceCurrency, updateServiceInvoice, addServicio, editServicio, removeServicio,
+    servicios, updateServiceStage, updateServiceDiscount, updateServiceCurrency, updateServiceInvoice, uploadServiceInvoiceFile, addServicio, editServicio, removeServicio,
     togglePagoAdelanto,
     cotizaciones: getCotizacionesEnriched(), addItemCotizacion, removeItemCotizacion, editItemCotizacion,
     getStockActual,

@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 // v1.1 - Added Invoice Linking UI
 import { useAppStore } from '../context/AppDataContext';
-import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, DollarSign, FileText, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, DollarSign, FileText, ExternalLink, Upload, Folder, File as FileIcon, ArrowLeft, Eye } from 'lucide-react';
 
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { servicios, updateServiceStage, removeServicio, editServicio, updateServiceInvoice, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio, handleCalendarSync, isGoogleLinked, linkGoogle } = useAppStore();
+  const { servicios, updateServiceStage, removeServicio, editServicio, updateServiceInvoice, uploadServiceInvoiceFile, listDriveContentAction, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio, handleCalendarSync, isGoogleLinked, linkGoogle } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedStage, setExpandedStage] = useState('Cotizado');
 
@@ -15,6 +15,18 @@ const KanbanBoard = () => {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [invoiceData, setInvoiceData] = useState({ folio: '', url: '' });
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Drive Picker States
+  const [showDrivePicker, setShowDrivePicker] = useState(false);
+  const [driveFolders, setDriveFolders] = useState([]);
+  const [driveFiles, setDriveFiles] = useState([]);
+  const [drivePath, setDrivePath] = useState([{ id: null, name: 'Google Drive' }]);
+  const [driveLoading, setDriveLoading] = useState(false);
+
+  // Preview State
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState('');
 
   const monthNames = {
     '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
@@ -138,6 +150,39 @@ const KanbanBoard = () => {
     e.preventDefault();
     const ok = await updateServiceInvoice(editingService.idServicio, invoiceData.folio, invoiceData.url);
     if (ok) setIsInvoiceModalOpen(false);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setIsUploading(true);
+    const url = await uploadServiceInvoiceFile(editingService.idServicio, file);
+    if (url) setInvoiceData(prev => ({ ...prev, url }));
+    setIsUploading(false);
+  };
+
+  const fetchDriveContent = async (id = null) => {
+    setDriveLoading(true);
+    try {
+      const res = await listDriveContentAction(id, 'pdf');
+      setDriveFolders(res.folders || []);
+      setDriveFiles(res.files || []);
+    } finally { setDriveLoading(false); }
+  };
+
+  const openDrivePicker = () => {
+    setShowDrivePicker(true);
+    fetchDriveContent(drivePath[drivePath.length - 1].id);
+  };
+
+  const selectDriveFile = (file) => {
+    setInvoiceData(prev => ({ ...prev, url: file.link }));
+    setShowDrivePicker(false);
+  };
+
+  const openPreview = (url) => {
+    setPreviewUrl(url);
+    setIsPreviewModalOpen(true);
   };
 
   let titleMonthStr = "";
@@ -329,16 +374,26 @@ const KanbanBoard = () => {
                             </button>
 
                             {s.urlFactura && (
-                              <a 
-                                href={s.urlFactura} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="btn btn-ghost" 
-                                style={{ padding: '0.4rem', color: 'var(--accent-primary)' }}
-                                title="Ver Factura Externa"
-                              >
-                                <ExternalLink size={16}/>
-                              </a>
+                              <div style={{ display: 'flex', gap: '0.2rem' }}>
+                                <button 
+                                  className="btn btn-ghost" 
+                                  style={{ padding: '0.4rem', color: 'var(--accent-primary)' }}
+                                  onClick={() => openPreview(s.urlFactura)}
+                                  title="Previsualizar Factura"
+                                >
+                                  <Eye size={16}/>
+                                </button>
+                                <a 
+                                  href={s.urlFactura} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="btn btn-ghost" 
+                                  style={{ padding: '0.4rem', color: 'var(--text-muted)' }}
+                                  title="Abrir en pestaña nueva"
+                                >
+                                  <ExternalLink size={16}/>
+                                </a>
+                              </div>
                             )}
 
                             <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, from: 'kanban' })}><CheckCircle size={16}/> Cotizar</button>
@@ -407,40 +462,130 @@ const KanbanBoard = () => {
       {/* Modal para Vincular Factura */}
       {isInvoiceModalOpen && editingService && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '450px' }}>
+          <div className="modal-content" style={{ maxWidth: showDrivePicker ? '600px' : '450px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ margin: 0 }}>Vincular Factura SII</h2>
-              <button className="btn btn-ghost" onClick={() => setIsInvoiceModalOpen(false)}><X size={20} /></button>
+              <h2 style={{ margin: 0 }}>
+                {showDrivePicker ? 'Seleccionar desde Drive' : 'Vincular Factura SII'}
+              </h2>
+              <button className="btn btn-ghost" onClick={() => { 
+                if(showDrivePicker) setShowDrivePicker(false);
+                else setIsInvoiceModalOpen(false); 
+              }}><X size={20} /></button>
             </div>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-              Ingresa el número de folio y opcionalmente un enlace (Google Drive, SII, etc.) para acceder a la factura del servicio <strong>{editingService.idServicio}</strong>.
-            </p>
-            <form onSubmit={handleInvoiceSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="form-group">
-                <label>Número de Folio (Factura)</label>
-                <input 
-                  type="text" 
-                  className="input-control" 
-                  placeholder="Ej: 1245" 
-                  value={invoiceData.folio} 
-                  onChange={(e) => setInvoiceData({...invoiceData, folio: e.target.value})} 
-                />
+
+            {!showDrivePicker ? (
+              <>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                  Sube un PDF desde tu PC o selecciona un archivo de tu Google Drive para el servicio <strong>{editingService.idServicio}</strong>.
+                </p>
+                
+                <form onSubmit={handleInvoiceSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                  <div className="form-group">
+                    <label>Número de Folio (Opcional)</label>
+                    <input 
+                      type="text" 
+                      className="input-control" 
+                      placeholder="Ej: 1245" 
+                      value={invoiceData.folio} 
+                      onChange={(e) => setInvoiceData({...invoiceData, folio: e.target.value})} 
+                    />
+                  </div>
+
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.2rem', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      <label className="btn btn-ghost" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', background: 'rgba(255,255,255,0.05)' }}>
+                        <Upload size={18} /> {isUploading ? 'Subiendo...' : 'Subir PDF desde PC'}
+                        <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handleFileUpload} disabled={isUploading} />
+                      </label>
+                      
+                      <button type="button" className="btn btn-ghost" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)' }} onClick={openDrivePicker}>
+                        <Folder size={18} /> Buscar en Drive
+                      </button>
+                    </div>
+
+                    {invoiceData.url && (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--color-basil)', display: 'flex', alignItems: 'center', gap: '0.5rem', wordBreak: 'break-all', background: 'rgba(16, 185, 129, 0.1)', padding: '0.5rem', borderRadius: '4px' }}>
+                        <CheckCircle size={14} /> Archivo vinculado: {invoiceData.url.split('/').pop().substring(0, 30)}...
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>URL Directa (Si ya la tienes)</label>
+                    <input 
+                      type="url" 
+                      className="input-control" 
+                      placeholder="https://..." 
+                      value={invoiceData.url} 
+                      onChange={(e) => setInvoiceData({...invoiceData, url: e.target.value})} 
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                    <button type="button" className="btn btn-ghost" onClick={() => setIsInvoiceModalOpen(false)}>Cancelar</button>
+                    <button type="submit" className="btn btn-primary">Guardar Vinculación</button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '400px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                  {drivePath.map((p, i) => (
+                    <span key={i} onClick={() => { setDrivePath(drivePath.slice(0, i+1)); fetchDriveContent(p.id); }} style={{ cursor: 'pointer', color: i === drivePath.length - 1 ? 'var(--accent-primary)' : 'inherit' }}>
+                      {p.name} {i < drivePath.length - 1 && ' / '}
+                    </span>
+                  ))}
+                </div>
+
+                {driveLoading ? (
+                  <div style={{ textAlign: 'center', padding: '2rem' }}>Cargando contenido...</div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' }}>
+                    {driveFolders.length === 0 && driveFiles.length === 0 && <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-muted)' }}>No se encontraron carpetas o archivos PDF.</div>}
+                    
+                    {driveFolders.map(f => (
+                      <div key={f.id} onClick={() => { setDrivePath([...drivePath, f]); fetchDriveContent(f.id); }} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', cursor: 'pointer', border: '1px solid var(--border-color)' }}>
+                        <Folder size={18} color="var(--accent-primary)" />
+                        <span style={{ fontSize: '0.9rem' }}>{f.name}</span>
+                      </div>
+                    ))}
+                    
+                    {driveFiles.map(file => (
+                      <div key={file.id} onClick={() => selectDriveFile(file)} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', padding: '0.8rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', cursor: 'pointer', border: '1px solid var(--border-color)' }}>
+                        <FileIcon size={18} color="var(--color-tomato)" />
+                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                          <span style={{ fontSize: '0.9rem' }}>{file.name}</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{file.size} — {file.date}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                <button className="btn btn-ghost" style={{ marginTop: '1rem' }} onClick={() => setShowDrivePicker(false)}>
+                  <ArrowLeft size={16} /> Volver
+                </button>
               </div>
-              <div className="form-group">
-                <label>URL de la Factura / Documento</label>
-                <input 
-                  type="url" 
-                  className="input-control" 
-                  placeholder="https://www.sii.cl/... o link a Drive" 
-                  value={invoiceData.url} 
-                  onChange={(e) => setInvoiceData({...invoiceData, url: e.target.value})} 
-                />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setIsInvoiceModalOpen(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Vincular Factura</button>
-              </div>
-            </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Previsualizar PDF */}
+      {isPreviewModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsPreviewModalOpen(false)}>
+          <div className="modal-content" style={{ maxWidth: '900px', width: '95%', height: '90vh', padding: '1rem', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Previsualización de Factura</h3>
+              <button className="btn btn-ghost" onClick={() => setIsPreviewModalOpen(false)}><X size={20} /></button>
+            </div>
+            <div style={{ flex: 1, background: '#fff', borderRadius: '8px', overflow: 'hidden' }}>
+              <iframe 
+                src={previewUrl} 
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title="Invoice Preview"
+              />
+            </div>
           </div>
         </div>
       )}

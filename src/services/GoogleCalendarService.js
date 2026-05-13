@@ -264,7 +264,7 @@ export const deleteCalendarEvent = async (eventId) => {
  * GOOGLE DRIVE FUNCTIONS
  */
 
-export const listDriveContent = async (parentId = null, rootFolderName = 'redes ecosilence') => {
+export const listDriveContent = async (parentId = null, rootFolderName = 'redes ecosilence', type = 'media') => {
   if (!gapiInited || !gsisInited || !window.gapi.client.drive) {
     console.error('Google Drive API not initialized');
     return { folders: [], files: [] };
@@ -302,10 +302,14 @@ export const listDriveContent = async (parentId = null, rootFolderName = 'redes 
       type: 'folder'
     }));
 
-    const files = items.filter(i => i.mimeType !== 'application/vnd.google-apps.folder' && (i.mimeType.includes('image/') || i.mimeType.includes('video/'))).map(f => ({
+    const files = items.filter(i => {
+      if (i.mimeType === 'application/vnd.google-apps.folder') return false;
+      if (type === 'pdf') return i.mimeType === 'application/pdf';
+      return i.mimeType.includes('image/') || i.mimeType.includes('video/');
+    }).map(f => ({
       id: f.id,
       name: f.name,
-      type: f.mimeType.includes('video') ? 'video' : 'image',
+      type: f.mimeType.includes('video') ? 'video' : (f.mimeType === 'application/pdf' ? 'pdf' : 'image'),
       link: f.webViewLink,
       thumb: f.thumbnailLink,
       date: new Date(f.createdTime).toLocaleDateString(),
