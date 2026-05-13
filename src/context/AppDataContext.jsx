@@ -465,7 +465,7 @@ export const AppDataProvider = ({ children }) => {
       return publicUrl;
     } catch (error) { 
       console.error('Error uploading invoice file:', error); 
-      alert('Error al subir factura. Asegúrate de que el bucket "facturas" exista en Supabase Storage y sea público.'); 
+      alert(`Error de Supabase: ${error.message || error.error || 'Desconocido'}. Revisa el nombre del bucket y las políticas.`); 
       return null;
     }
   };
