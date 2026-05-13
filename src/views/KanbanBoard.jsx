@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+// v1.1 - Added Invoice Linking UI
 import { useAppStore } from '../context/AppDataContext';
 import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, DollarSign, FileText, ExternalLink } from 'lucide-react';
 
