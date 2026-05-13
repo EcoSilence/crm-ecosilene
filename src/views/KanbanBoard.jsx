@@ -1,17 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../context/AppDataContext';
-import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, DollarSign } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, DollarSign, FileText, ExternalLink } from 'lucide-react';
 
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { servicios, updateServiceStage, removeServicio, editServicio, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio, handleCalendarSync, isGoogleLinked } = useAppStore();
+  const { servicios, updateServiceStage, removeServicio, editServicio, updateServiceInvoice, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio, handleCalendarSync, isGoogleLinked, linkGoogle } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedStage, setExpandedStage] = useState('Cotizado');
 
   // Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState(null);
+  const [invoiceData, setInvoiceData] = useState({ folio: '', url: '' });
 
   const monthNames = {
     '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
@@ -123,6 +125,18 @@ const KanbanBoard = () => {
     editServicio(editingService.idServicio, updated);
     setIsEditModalOpen(false);
     setEditingService(null);
+  };
+
+  const openInvoiceModal = (s) => {
+    setEditingService(s);
+    setInvoiceData({ folio: s.folioFactura || '', url: s.urlFactura || '' });
+    setIsInvoiceModalOpen(true);
+  };
+
+  const handleInvoiceSubmit = async (e) => {
+    e.preventDefault();
+    const ok = await updateServiceInvoice(editingService.idServicio, invoiceData.folio, invoiceData.url);
+    if (ok) setIsInvoiceModalOpen(false);
   };
 
   let titleMonthStr = "";
@@ -303,6 +317,29 @@ const KanbanBoard = () => {
                               </button>
                             )}
 
+                            <button 
+                              className="btn btn-ghost" 
+                              style={{ padding: '0.4rem', color: s.folioFactura ? 'var(--color-basil)' : 'var(--text-muted)' }} 
+                              onClick={() => openInvoiceModal(s)}
+                              title="Vincular Factura SII"
+                            >
+                              <FileText size={16}/>
+                              {s.folioFactura && <span style={{ fontSize: '0.7rem', marginLeft: '0.2rem' }}>#{s.folioFactura}</span>}
+                            </button>
+
+                            {s.urlFactura && (
+                              <a 
+                                href={s.urlFactura} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="btn btn-ghost" 
+                                style={{ padding: '0.4rem', color: 'var(--accent-primary)' }}
+                                title="Ver Factura Externa"
+                              >
+                                <ExternalLink size={16}/>
+                              </a>
+                            )}
+
                             <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, from: 'kanban' })}><CheckCircle size={16}/> Cotizar</button>
                           </div>
                         </div>
@@ -361,6 +398,45 @@ const KanbanBoard = () => {
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsEditModalOpen(false)}>Cancelar</button>
                 <button type="submit" formNoValidate className="btn btn-primary">Guardar Cambios</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      {/* Modal para Vincular Factura */}
+      {isInvoiceModalOpen && editingService && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0 }}>Vincular Factura SII</h2>
+              <button className="btn btn-ghost" onClick={() => setIsInvoiceModalOpen(false)}><X size={20} /></button>
+            </div>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+              Ingresa el número de folio y opcionalmente un enlace (Google Drive, SII, etc.) para acceder a la factura del servicio <strong>{editingService.idServicio}</strong>.
+            </p>
+            <form onSubmit={handleInvoiceSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Número de Folio (Factura)</label>
+                <input 
+                  type="text" 
+                  className="input-control" 
+                  placeholder="Ej: 1245" 
+                  value={invoiceData.folio} 
+                  onChange={(e) => setInvoiceData({...invoiceData, folio: e.target.value})} 
+                />
+              </div>
+              <div className="form-group">
+                <label>URL de la Factura / Documento</label>
+                <input 
+                  type="url" 
+                  className="input-control" 
+                  placeholder="https://www.sii.cl/... o link a Drive" 
+                  value={invoiceData.url} 
+                  onChange={(e) => setInvoiceData({...invoiceData, url: e.target.value})} 
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setIsInvoiceModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">Vincular Factura</button>
               </div>
             </form>
           </div>

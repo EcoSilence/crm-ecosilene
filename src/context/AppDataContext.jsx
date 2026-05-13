@@ -201,7 +201,9 @@ export const AppDataProvider = ({ children }) => {
         descuento: s.descuento,
         moneda: s.moneda,
         googleEventId: s.google_event_id,
-        pagoAdelanto: s.pago_adelanto || false
+        pagoAdelanto: s.pago_adelanto || false,
+        folioFactura: s.folio_factura || '',
+        urlFactura: s.url_factura || ''
       })));
 
       // Cotizaciones
@@ -413,6 +415,29 @@ export const AppDataProvider = ({ children }) => {
       if (error) throw error;
       setServicios(prev => prev.map(s => s.idServicio === idServicio ? { ...s, moneda: currency } : s));
     } catch (error) { console.error('Error updating service currency', error); alert('Error al actualizar moneda del servicio.'); }
+  };
+
+  const updateServiceInvoice = async (idServicio, folio, url) => {
+    try {
+      const { error } = await supabase.from('servicios').update({ 
+        folio_factura: folio, 
+        url_factura: url 
+      }).eq('id_servicio', idServicio);
+      
+      if (error) throw error;
+      
+      setServicios(prev => prev.map(s => s.idServicio === idServicio ? { 
+        ...s, 
+        folioFactura: folio, 
+        urlFactura: url 
+      } : s));
+      
+      return true;
+    } catch (error) { 
+      console.error('Error updating service invoice', error); 
+      alert('Error al vincular factura. Asegúrate de tener las columnas folio_factura y url_factura en Supabase.'); 
+      return false;
+    }
   };
 
   const formatDateDDMMYYYY = (dateStr) => {
@@ -645,7 +670,7 @@ export const AppDataProvider = ({ children }) => {
     menuNames, updateMenuName,
     clientes, addCliente, editCliente, removeCliente,
     inventario, addEquipo, editEquipo, removeEquipo,
-    servicios, updateServiceStage, updateServiceDiscount, updateServiceCurrency, addServicio, editServicio, removeServicio,
+    servicios, updateServiceStage, updateServiceDiscount, updateServiceCurrency, updateServiceInvoice, addServicio, editServicio, removeServicio,
     togglePagoAdelanto,
     cotizaciones: getCotizacionesEnriched(), addItemCotizacion, removeItemCotizacion, editItemCotizacion,
     getStockActual,
