@@ -169,7 +169,9 @@ const KanbanBoard = () => {
     setIsUploading(true);
     const url = await uploadServiceInvoiceFile(editingService.idServicio, file);
     if (url) {
-      const folio = invoiceData.folio || `F-${Math.floor(Math.random() * 1000)}`;
+      // Use user inputted folio, or the uploaded file's name without extension
+      let defaultFolio = file.name.replace(/\.[^/.]+$/, "");
+      const folio = invoiceData.folio || defaultFolio;
       setAttachedInvoices(prev => [...prev, { folio, url }]);
       setInvoiceData({ folio: '', url: '' });
     }
@@ -191,7 +193,9 @@ const KanbanBoard = () => {
   };
 
   const selectDriveFile = (file) => {
-    const folio = invoiceData.folio || `D-${Math.floor(Math.random() * 1000)}`;
+    // Use user inputted folio, or the drive file's name without extension
+    let defaultFolio = file.name ? file.name.replace(/\.[^/.]+$/, "") : `Factura Drive`;
+    const folio = invoiceData.folio || defaultFolio;
     setAttachedInvoices(prev => [...prev, { folio, url: file.link }]);
     setInvoiceData({ folio: '', url: '' });
     setShowDrivePicker(false);
