@@ -21,12 +21,22 @@ const KanbanBoard = () => {
   const [showDrivePicker, setShowDrivePicker] = useState(false);
   const [driveFolders, setDriveFolders] = useState([]);
   const [driveFiles, setDriveFiles] = useState([]);
-  const [drivePath, setDrivePath] = useState([{ id: null, name: 'Google Drive' }]);
-  const [driveLoading, setDriveLoading] = useState(false);
-
   // Preview State
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
+
+  // Attached invoices list
+  const [attachedInvoices, setAttachedInvoices] = useState([]);
+
+  const parseInvoices = (urlFactura, folioFactura) => {
+    if (!urlFactura) return [];
+    try {
+      if (typeof urlFactura === 'string' && urlFactura.trim().startsWith('[')) {
+        return JSON.parse(urlFactura);
+      }
+    } catch(e) {}
+    return [{ folio: folioFactura || '', url: urlFactura }];
+  };
 
   const monthNames = {
     '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
@@ -142,13 +152,14 @@ const KanbanBoard = () => {
 
   const openInvoiceModal = (s) => {
     setEditingService(s);
-    setInvoiceData({ folio: s.folioFactura || '', url: s.urlFactura || '' });
+    setAttachedInvoices(parseInvoices(s.urlFactura, s.folioFactura));
+    setInvoiceData({ folio: '', url: '' });
     setIsInvoiceModalOpen(true);
   };
 
   const handleInvoiceSubmit = async (e) => {
     e.preventDefault();
-    const ok = await updateServiceInvoice(editingService.idServicio, invoiceData.folio, invoiceData.url);
+    const ok = await updateServiceInvoice(editingService.idServicio, attachedInvoices);
     if (ok) setIsInvoiceModalOpen(false);
   };
 
@@ -157,7 +168,11 @@ const KanbanBoard = () => {
     if (!file) return;
     setIsUploading(true);
     const url = await uploadServiceInvoiceFile(editingService.idServicio, file);
-    if (url) setInvoiceData(prev => ({ ...prev, url }));
+    if (url) {
+      const folio = invoiceData.folio || `F-${Math.floor(Math.random() * 1000)}`;
+      setAttachedInvoices(prev => [...prev, { folio, url }]);
+      setInvoiceData({ folio: '', url: '' });
+    }
     setIsUploading(false);
   };
 
@@ -176,7 +191,9 @@ const KanbanBoard = () => {
   };
 
   const selectDriveFile = (file) => {
-    setInvoiceData(prev => ({ ...prev, url: file.link }));
+    const folio = invoiceData.folio || `D-${Math.floor(Math.random() * 1000)}`;
+    setAttachedInvoices(prev => [...prev, { folio, url: file.link }]);
+    setInvoiceData({ folio: '', url: '' });
     setShowDrivePicker(false);
   };
 
@@ -373,28 +390,28 @@ const KanbanBoard = () => {
                               {s.folioFactura && <span style={{ fontSize: '0.7rem', marginLeft: '0.2rem' }}>#{s.folioFactura}</span>}
                             </button>
 
-                            {s.urlFactura && (
-                              <div style={{ display: 'flex', gap: '0.2rem' }}>
+                            {parseInvoices(s.urlFactura, s.folioFactura).map((inv, idx) => (
+                              <div key={idx} style={{ display: 'flex', gap: '0.2rem', alignItems: 'center' }}>
                                 <button 
                                   className="btn btn-ghost" 
                                   style={{ padding: '0.4rem', color: 'var(--accent-primary)' }}
-                                  onClick={() => openPreview(s.urlFactura)}
-                                  title="Previsualizar Factura"
+                                  onClick={() => openPreview(inv.url)}
+                                  title={`Previsualizar Factura ${inv.folio ? `#${inv.folio}` : ''}`}
                                 >
                                   <Eye size={16}/>
                                 </button>
                                 <a 
-                                  href={s.urlFactura} 
+                                  href={inv.url} 
                                   target="_blank" 
                                   rel="noopener noreferrer" 
                                   className="btn btn-ghost" 
                                   style={{ padding: '0.4rem', color: 'var(--text-muted)' }}
-                                  title="Abrir en pestaña nueva"
+                                  title={`Abrir Factura ${inv.folio ? `#${inv.folio}` : ''} en pestaña nueva`}
                                 >
                                   <ExternalLink size={16}/>
                                 </a>
                               </div>
-                            )}
+                            ))}
 
                             <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, from: 'kanban' })}><CheckCircle size={16}/> Cotizar</button>
                           </div>
@@ -479,7 +496,28 @@ const KanbanBoard = () => {
                   Sube un PDF desde tu PC o selecciona un archivo de tu Google Drive para el servicio <strong>{editingService.idServicio}</strong>.
                 </p>
                 
-                <form onSubmit={handleInvoiceSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                  {attachedInvoices.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Facturas Adjuntas</label>
+                      {attachedInvoices.map((inv, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.8rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                            <FileText size={16} color="var(--accent-primary)" />
+                            <span>Folio: {inv.folio || 'N/A'}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button className="btn btn-ghost" style={{ padding: '0.3rem' }} onClick={() => openPreview(inv.url)}><Eye size={16}/></button>
+                            <button className="btn btn-ghost" style={{ padding: '0.3rem', color: 'var(--color-danger)' }} onClick={() => setAttachedInvoices(attachedInvoices.filter((_, i) => i !== idx))}><Trash2 size={16}/></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.5rem 0' }}></div>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Agregar Nueva Factura</label>
+                  
                   <div className="form-group">
                     <label>Número de Folio (Opcional)</label>
                     <input 
@@ -502,30 +540,38 @@ const KanbanBoard = () => {
                         <Folder size={18} /> Buscar en Drive
                       </button>
                     </div>
-
-                    {invoiceData.url && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--color-basil)', display: 'flex', alignItems: 'center', gap: '0.5rem', wordBreak: 'break-all', background: 'rgba(16, 185, 129, 0.1)', padding: '0.5rem', borderRadius: '4px' }}>
-                        <CheckCircle size={14} /> Archivo vinculado: {invoiceData.url.split('/').pop().substring(0, 30)}...
-                      </div>
-                    )}
                   </div>
 
                   <div className="form-group">
                     <label>URL Directa (Si ya la tienes)</label>
-                    <input 
-                      type="url" 
-                      className="input-control" 
-                      placeholder="https://..." 
-                      value={invoiceData.url} 
-                      onChange={(e) => setInvoiceData({...invoiceData, url: e.target.value})} 
-                    />
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input 
+                        type="url" 
+                        className="input-control" 
+                        placeholder="https://..." 
+                        value={invoiceData.url} 
+                        onChange={(e) => setInvoiceData({...invoiceData, url: e.target.value})} 
+                      />
+                      <button 
+                        type="button" 
+                        className="btn btn-primary"
+                        onClick={() => {
+                          if (invoiceData.url) {
+                            setAttachedInvoices([...attachedInvoices, { folio: invoiceData.folio || 'N/A', url: invoiceData.url }]);
+                            setInvoiceData({ folio: '', url: '' });
+                          }
+                        }}
+                      >
+                        Añadir
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
                     <button type="button" className="btn btn-ghost" onClick={() => setIsInvoiceModalOpen(false)}>Cancelar</button>
-                    <button type="submit" className="btn btn-primary">Guardar Vinculación</button>
+                    <button type="button" className="btn btn-primary" onClick={handleInvoiceSubmit}>Guardar Todo</button>
                   </div>
-                </form>
+                </div>
               </>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '400px', overflowY: 'auto' }}>

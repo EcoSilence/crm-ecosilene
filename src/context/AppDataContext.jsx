@@ -417,19 +417,20 @@ export const AppDataProvider = ({ children }) => {
     } catch (error) { console.error('Error updating service currency', error); alert('Error al actualizar moneda del servicio.'); }
   };
 
-  const updateServiceInvoice = async (idServicio, folio, url) => {
+  const updateServiceInvoice = async (idServicio, invoicesArray) => {
     try {
+      const urlString = JSON.stringify(invoicesArray);
       const { error } = await supabase.from('servicios').update({ 
-        folio_factura: folio, 
-        url_factura: url 
+        folio_factura: invoicesArray.length > 0 ? invoicesArray[0].folio : '', 
+        url_factura: urlString 
       }).eq('id_servicio', idServicio);
       
       if (error) throw error;
       
       setServicios(prev => prev.map(s => s.idServicio === idServicio ? { 
         ...s, 
-        folioFactura: folio, 
-        urlFactura: url 
+        folioFactura: invoicesArray.length > 0 ? invoicesArray[0].folio : '', 
+        urlFactura: urlString 
       } : s));
       
       return true;
@@ -457,10 +458,6 @@ export const AppDataProvider = ({ children }) => {
         .getPublicUrl(filePath);
 
       const publicUrl = data.publicUrl;
-      
-      // Actualizar el servicio con la URL del archivo (manteniendo el folio si existe)
-      const currentService = servicios.find(s => s.idServicio === idServicio);
-      await updateServiceInvoice(idServicio, currentService?.folioFactura || '', publicUrl);
       
       return publicUrl;
     } catch (error) { 
