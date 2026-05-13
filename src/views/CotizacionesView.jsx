@@ -364,12 +364,12 @@ Para que puedas ver todos los detalles, te adjuntamos la cotización que nos ped
 
 _________________________________________________________________________________________
 Terminos y condiciones para realizar la reserva de nuestro servicios:
-• Pago anticipado del 50% iva incluido, saldo a la entrega.
+• Pago anticipado del 50% IVA incluido, saldo a la entrega.
 • En caso de cancelación del evento, se tomará el 20% del 50% depositado con anterioridad y se devolverá el 30% restante.
 • Aceptamos pagos con tarjetas de credito, debito o transferencias bancarias
 • En caso de que hubiese, perdida, deterioro o destrucción, el monto asciende a $ 60.000 pesos por audífonos
 • En caso de que hubiese, perdida, deterioro o destrucción del transmisor el monto asciende a $250.000 pesos por cada uno.
-• El arriendo es por 12hrs o hasta que se acabe la batería de los audífonos (8 a 10 hrs)
+• El arriendo es por jornada completa.
 
 Estamos a tu disposición para cualquier duda que tengas.
 
@@ -465,7 +465,7 @@ https://www.ecosilence.cl/`);
                       <li>Reserva: 50% de anticipo al confirmar, saldo contra entrega.</li>
                       <li>Cancelación: Cargo del 20% si se cancela con menos de 48 hrs.</li>
                       <li>Reposición: Audífono $60.000 / Transmisor $250.000 (en caso de pérdida).</li>
-                      <li>Arriendo base: 24 horas por evento.</li>
+                      <li>Arriendo base: por jornada completa.</li>
                       <li>Esta cotización es válida por 15 días a partir de la fecha de emisión.</li>
                     </ul>
                   </div>
