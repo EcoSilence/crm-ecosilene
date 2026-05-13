@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import { initGoogleScripts, authenticateGoogle, syncServiceToCalendar, deleteCalendarEvent, listDriveContent } from '../services/GoogleCalendarService';
+import { initGoogleScripts, authenticateGoogle, syncServiceToCalendar, deleteCalendarEvent, listDriveContent, syncMarketingPostToCalendar } from '../services/GoogleCalendarService';
 
 const AppDataContext = createContext();
 
@@ -113,10 +113,20 @@ export const AppDataProvider = ({ children }) => {
     setNotifications(alerts);
   }, [plannedPostsMap, selectedMarketingAccount]);
 
-  const addPlannedPost = (post) => {
+  const addPlannedPost = async (post) => {
+    let finalPost = { ...post };
+    
+    // Sincronizar con Google Calendar si está vinculado
+    if (isGoogleLinked) {
+      const gEventId = await syncMarketingPostToCalendar(post, selectedMarketingAccount);
+      if (gEventId) {
+        finalPost.googleEventId = gEventId;
+      }
+    }
+
     setPlannedPostsMap(prev => ({
       ...prev,
-      [selectedMarketingAccount]: [...(prev[selectedMarketingAccount] || []), post]
+      [selectedMarketingAccount]: [...(prev[selectedMarketingAccount] || []), finalPost]
     }));
   };
 
@@ -220,11 +230,12 @@ export const AppDataProvider = ({ children }) => {
     initGoogleScripts().then(() => {
       // Si estaba vinculado antes, intentar reconectar silenciosamente
       if (localStorage.getItem('google_calendar_linked') === 'true') {
-        authenticateGoogle(true).catch(err => {
-          console.warn('Auto-link failed:', err);
-          setIsGoogleLinked(false);
-          localStorage.removeItem('google_calendar_linked');
-        });
+      authenticateGoogle(true).then(() => {
+        setIsGoogleLinked(true);
+      }).catch(err => {
+        console.warn('Auto-link expired, user needs to re-auth:', err);
+        setIsGoogleLinked(false);
+      });
       }
     });
   }, []);
@@ -343,11 +354,16 @@ export const AppDataProvider = ({ children }) => {
     const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
     const eventId = await syncServiceToCalendar(servicioObj, clienteName, itemsArr);
     
-    if (eventId && eventId !== servicioObj.googleEventId) {
-      servicioObj.googleEventId = eventId;
-      setServicios(prev => prev.map(s => s.idServicio === servicioObj.idServicio ? { ...s, googleEventId: eventId } : s));
-      await supabase.from('servicios').update({ google_event_id: eventId }).eq('id_servicio', servicioObj.idServicio);
+    if (eventId) {
+      // Si el ID cambió (porque se re-creó por error 404) o si era nuevo
+      if (eventId !== servicioObj.googleEventId) {
+        servicioObj.googleEventId = eventId;
+        setServicios(prev => prev.map(s => s.idServicio === servicioObj.idServicio ? { ...s, googleEventId: eventId } : s));
+        await supabase.from('servicios').update({ google_event_id: eventId }).eq('id_servicio', servicioObj.idServicio);
+      }
+      return true;
     }
+    return false;
   };
 
   const updateServiceStage = async (idServicio, newStage) => {
@@ -645,7 +661,7 @@ export const AppDataProvider = ({ children }) => {
     metaAccessToken, instagramAccountId, saveMetaCredentials,
     brandProfile: brandProfiles[selectedMarketingAccount],
     archivados, isArchived,
-    formatDateDDMMYYYY
+    formatDateDDMMYYYY, handleCalendarSync
   };
 
   return (

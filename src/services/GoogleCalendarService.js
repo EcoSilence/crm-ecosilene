@@ -188,10 +188,61 @@ export const syncServiceToCalendar = async (servicio, clienteName, items = []) =
     return response.result.id;
   } catch (err) {
     console.error('Error sincronizando con Google Calendar:', err);
+    
+    // Si el error es 401 (no autorizado), re-autenticar
     if (err.status === 401) {
-       // Token expirado, re-autenticar
        await authenticateGoogle();
        return syncServiceToCalendar(servicio, clienteName, items);
+    }
+    
+    // Si el error es 404 (el evento ya no existe en Google), limpiar el ID y re-intentar como insert
+    if (err.status === 404 && servicio.googleEventId) {
+      console.log('Evento no encontrado en Google, re-creando...');
+      const { googleEventId, ...servicioSinId } = servicio;
+      return syncServiceToCalendar(servicioSinId, clienteName, items);
+    }
+    
+    return null;
+  }
+};
+
+export const syncMarketingPostToCalendar = async (post, accountName) => {
+  if (!gapiInited || !gsisInited) return null;
+
+  const event = {
+    'summary': `📱 [POST] ${post.title} - ${accountName}`,
+    'description': `Publicación planificada vía EcoSilence Marketing\nTipo: ${post.type}\nCuenta: ${accountName}\n\nCopy Sugerido:\n${post.copy || ''}`,
+    'start': { 'date': post.date },
+    'end': { 'date': post.date }, // Evento de todo el día
+    'colorId': '2' // Color Salvia (Sage) para marketing
+  };
+
+  try {
+    let request;
+    if (post.googleEventId) {
+      request = window.gapi.client.calendar.events.patch({
+        'calendarId': 'primary',
+        'eventId': post.googleEventId,
+        'resource': event,
+      });
+    } else {
+      request = window.gapi.client.calendar.events.insert({
+        'calendarId': 'primary',
+        'resource': event,
+      });
+    }
+
+    const response = await request;
+    return response.result.id;
+  } catch (err) {
+    console.error('Error sincronizando post de marketing:', err);
+    if (err.status === 401) {
+      await authenticateGoogle();
+      return syncMarketingPostToCalendar(post, accountName);
+    }
+    if (err.status === 404 && post.googleEventId) {
+      const { googleEventId, ...postSinId } = post;
+      return syncMarketingPostToCalendar(postSinId, accountName);
     }
     return null;
   }

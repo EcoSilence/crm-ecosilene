@@ -372,14 +372,13 @@ Terminos y condiciones para realizar la reserva de nuestro servicios:
 • El arriendo es por 12hrs o hasta que se acabe la batería de los audífonos (8 a 10 hrs)
 
 Estamos a tu disposición para cualquier duda que tengas.
+
 Camilo Collante.
 EcoSilence Spa.
 +56 9 5379 9875
 Pintor Laureano Guevara 60, La Reina.
-
-https://www.ecosilence.cl/
-https://www.youtube.com/watch?v=M5Hv5z5rWaA`);
-                    window.location.href = `mailto:${cliente.correo}?cc=info@ecosilence.cl&subject=${subject}&body=${body}`;
+https://www.ecosilence.cl/`);
+                    window.location.href = `mailto:${cliente.correo}?subject=${subject}&body=${body}`;
                  }}>
                    <Mail size={18}/> Enviar por Correo
                  </button>

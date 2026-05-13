@@ -422,7 +422,7 @@ const PlanSection = ({ onNavigate, account }) => {
 };
 
 const CalendarioSection = ({ plannedPosts = [], account }) => {
-  const { metaAccessToken, instagramAccountId } = useAppStore();
+  const { metaAccessToken, instagramAccountId, isGoogleLinked } = useAppStore();
   const isEvents = account === '@ecosilence.event';
   const accentColor = isEvents ? '#ec4899' : '#3b82f6';
   const days = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'];
@@ -493,10 +493,12 @@ const CalendarioSection = ({ plannedPosts = [], account }) => {
                       style={{ 
                         fontSize: '0.65rem', background: `${accentColor}22`, borderLeft: `3px solid ${accentColor}`, 
                         padding: '4px 6px', borderRadius: '4px', color: '#fff', whiteSpace: 'nowrap', 
-                        overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' 
+                        overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '4px'
                       }}
                     >
                       {post.type === 'reel' ? '🎥' : '📁'} {post.title}
+                      {isGoogleLinked && post.googleEventId && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#39ff14' }}></div>}
                     </div>
                   ))}
                 </div>

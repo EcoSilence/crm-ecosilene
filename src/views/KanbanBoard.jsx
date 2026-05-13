@@ -5,7 +5,7 @@ import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarD
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { servicios, updateServiceStage, removeServicio, editServicio, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio } = useAppStore();
+  const { servicios, updateServiceStage, removeServicio, editServicio, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio, handleCalendarSync, isGoogleLinked } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedStage, setExpandedStage] = useState('Cotizado');
 
@@ -155,6 +155,26 @@ const KanbanBoard = () => {
         </div>
       </div>
 
+      {!isGoogleLinked && localStorage.getItem('google_calendar_linked') === 'true' && (
+        <div style={{ background: 'rgba(251, 191, 36, 0.1)', border: '1px solid var(--color-banana)', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', color: 'var(--color-banana)' }}>
+            <Calendar size={20} />
+            <span style={{ fontSize: '0.9rem' }}>Tu sesión de Google ha expirado. <strong>Los cambios no se sincronizarán</strong> hasta que vuelvas a vincular tu cuenta.</span>
+          </div>
+          <button className="btn btn-primary" style={{ background: 'var(--color-banana)', color: '#000', padding: '0.4rem 1rem', fontSize: '0.8rem' }} onClick={linkGoogle}>Re-vincular ahora</button>
+        </div>
+      )}
+
+      {!isGoogleLinked && !localStorage.getItem('google_calendar_linked') && (
+        <div style={{ background: 'rgba(99, 102, 241, 0.05)', border: '1px solid var(--accent-primary)', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', color: 'var(--accent-primary)' }}>
+            <Calendar size={20} />
+            <span style={{ fontSize: '0.9rem' }}>Google Calendar no está vinculado. Vincúlalo para ver tus servicios en tu agenda personal.</span>
+          </div>
+          <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }} onClick={linkGoogle}>Vincular Google</button>
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
         {STAGES.map(stage => {
           const stageServices = filteredServicios.filter(s => s.etapa === stage);
@@ -267,6 +287,22 @@ const KanbanBoard = () => {
                             </button>
                             <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={() => openEditModal(s)}><Edit2 size={16}/></button>
                             <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--color-tomato)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={16}/></button>
+                            
+                            {isGoogleLinked && (
+                              <button 
+                                className="btn btn-ghost" 
+                                style={{ padding: '0.4rem', color: s.googleEventId ? 'var(--color-basil)' : 'var(--accent-primary)' }} 
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  const ok = await handleCalendarSync(s, sQuotations);
+                                  if(ok) alert('Sincronización exitosa con Google Calendar');
+                                }}
+                                title={s.googleEventId ? "Actualizar en Google Calendar" : "Sincronizar con Google Calendar"}
+                              >
+                                <Calendar size={16}/>
+                              </button>
+                            )}
+
                             <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, from: 'kanban' })}><CheckCircle size={16}/> Cotizar</button>
                           </div>
                         </div>
