@@ -447,13 +447,13 @@ export const AppDataProvider = ({ children }) => {
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('facturas')
+        .from('Facturas')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage
-        .from('facturas')
+        .from('Facturas')
         .getPublicUrl(filePath);
 
       const publicUrl = data.publicUrl;
