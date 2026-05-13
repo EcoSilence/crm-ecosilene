@@ -403,6 +403,7 @@ const KanbanBoard = () => {
             </form>
           </div>
         </div>
+      )}
       {/* Modal para Vincular Factura */}
       {isInvoiceModalOpen && editingService && (
         <div className="modal-overlay">
