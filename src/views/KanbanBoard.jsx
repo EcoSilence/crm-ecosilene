@@ -313,66 +313,101 @@ const KanbanBoard = () => {
 
                       return (
                         <div key={s.idServicio} style={{ 
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                          padding: '0.8rem 1.2rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)',
-                          border: '1px solid var(--border-color)', gap: '1.5rem', flexWrap: 'wrap'
+                          display: 'flex', flexDirection: 'column', gap: '1rem',
+                          padding: '1rem 1.2rem', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--border-color)', borderLeft: `4px solid ${getStageColor(stage)}`
                         }}>
-                          {/* 1. Izquierda: ID, Cliente, Fecha, Dirección */}
-                          <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
-                            <h5 style={{ margin: '0 0 0.4rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', flexWrap: 'wrap' }}>
-                              {s.idServicio} <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.85rem' }}>— {getClientName(s.clienteId)}</span>
-                              {s.pagoAdelanto && <span style={{ background: 'var(--color-basil)', color: '#fff', fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', marginLeft: '0.5rem' }}>RESERVA PAGADA</span>}
+                          {/* Fila 1: ID - Cliente y Equipos */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                            <h5 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem', flexWrap: 'wrap' }}>
+                              <span style={{ fontWeight: 700 }}>{s.idServicio}</span> 
+                              <span className="text-muted" style={{ fontWeight: 400 }}>— {getClientName(s.clienteId)}</span>
+                              {s.pagoAdelanto && <span style={{ background: 'var(--color-basil)', color: '#fff', fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', marginLeft: '0.5rem', fontWeight: 600 }}>RESERVA PAGADA</span>}
                             </h5>
-                            <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', flexWrap: 'wrap' }}>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={13}/> {s.direccionEvento || 'Sin dirección'}</span>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CalendarDays size={13}/> Inicio: {s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'Por definir'}</span>
-                            </div>
-                          </div>
-
-                          {/* 2. Centro: Equipos y Valores */}
-                          <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
+                            
                             {(audifonos > 0 || transmisores > 0) && (
-                              <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                {audifonos > 0 && <span style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>🎧 Audífonos: <strong>{audifonos}</strong></span>}
-                                {transmisores > 0 && <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#facc15', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>📡 Transmisores (TX): <strong>{transmisores}</strong></span>}
+                              <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                {audifonos > 0 && <span style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.3rem 0.8rem', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>🎧 Audífonos: <strong style={{color: '#fff'}}>{audifonos}</strong></span>}
+                                {transmisores > 0 && <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#facc15', padding: '0.3rem 0.8rem', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>📡 Transmisores (TX): <strong style={{color: '#fff'}}>{transmisores}</strong></span>}
                               </div>
                             )}
-                            <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.85rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                              <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>Neto: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(neto, currency)}</strong></span>
-                              <span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>Total c/IVA: <strong style={{ color: 'var(--accent-primary)' }}>{formatCurrency(total, currency)}</strong></span>
+                          </div>
+
+                          {/* Fila 2: Dirección/Fecha y Valores */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', color: 'var(--text-muted)' }}>
+                            <div style={{ display: 'flex', gap: '1.2rem', fontSize: '0.85rem' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapPin size={14}/> {s.direccionEvento || 'Sin dirección'}</span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><CalendarDays size={14}/> Inicio: {s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'Por definir'}</span>
+                            </div>
+                            
+                            <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.9rem' }}>
+                              <span style={{ background: 'rgba(255,255,255,0.03)', padding: '0.3rem 0.8rem', borderRadius: '4px' }}>Neto: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(neto, currency)}</strong></span>
+                              <span style={{ background: 'rgba(255,255,255,0.03)', padding: '0.3rem 0.8rem', borderRadius: '4px' }}>Total c/IVA: <strong style={{ color: '#818cf8' }}>{formatCurrency(total, currency)}</strong></span>
                             </div>
                           </div>
 
-                          {/* 3. Derecha: Controles */}
-                          <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                            <select className="input-control" style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', width: '130px', margin: 0 }} value={s.etapa} onChange={(e) => updateServiceStage(s.idServicio, e.target.value)}>
+                          {/* Fila 3: Controles */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                            <select className="input-control" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto', margin: 0, minWidth: '130px', fontWeight: 500 }} value={s.etapa} onChange={(e) => updateServiceStage(s.idServicio, e.target.value)}>
                               {STAGES.map(st => <option key={st} value={st}>{st}</option>)}
                             </select>
+                            
                             <button 
                               className="btn" 
                               onClick={() => togglePagoAdelanto(s.idServicio)}
                               style={{ 
-                                padding: '0.4rem 0.6rem', 
-                                fontSize: '0.75rem', 
-                                background: s.pagoAdelanto ? 'var(--color-basil)' : 'transparent',
-                                border: '1px solid var(--border-color)',
-                                color: s.pagoAdelanto ? '#fff' : 'var(--text-muted)',
+                                padding: '0.4rem 0.8rem', 
+                                fontSize: '0.85rem', 
+                                background: s.pagoAdelanto ? 'var(--color-basil)' : 'var(--color-basil)',
+                                border: 'none',
+                                color: '#fff',
                                 borderRadius: '4px',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '0.3rem'
+                                gap: '0.3rem',
+                                fontWeight: 600
                               }}
                               title="Marcar pago de reserva 50%"
                             >
                               <DollarSign size={14} /> 50%
                             </button>
-                            <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={() => openEditModal(s)}><Edit2 size={16}/></button>
-                            <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--color-tomato)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={16}/></button>
-                            
+
+                            <button 
+                              className="btn btn-ghost" 
+                              style={{ padding: '0.4rem 0.6rem', color: s.urlFactura ? 'var(--color-basil)' : 'var(--accent-primary)', border: '1px solid rgba(255,255,255,0.1)' }} 
+                              onClick={() => openInvoiceModal(s)}
+                              title="Vincular Factura SII"
+                            >
+                              <FileText size={16}/>
+                            </button>
+
+                            {parseInvoices(s.urlFactura, s.folioFactura).map((inv, idx) => (
+                              <div key={idx} style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '0.2rem' }}>
+                                <button 
+                                  className="btn btn-ghost" 
+                                  style={{ padding: '0.2rem 0.4rem', color: '#818cf8' }}
+                                  onClick={() => openPreview(inv.url)}
+                                  title={`Previsualizar Factura ${inv.folio ? `#${inv.folio}` : ''}`}
+                                >
+                                  <Eye size={16}/>
+                                </button>
+                                <a 
+                                  href={inv.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="btn btn-ghost" 
+                                  style={{ padding: '0.2rem 0.4rem', color: 'var(--text-muted)' }}
+                                  title={`Abrir Factura ${inv.folio ? `#${inv.folio}` : ''} en pestaña nueva`}
+                                >
+                                  <ExternalLink size={16}/>
+                                </a>
+                              </div>
+                            ))}
+
                             {isGoogleLinked && (
                               <button 
                                 className="btn btn-ghost" 
-                                style={{ padding: '0.4rem', color: s.googleEventId ? 'var(--color-basil)' : 'var(--accent-primary)' }} 
+                                style={{ padding: '0.4rem 0.6rem', color: s.googleEventId ? 'var(--color-basil)' : 'var(--accent-primary)', border: '1px solid rgba(255,255,255,0.1)' }} 
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   const ok = await handleCalendarSync(s, sQuotations);
@@ -384,40 +419,12 @@ const KanbanBoard = () => {
                               </button>
                             )}
 
-                            <button 
-                              className="btn btn-ghost" 
-                              style={{ padding: '0.4rem', color: s.folioFactura ? 'var(--color-basil)' : 'var(--text-muted)' }} 
-                              onClick={() => openInvoiceModal(s)}
-                              title="Vincular Factura SII"
-                            >
-                              <FileText size={16}/>
-                              {s.folioFactura && <span style={{ fontSize: '0.7rem', marginLeft: '0.2rem' }}>#{s.folioFactura}</span>}
+                            <button className="btn btn-ghost" style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.1)' }} onClick={() => openEditModal(s)}><Edit2 size={16}/></button>
+                            <button className="btn btn-ghost" style={{ padding: '0.4rem 0.6rem', color: 'var(--color-tomato)', border: '1px solid rgba(255,255,255,0.1)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={16}/></button>
+                            
+                            <button className="btn btn-primary" style={{ padding: '0.4rem 1.2rem', fontSize: '0.85rem', fontWeight: 600, background: '#a855f7', color: '#fff' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, from: 'kanban' })}>
+                              <CheckCircle size={16}/> Cotizar
                             </button>
-
-                            {parseInvoices(s.urlFactura, s.folioFactura).map((inv, idx) => (
-                              <div key={idx} style={{ display: 'flex', gap: '0.2rem', alignItems: 'center' }}>
-                                <button 
-                                  className="btn btn-ghost" 
-                                  style={{ padding: '0.4rem', color: 'var(--accent-primary)' }}
-                                  onClick={() => openPreview(inv.url)}
-                                  title={`Previsualizar Factura ${inv.folio ? `#${inv.folio}` : ''}`}
-                                >
-                                  <Eye size={16}/>
-                                </button>
-                                <a 
-                                  href={inv.url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  className="btn btn-ghost" 
-                                  style={{ padding: '0.4rem', color: 'var(--text-muted)' }}
-                                  title={`Abrir Factura ${inv.folio ? `#${inv.folio}` : ''} en pestaña nueva`}
-                                >
-                                  <ExternalLink size={16}/>
-                                </a>
-                              </div>
-                            ))}
-
-                            <button className="btn btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => navigate('cotizaciones', { servicioId: s.idServicio, from: 'kanban' })}><CheckCircle size={16}/> Cotizar</button>
                           </div>
                         </div>
                       );
