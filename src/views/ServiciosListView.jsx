@@ -75,9 +75,8 @@ const ServiciosListView = ({ type = 'normal' }) => {
 
     const invoices = parseInvoices(s.urlFactura, s.folioFactura);
     const documentName = invoices.length > 0 && invoices[0].folio ? invoices[0].folio : 'Factura';
-    const clientName = client?.empresa || `${client?.nombre || ''} ${client?.apellido || ''}`.trim();
 
-    const subject = `EcoSilence - ${documentName} - ${s.idServicio} - ${clientName}`;
+    const subject = `EcoSilence - ${documentName} - ${s.idServicio}`;
     const body = `Hola ${greeting}, Espero te encuentres bien.
 
 Te envío la factura correspondiente al servicio de audífonos del día ${eventDate}, adjunto a este correo, encontrarás el documento en formato PDF.
