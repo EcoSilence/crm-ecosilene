@@ -27,7 +27,7 @@ const KanbanBoard = () => {
 
   const handleSendCollectionEmail = (s) => {
     const client = clientes?.find(c => c.id === s.clienteId);
-    const toEmail = client?.email || '';
+    const toEmail = client?.correo || '';
     
     const currentHour = new Date().getHours();
     const greeting = currentHour < 12 ? 'muy buenos días' : 'muy buenas tardes';
