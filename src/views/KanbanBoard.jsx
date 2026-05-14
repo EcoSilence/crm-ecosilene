@@ -34,7 +34,11 @@ const KanbanBoard = () => {
     
     const eventDate = s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'fecha por definir';
 
-    const subject = `Factura de servicio - ${s.idServicio}`;
+    const invoices = parseInvoices(s.urlFactura, s.folioFactura);
+    const documentName = invoices.length > 0 && invoices[0].folio ? invoices[0].folio : 'Factura';
+    const clientName = client?.empresa || `${client?.nombre || ''} ${client?.apellido || ''}`.trim();
+
+    const subject = `EcoSilence - ${documentName} - ${s.idServicio} - ${clientName}`;
     const body = `Hola ${greeting}, Espero te encuentres bien.
 
 Te envío la factura correspondiente al servicio de audífonos del día ${eventDate}, adjunto a este correo, encontrarás el documento en formato PDF.
