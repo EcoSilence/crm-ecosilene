@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 // v1.1 - Added Invoice Linking UI
 import { useAppStore } from '../context/AppDataContext';
-import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, DollarSign, FileText, ExternalLink, Upload, Folder, File as FileIcon, ArrowLeft, Eye } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, DollarSign, FileText, ExternalLink, Upload, Folder, File as FileIcon, ArrowLeft, Eye, Mail } from 'lucide-react';
 
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
@@ -24,6 +24,45 @@ const KanbanBoard = () => {
   // Preview State
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
+
+  const handleSendCollectionEmail = (s) => {
+    const client = clientes?.find(c => c.id === s.clienteId);
+    const toEmail = client?.email || '';
+    
+    const currentHour = new Date().getHours();
+    const greeting = currentHour < 12 ? 'muy buenos días' : 'muy buenas tardes';
+    
+    const eventDate = s.fechaInicio ? formatDateDDMMYYYY(s.fechaInicio) : 'fecha por definir';
+
+    const subject = `Factura de servicio - ${s.idServicio}`;
+    const body = `Hola ${greeting}, Espero te encuentres bien.
+
+Te envío la factura correspondiente al servicio de audífonos del día ${eventDate}, adjunto a este correo, encontrarás el documento en formato PDF.
+
+Aquí tienes los detalles para el pago:
+Cuenta bancaria:
+EcoSilence SpA
+77510784-7
+Banco de Chile
+Cuenta Corriente
+2370997310
+info@ecosilence.cl
+
+Si tienes alguna pregunta o necesitas alguna aclaración sobre la factura, no dudes en responder a este correo o contactarnos directamente.
+
+¡Gracias por tu confianza!
+
+Saludos,
+Camilo Collante.
+Director ejecutivo.
++56 9 5379 9875
+Pintor Laureano Guevara 60, La Reina.
+
+https://www.ecosilence.cl/`;
+
+    const mailtoLink = `mailto:${toEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoLink;
+  };
 
   // Attached invoices list
   const [attachedInvoices, setAttachedInvoices] = useState([]);
@@ -351,6 +390,17 @@ const KanbanBoard = () => {
                             <select className="input-control" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', width: 'auto', margin: 0, minWidth: '130px', fontWeight: 500 }} value={s.etapa} onChange={(e) => updateServiceStage(s.idServicio, e.target.value)}>
                               {STAGES.map(st => <option key={st} value={st}>{st}</option>)}
                             </select>
+
+                            {s.etapa === 'Por Cobrar' && (
+                              <button 
+                                className="btn btn-ghost" 
+                                style={{ padding: '0.4rem 0.6rem', color: '#60a5fa', border: '1px solid rgba(255,255,255,0.1)' }} 
+                                onClick={(e) => { e.stopPropagation(); handleSendCollectionEmail(s); }}
+                                title="Enviar correo de cobranza"
+                              >
+                                <Mail size={16}/>
+                              </button>
+                            )}
                             
                             <button 
                               className="btn" 
