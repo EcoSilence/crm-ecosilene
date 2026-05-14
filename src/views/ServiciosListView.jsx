@@ -64,7 +64,7 @@ const ServiciosListView = ({ type = 'normal' }) => {
     setIsPreviewModalOpen(true);
   };
 
-  // Sort services by date descending (newest first)
+  // Sort services by date ascending (oldest first)
   const filteredServicios = useMemo(() => {
     let base = (servicios || []);
     
@@ -77,7 +77,7 @@ const ServiciosListView = ({ type = 'normal' }) => {
     return base.sort((a, b) => {
       if (!a.fechaInicio) return 1;
       if (!b.fechaInicio) return -1;
-      return a.fechaInicio > b.fechaInicio ? -1 : 1;
+      return a.fechaInicio < b.fechaInicio ? -1 : 1;
     });
   }, [servicios, stage, type, isArchived]);
 

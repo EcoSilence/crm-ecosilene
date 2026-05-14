@@ -85,11 +85,11 @@ const KanbanBoard = () => {
       });
     }
 
-    // Ordenar de más reciente a más antiguo por defecto
+    // Ordenar de menor a mayor (más antiguo a más reciente)
     result.sort((a, b) => {
       if (!a.fechaInicio) return 1;
       if (!b.fechaInicio) return -1;
-      return a.fechaInicio > b.fechaInicio ? -1 : 1;
+      return a.fechaInicio < b.fechaInicio ? -1 : 1;
     });
 
     return result;
