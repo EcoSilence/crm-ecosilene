@@ -69,17 +69,13 @@ const Dashboard = () => {
   }, [filteredServicios, cotizaciones]);
 
   const chartData = useMemo(() => {
-    const counts = { Cotizado: 0, Aprobado: 0, 'Por Cobrar': 0, Pagado: 0 };
-    filteredServicios.forEach(s => {
-      if (counts[s.etapa] !== undefined) counts[s.etapa]++;
-    });
     return [
-      { name: 'Cotizado', pv: counts['Cotizado'], color: 'var(--color-banana)' },
-      { name: 'Aprobado', pv: counts['Aprobado'], color: 'var(--color-berry)' },
-      { name: 'Por Cobrar', pv: counts['Por Cobrar'], color: 'var(--color-tomato)' },
-      { name: 'Pagado', pv: counts['Pagado'], color: 'var(--color-basil)' },
+      { name: 'Cotizado', pv: kpis.cotizadoMonto, color: 'var(--color-banana)' },
+      { name: 'Aprobado', pv: kpis.aprobadoMonto, color: 'var(--color-berry)' },
+      { name: 'Por Cobrar', pv: kpis.porCobrarMonto, color: 'var(--color-tomato)' },
+      { name: 'Pagado', pv: kpis.pagadoMonto, color: 'var(--color-basil)' },
     ];
-  }, [filteredServicios]);
+  }, [kpis]);
 
   const formatCurrency = (val) => {
     try {
@@ -201,10 +197,25 @@ const Dashboard = () => {
           <h3 style={{ marginBottom: '1.5rem' }}>Distribución de Etapas</h3>
           <div style={{ height: '300px', width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 15, bottom: 5 }}>
                 <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip cursor={{ fill: 'var(--bg-panel-hover)' }} contentStyle={{ background: 'var(--bg-dark)', border: '1px solid var(--border-color)', borderRadius: '8px' }} />
+                <YAxis 
+                  stroke="var(--text-muted)" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  allowDecimals={false} 
+                  tickFormatter={(value) => {
+                    if (value >= 1000000) return `$${(value / 1000000).toFixed(0)}M`;
+                    if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
+                    return `$${value}`;
+                  }}
+                />
+                <Tooltip 
+                  cursor={{ fill: 'var(--bg-panel-hover)' }} 
+                  contentStyle={{ background: 'var(--bg-dark)', border: '1px solid var(--border-color)', borderRadius: '8px' }} 
+                  formatter={(value) => [formatCurrency(value), 'Monto Total']}
+                />
                 <Bar dataKey="pv" radius={[4, 4, 0, 0]}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
