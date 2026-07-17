@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.jsx'
 import { AppDataProvider } from './context/AppDataContext.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
+import { MarketingSchedulerProvider } from './context/MarketingSchedulerContext.jsx'
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -42,7 +43,9 @@ createRoot(document.getElementById('root')).render(
     <ErrorBoundary>
       <ToastProvider>
         <AppDataProvider>
-          <App />
+          <MarketingSchedulerProvider>
+            <App />
+          </MarketingSchedulerProvider>
         </AppDataProvider>
       </ToastProvider>
     </ErrorBoundary>

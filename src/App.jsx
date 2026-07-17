@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAppStore } from './context/AppDataContext'
 import { useToast } from './context/ToastContext'
-import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronDown, CalendarDays, Archive, Megaphone } from 'lucide-react'
+import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronDown, CalendarDays, Archive, Megaphone, Mail } from 'lucide-react'
 
 import Dashboard from './views/Dashboard'
 import KanbanBoard from './views/KanbanBoard'
@@ -12,6 +12,8 @@ import ServiciosListView from './views/ServiciosListView'
 import NuevoServicioView from './views/NuevoServicioView'
 import MarketingView from './views/MarketingView'
 import SettingsView from './views/SettingsView'
+import MarketingSchedulerView from './views/MarketingSchedulerView'
+import MassEmailView from './views/MassEmailView'
 
 function App() {
   const { 
@@ -39,6 +41,8 @@ function App() {
     { id: 'inventario', name: menuNames.inventario || 'Inventario', icon: Package },
     { id: 'cotizaciones', name: menuNames.cotizaciones || 'Cotizaciones', icon: FileText },
     { id: 'marketing', name: menuNames.marketing || 'Marketing & Growth', icon: Megaphone },
+    { id: 'planificador_marketing', name: menuNames.planificador_marketing || 'Planificador de Contenidos', icon: CalendarDays },
+    { id: 'envio_masivo', name: menuNames.envio_masivo || 'Envío de Correos Masivo', icon: Mail },
     { id: 'archivados', name: menuNames.archivados || 'Archivados sin Aprobar', icon: Archive },
   ]
 
@@ -53,6 +57,8 @@ function App() {
       case 'archivados': return <ServiciosListView type="archivados" />
       case 'nuevo-servicio': return <NuevoServicioView />
       case 'marketing': return <MarketingView />
+      case 'planificador_marketing': return <MarketingSchedulerView />
+      case 'envio_masivo': return <MassEmailView />
       case 'configuracion': return <SettingsView />
       default: return <Dashboard />
     }
