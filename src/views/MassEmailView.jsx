@@ -23,6 +23,12 @@ const MassEmailView = () => {
   const [ctaLink, setCtaLink] = useState('https://ecosilence.cl');
   const [templateDesign, setTemplateDesign] = useState('lanzamiento');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [styles, setStyles] = useState({
+    bannerTitle: { fontFamily: 'Arial', fontSize: 28, color: '#ffffff', bold: true, italic: false, underline: false, align: 'center' },
+    heading: { fontFamily: 'Arial', fontSize: 20, color: '#ffffff', bold: true, italic: false, underline: false, align: 'center' },
+    bodyText: { fontFamily: 'Arial', fontSize: 14, color: '#a0aec0', bold: false, italic: false, underline: false, align: 'center' },
+    ctaText: { fontFamily: 'Arial', fontSize: 14, color: '#ffffff', bold: true, italic: false, underline: false, align: 'center' }
+  });
 
   // Estados de Envío y Progreso
   const [isSending, setIsSending] = useState(false);
@@ -36,6 +42,24 @@ const MassEmailView = () => {
     const imageTag = imageUrl 
       ? `<img src="${imageUrl}" alt="Flyer del Evento" width="540" style="display:block;max-width:100%;height:auto;border-radius:8px;border:0;margin:0 auto;" />`
       : '';
+
+    const getInlineStyle = (element) => {
+      const s = styles[element] || {};
+      const font = s.fontFamily || 'Arial';
+      const size = s.fontSize || (element === 'bannerTitle' ? 28 : element === 'heading' ? 20 : 14);
+      
+      let color = s.color || 'inherit';
+      if (templateDesign !== 'lanzamiento') {
+        if (element === 'heading' && color === '#ffffff') color = '#1a202c';
+        if (element === 'bodyText' && color === '#a0aec0') color = '#4a5568';
+      }
+      
+      const boldStyle = s.bold ? 'bold' : 'normal';
+      const italicStyle = s.italic ? 'italic' : 'normal';
+      const underlineStyle = s.underline ? 'underline' : 'none';
+      const alignStyle = s.align || 'center';
+      return `font-family:${font}, sans-serif; font-size:${size}px; color:${color}; font-weight:${boldStyle}; font-style:${italicStyle}; text-decoration:${underlineStyle}; text-align:${alignStyle};`;
+    };
 
     // Plantilla 1: Lanzamiento / Experiencia Visual (Estilo Canva Minimalista - Oscuro)
     if (templateDesign === 'lanzamiento') {
@@ -54,14 +78,14 @@ const MassEmailView = () => {
           <!-- Banner Superior -->
           <tr>
             <td align="center" style="${bannerStyle}padding:50px 20px;text-align:center;">
-              <h1 style="color:#ffffff;font-size:36px;margin:0;font-weight:900;letter-spacing:1px;text-transform:uppercase;text-shadow:0 2px 4px rgba(0,0,0,0.2);">${bannerTitle}</h1>
+              <h1 style="${getInlineStyle('bannerTitle')} margin:0; letter-spacing:1px; text-transform:uppercase; text-shadow:0 2px 4px rgba(0,0,0,0.2);">${bannerTitle}</h1>
             </td>
           </tr>
           <!-- Contenido Principal -->
           <tr>
             <td style="padding:45px 30px;color:#ffffff;">
-              <h2 style="color:#ffffff;font-size:24px;margin:0 0 16px;font-weight:bold;text-align:center;line-height:1.3;">${heading}</h2>
-              <p style="color:#a0aec0;font-size:16px;line-height:1.7;margin:0 0 30px;text-align:center;">${bodyText.replace(/\n/g, '<br />')}</p>
+              <h2 style="${getInlineStyle('heading')} margin:0 0 16px; line-height:1.3;">${heading}</h2>
+              <p style="${getInlineStyle('bodyText')} line-height:1.7; margin:0 0 30px;">${bodyText.replace(/\n/g, '<br />')}</p>
               
               <!-- Imagen Héroe -->
               ${imageUrl ? `<div style="text-align:center;margin-bottom:30px;">${imageTag}</div>` : ''}
@@ -70,7 +94,7 @@ const MassEmailView = () => {
               <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin-top:20px;">
                 <tr>
                   <td align="center" bgcolor="#2563eb" style="border-radius:30px;overflow:hidden;">
-                    <a href="${ctaLink}" target="_blank" style="font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;padding:16px 36px;display:inline-block;letter-spacing:0.5px;">
+                    <a href="${ctaLink}" target="_blank" style="${getInlineStyle('ctaText')} text-decoration:none; padding:16px 36px; display:inline-block; letter-spacing:0.5px;">
                       ${ctaText}
                     </a>
                   </td>
@@ -121,14 +145,14 @@ const MassEmailView = () => {
           <!-- Banner -->
           <tr>
             <td style="${bannerStyle}padding:40px 30px;color:#ffffff;">
-              <h1 style="font-size:28px;margin:0;font-weight:bold;text-shadow:0 1px 3px rgba(0,0,0,0.15);">${bannerTitle}</h1>
+              <h1 style="${getInlineStyle('bannerTitle')} margin:0; text-shadow:0 1px 3px rgba(0,0,0,0.15);">${bannerTitle}</h1>
             </td>
           </tr>
           <!-- Mensaje Principal -->
           <tr>
             <td style="padding:30px 30px 10px 30px;color:#2d3748;">
-              <h2 style="font-size:20px;color:#1a202c;margin:0 0 12px;font-weight:700;">${heading}</h2>
-              <p style="font-size:15px;line-height:1.6;color:#4a5568;margin:0 0 20px;">${bodyText.replace(/\n/g, '<br />')}</p>
+              <h2 style="${getInlineStyle('heading')} margin:0 0 12px;">${heading}</h2>
+              <p style="${getInlineStyle('bodyText')} line-height:1.6; margin:0 0 20px;">${bodyText.replace(/\n/g, '<br />')}</p>
             </td>
           </tr>
           <!-- Cuadrícula 2 Columnas -->
@@ -160,7 +184,7 @@ const MassEmailView = () => {
               <table cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
                   <td align="center" bgcolor="#1a202c" style="border-radius:4px;">
-                    <a href="${ctaLink}" target="_blank" style="font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;padding:14px 24px;display:block;">
+                    <a href="${ctaLink}" target="_blank" style="${getInlineStyle('ctaText')} text-decoration:none; padding:14px 24px; display:block;">
                       ${ctaText}
                     </a>
                   </td>
@@ -204,14 +228,14 @@ const MassEmailView = () => {
           <!-- Header -->
           <tr>
             <td align="center" style="padding:30px 20px 20px 20px;border-bottom:1px solid #edf2f7;">
-              <h1 style="color:#1a202c;font-size:24px;margin:0;font-weight:bold;font-family:Georgia,serif;letter-spacing:0.5px;">${bannerTitle}</h1>
+              <h1 style="${getInlineStyle('bannerTitle')} margin:0; letter-spacing:0.5px;">${bannerTitle}</h1>
             </td>
           </tr>
           <!-- Cuerpo -->
           <tr>
             <td style="padding:35px 30px;color:#2d3748;">
-              <h2 style="font-size:18px;color:#2d3748;margin:0 0 16px;font-weight:bold;">${heading}</h2>
-              <p style="font-size:14px;line-height:1.6;color:#4a5568;margin:0 0 24px;">${bodyText.replace(/\n/g, '<br />')}</p>
+              <h2 style="${getInlineStyle('heading')} margin:0 0 16px;">${heading}</h2>
+              <p style="${getInlineStyle('bodyText')} line-height:1.6; margin:0 0 24px;">${bodyText.replace(/\n/g, '<br />')}</p>
               
               <!-- Recuadro Detalle Destacado -->
               <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#f7fafc" style="border:1px dashed #cbd5e0;border-radius:6px;margin-bottom:24px;">
@@ -241,7 +265,7 @@ const MassEmailView = () => {
 
               <!-- Enlace CTA -->
               <div style="text-align:center;margin-top:10px;">
-                <a href="${ctaLink}" target="_blank" style="font-size:15px;font-weight:bold;color:#2563eb;text-decoration:underline;">
+                <a href="${ctaLink}" target="_blank" style="${getInlineStyle('ctaText')} text-decoration:underline; display:inline-block;">
                   ${ctaText} &rarr;
                 </a>
               </div>
@@ -259,7 +283,7 @@ const MassEmailView = () => {
   </table>
 </body>
 </html>`;
-  }, [bannerTitle, bannerGradient, heading, bodyText, imageUrl, ctaText, ctaLink, subject, templateDesign]);
+  }, [bannerTitle, bannerGradient, heading, bodyText, imageUrl, ctaText, ctaLink, subject, templateDesign, styles]);
 
   const editorData = {
     subject,
@@ -270,7 +294,8 @@ const MassEmailView = () => {
     imageUrl,
     ctaText,
     ctaLink,
-    templateDesign
+    templateDesign,
+    styles
   };
 
   const handleEditorChange = (newData) => {
@@ -283,6 +308,7 @@ const MassEmailView = () => {
     if (newData.ctaText !== undefined) setCtaText(newData.ctaText);
     if (newData.ctaLink !== undefined) setCtaLink(newData.ctaLink);
     if (newData.templateDesign !== undefined) setTemplateDesign(newData.templateDesign);
+    if (newData.styles !== undefined) setStyles(newData.styles);
   };
 
   const handleSelectAll = () => {
