@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAppStore } from './context/AppDataContext'
 import { useToast } from './context/ToastContext'
-import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronDown, CalendarDays, Archive, Megaphone, Mail } from 'lucide-react'
+import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronLeft, ChevronDown, CalendarDays, Archive, Megaphone, Mail } from 'lucide-react'
 
 import Dashboard from './views/Dashboard'
 import KanbanBoard from './views/KanbanBoard'
@@ -28,6 +28,15 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebar = () => {
+    const newVal = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newVal);
+    localStorage.setItem('sidebar_collapsed', String(newVal));
+  };
 
   const monthNames = {
     '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril', '05': 'Mayo', '06': 'Junio',
@@ -71,20 +80,49 @@ function App() {
         onClick={() => setIsMobileMenuOpen(false)}
         style={{ display: isMobileMenuOpen ? 'block' : 'none' }}
       ></div>
-      <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-        <div style={{ padding: '0.5rem 0 2rem 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', color: '#fff' }}>
-            ES
+      <aside 
+        className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}
+        style={{ 
+          width: isSidebarCollapsed ? '80px' : '260px', 
+          padding: isSidebarCollapsed ? '1.5rem 0.5rem' : '1.5rem',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+        }}
+      >
+        <div style={{ padding: '0.5rem 0 2rem 0', display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'space-between', gap: '10px', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', color: '#fff', flexShrink: 0 }}>
+              ES
+            </div>
+            {!isSidebarCollapsed && (
+              <h2 style={{ fontSize: '1.2rem', fontWeight: '700', letterSpacing: '1px', margin: 0 }}>
+                ECO<span style={{ color: 'var(--accent-primary)' }}>SILENCE</span>
+              </h2>
+            )}
           </div>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: '700', letterSpacing: '1px' }}>
-            ECO<span style={{ color: 'var(--accent-primary)' }}>SILENCE</span>
-          </h2>
+          <button 
+            onClick={toggleSidebar} 
+            className="btn btn-ghost" 
+            title={isSidebarCollapsed ? "Expandir Menú" : "Minimizar Menú"}
+            style={{ 
+              padding: '6px', 
+              borderRadius: '50%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--text-muted)'
+            }}
+          >
+            {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
         </div>
 
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
-          <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Menu Principal
-          </p>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, overflowX: 'hidden' }}>
+          {!isSidebarCollapsed && (
+            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Menu Principal
+            </p>
+          )}
           {navigation.map((item) => {
             const isActive = currentView === item.id;
             const isEditing = editingMenu === item.id;
@@ -92,7 +130,7 @@ function App() {
             return (
               <div key={item.id} style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                {isEditing ? (
+                {isEditing && !isSidebarCollapsed ? (
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px', padding: '0.6rem 1rem', background: 'var(--bg-panel-hover)', borderRadius: 'var(--radius-sm)' }}>
                      <item.icon size={20} color="var(--accent-primary)" />
                      <input 
@@ -114,13 +152,15 @@ function App() {
                       navigate(item.id);
                       setIsMobileMenuOpen(false);
                     }}
-                    title="Doble clic para renombrar"
+                    title={isSidebarCollapsed ? item.name : "Doble clic para renombrar"}
                     onDoubleClick={() => {
+                      if (!isSidebarCollapsed) {
                         setTempName(item.name);
                         setEditingMenu(item.id);
+                      }
                     }}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: '12px', padding: '0.8rem 1rem', flex: 1,
+                      display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '12px', padding: isSidebarCollapsed ? '0.8rem 0' : '0.8rem 1rem', flex: 1,
                       borderRadius: 'var(--radius-sm)', background: isActive ? 'var(--bg-panel-hover)' : 'transparent',
                       color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
                       border: '1px solid', borderColor: isActive ? 'var(--border-color)' : 'transparent',
@@ -128,24 +168,26 @@ function App() {
                       fontSize: '0.95rem', fontWeight: isActive ? 600 : 500, outline: 'none'
                     }}
                   >
-                    <item.icon size={20} color={isActive ? 'var(--accent-primary)' : 'currentColor'} />
-                    <span style={{ flex: 1 }}>{item.name}</span>
-                    <div 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTempName(item.name);
-                        setEditingMenu(item.id);
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.2rem', borderRadius: '4px' }}
-                    >
-                      <Edit2 size={12} color="var(--text-muted)" style={{ opacity: 0.8 }} />
-                    </div>
+                    <item.icon size={20} color={isActive ? 'var(--accent-primary)' : 'currentColor'} style={{ flexShrink: 0 }} />
+                    {!isSidebarCollapsed && <span style={{ flex: 1 }}>{item.name}</span>}
+                    {!isSidebarCollapsed && (
+                      <div 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTempName(item.name);
+                          setEditingMenu(item.id);
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.2rem', borderRadius: '4px' }}
+                      >
+                        <Edit2 size={12} color="var(--text-muted)" style={{ opacity: 0.8 }} />
+                      </div>
+                    )}
                   </button>
                 )}
                 </div>
 
                 {/* Kanban Submenu */}
-                {item.id === 'kanban' && currentView === 'kanban' && (
+                {item.id === 'kanban' && currentView === 'kanban' && !isSidebarCollapsed && (
                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', paddingLeft: '0.5rem', marginTop: '0.2rem', borderLeft: '2px solid rgba(255,255,255,0.05)', marginLeft: '1rem', marginBottom: '0.5rem' }}>
                       {kanbanGroupedData.sinFecha.length > 0 && (
                         <div 
@@ -188,7 +230,7 @@ function App() {
                                      </span>
                                    </div>
                                  );
-                               })}
+                                })}
                              </div>
                            )}
                         </div>
@@ -197,7 +239,7 @@ function App() {
                 )}
 
                 {/* Marketing Submenu */}
-                {item.id === 'marketing' && currentView === 'marketing' && (
+                {item.id === 'marketing' && currentView === 'marketing' && !isSidebarCollapsed && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', paddingLeft: '0.5rem', marginTop: '0.2rem', borderLeft: '2px solid rgba(255,255,255,0.05)', marginLeft: '1rem', marginBottom: '0.5rem' }}>
                     {(marketingAccounts || []).map(account => {
                       const isSelected = selectedMarketingAccount === account;
@@ -238,17 +280,19 @@ function App() {
         <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <button 
             className="btn btn-ghost" 
-            style={{ justifyContent: 'flex-start', background: currentView === 'configuracion' ? 'var(--bg-panel-hover)' : 'transparent' }}
+            title="Configuración"
+            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', background: currentView === 'configuracion' ? 'var(--bg-panel-hover)' : 'transparent', padding: isSidebarCollapsed ? '0.8rem 0' : '0.8rem 1rem' }}
             onClick={() => navigate('configuracion')}
           >
-            <Settings size={18}/> Configuración
+            <Settings size={18}/> {!isSidebarCollapsed && 'Configuración'}
           </button>
           <button 
             className="btn btn-ghost" 
-            style={{ justifyContent: 'flex-start', color: 'var(--color-tomato)' }}
+            title="Cerrar Sesión"
+            style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', color: 'var(--color-tomato)', padding: isSidebarCollapsed ? '0.8rem 0' : '0.8rem 1rem' }}
             onClick={() => { if(confirm('¿Seguro que deseas cerrar sesión?')) logout(); }}
           >
-            <LogOut size={18}/> Cerrar Sesión
+            <LogOut size={18}/> {!isSidebarCollapsed && 'Cerrar Sesión'}
           </button>
         </div>
       </aside>
