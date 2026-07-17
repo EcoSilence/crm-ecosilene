@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { Layout, Image as ImageIcon, Type, UploadCloud, Trash2, Link, Search, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, AlignJustify, Plus, Minus } from 'lucide-react';
+import { Layout, Image as ImageIcon, Type, UploadCloud, Trash2, Link, Search, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, AlignJustify, Plus, Minus, Sparkles } from 'lucide-react';
 import { emailTemplates } from '../data/emailTemplatesData';
+import { generateDesignFromPrompt } from '../services/aiDesignGenerator';
 
 const CanvaEmailEditor = ({ data, onChange }) => {
   const [activeTab, setActiveTab] = useState('plantillas'); // 'plantillas' | 'elementos' | 'subidos'
   const [searchTerm, setSearchTerm] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([
     { id: '1', url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500', name: 'Silent Party.jpg' },
     { id: '2', url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500', name: 'Concierto LED.jpg' }
@@ -56,7 +58,7 @@ const CanvaEmailEditor = ({ data, onChange }) => {
     };
   };
 
-  // Filtrado de Plantillas por Buscador
+  // Filtrado de Plantillas Estáticas por Buscador
   const filteredTemplates = emailTemplates.filter(tpl => {
     const term = searchTerm.toLowerCase();
     return (
@@ -78,6 +80,19 @@ const CanvaEmailEditor = ({ data, onChange }) => {
       templateDesign: tpl.templateDesign,
       imageUrl: tpl.imageUrl
     });
+  };
+
+  const handleAIGenerate = () => {
+    if (!searchTerm.trim()) return;
+    setIsGenerating(true);
+    setTimeout(() => {
+      const result = generateDesignFromPrompt(searchTerm);
+      onChange({
+        ...data,
+        ...result
+      });
+      setIsGenerating(false);
+    }, 1000); // 1-second dynamic transition delay for premium feeling
   };
 
   const updateField = (field, value) => {
@@ -216,23 +231,77 @@ const CanvaEmailEditor = ({ data, onChange }) => {
       >
         {activeTab === 'plantillas' && (
           <>
-            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold' }}>Plantillas de EcoSilence</h4>
+            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold' }}>Generador con IA</h4>
             
-            {/* Buscador Inteligente */}
-            <div style={{ position: 'relative' }}>
-              <input 
-                type="text" 
-                className="input-control" 
-                placeholder="Buscar plantillas... (ej: stock)" 
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                style={{ paddingLeft: '2.2rem', fontSize: '0.8rem' }}
-              />
-              <Search size={16} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            {/* Buscador Inteligente con Prompt de IA */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ position: 'relative' }}>
+                <textarea 
+                  className="input-control" 
+                  rows={3}
+                  placeholder="Describe el diseño... (ej: 'Necesito un mail elegante para anunciar aumento de stock de audífonos')" 
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  style={{ paddingLeft: '2.2rem', fontSize: '0.8rem', resize: 'vertical', width: '100%', fontFamily: 'inherit', paddingRight: '0.8rem' }}
+                />
+                <Sparkles size={16} style={{ position: 'absolute', left: '0.8rem', top: '12px', color: 'var(--accent-primary)' }} />
+              </div>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleAIGenerate}
+                disabled={isGenerating || !searchTerm.trim()}
+                style={{ width: '100%', fontSize: '0.8rem', height: '35px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+              >
+                <Sparkles size={14} /> Generar Diseño con IA
+              </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '0.5rem' }}>
-              {filteredTemplates.map(tpl => (
+            {/* Sugerencias de IA */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>Sugerencias de Prompts:</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {[
+                  "Anuncio de stock de audífonos 3 canales en Santiago",
+                  "Instructivo paso a paso de cómo agendar servicio",
+                  "Promoción de cine al aire libre en Valparaíso",
+                  "Clase de yoga y meditación outdoor"
+                ].map((promptText, i) => (
+                  <button 
+                    key={i}
+                    onClick={() => {
+                      setSearchTerm(promptText);
+                      setIsGenerating(true);
+                      setTimeout(() => {
+                        const result = generateDesignFromPrompt(promptText);
+                        onChange({ ...data, ...result });
+                        setIsGenerating(false);
+                      }, 1000);
+                    }}
+                    style={{ 
+                      background: 'rgba(255,255,255,0.02)', 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: '6px', 
+                      padding: '6px 10px', 
+                      fontSize: '0.7rem', 
+                      color: 'var(--text-muted)',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      width: '100%',
+                      outline: 'none'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.color = '#fff'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                  >
+                    💡 "{promptText}"
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <h5 style={{ margin: '1rem 0 0 0', fontSize: '0.8rem', fontWeight: 'bold', borderTop: '1px solid var(--border-color)', paddingTop: '0.8rem' }}>Resultados de Biblioteca</h5>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              {filteredTemplates.slice(0, 5).map(tpl => (
                 <div 
                   key={tpl.id} 
                   onClick={() => loadTemplate(tpl)}
@@ -262,9 +331,6 @@ const CanvaEmailEditor = ({ data, onChange }) => {
                   <div style={{ height: '4px', background: tpl.bannerGradient, borderRadius: '2px', marginTop: '6px' }} />
                 </div>
               ))}
-              {filteredTemplates.length === 0 && (
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>No se encontraron plantillas.</span>
-              )}
             </div>
           </>
         )}
@@ -551,10 +617,20 @@ const CanvaEmailEditor = ({ data, onChange }) => {
             justifyContent: 'center', 
             alignItems: 'flex-start',
             overflowY: 'auto',
-            padding: '1rem 0'
+            padding: '1rem 0',
+            position: 'relative'
           }}
         >
           
+          {/* OVERLAY DE CARGA DE IA */}
+          {isGenerating && (
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 30, gap: '1rem', color: '#fff', borderRadius: '12px' }}>
+              <Sparkles className="animate-spin" size={48} color="var(--accent-primary)" style={{ animationDuration: '3s' }} />
+              <strong style={{ fontSize: '1rem' }}>Diseñando con Inteligencia Artificial...</strong>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Creando copys y estructurando el lienzo...</span>
+            </div>
+          )}
+
           {/* LIENZO REAL (MIMIC DE CORREO ELECTRONICO) */}
           <div 
             style={{ 
