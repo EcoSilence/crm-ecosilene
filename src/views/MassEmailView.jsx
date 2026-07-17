@@ -3,6 +3,7 @@ import { useAppStore } from '../context/AppDataContext';
 import { useToast } from '../context/ToastContext';
 import { sendMassEmailsInBatches } from '../services/GoogleMailService';
 import { Mail, Users, Check, AlertCircle, RefreshCw, Send, Image as ImageIcon, Layout, Eye, HelpCircle } from 'lucide-react';
+import CanvaEmailEditor from './CanvaEmailEditor';
 
 const MassEmailView = () => {
   const { clientes, isGoogleLinked, linkGoogle } = useAppStore();
@@ -259,6 +260,30 @@ const MassEmailView = () => {
 </html>`;
   }, [bannerTitle, bannerGradient, heading, bodyText, imageUrl, ctaText, ctaLink, subject, templateDesign]);
 
+  const editorData = {
+    subject,
+    bannerTitle,
+    bannerGradient,
+    heading,
+    bodyText,
+    imageUrl,
+    ctaText,
+    ctaLink,
+    templateDesign
+  };
+
+  const handleEditorChange = (newData) => {
+    if (newData.subject !== undefined) setSubject(newData.subject);
+    if (newData.bannerTitle !== undefined) setBannerTitle(newData.bannerTitle);
+    if (newData.bannerGradient !== undefined) setBannerGradient(newData.bannerGradient);
+    if (newData.heading !== undefined) setHeading(newData.heading);
+    if (newData.bodyText !== undefined) setBodyText(newData.bodyText);
+    if (newData.imageUrl !== undefined) setImageUrl(newData.imageUrl);
+    if (newData.ctaText !== undefined) setCtaText(newData.ctaText);
+    if (newData.ctaLink !== undefined) setCtaLink(newData.ctaLink);
+    if (newData.templateDesign !== undefined) setTemplateDesign(newData.templateDesign);
+  };
+
   const handleSelectAll = () => {
     if (selectedClientes.length === clientes.length) {
       setSelectedClientes([]);
@@ -392,100 +417,8 @@ const MassEmailView = () => {
                       onChange={e => setSubject(e.target.value)} 
                     />
                   </div>
-                  <div>
-                    <label className="input-label" style={{ marginBottom: '0.3rem', display: 'block' }}>Diseño Estructural de la Plantilla</label>
-                    <select 
-                      className="input-control" 
-                      value={templateDesign} 
-                      onChange={e => setTemplateDesign(e.target.value)}
-                      style={{ marginBottom: '1rem' }}
-                    >
-                      <option value="lanzamiento">Lanzamiento / Experiencia Visual (Estilo Canva Minimalista - Oscuro)</option>
-                      <option value="catalogo">Catálogo Técnico / Corporativo (Estilo GoDaddy - Claro)</option>
-                      <option value="informativo">Informativo / Reserva y Agenda (Elegante y Compacto)</option>
-                    </select>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                    <div>
-                      <label className="input-label" style={{ marginBottom: '0.3rem', display: 'block' }}>Título del Banner</label>
-                      <input 
-                        type="text" 
-                        className="input-control" 
-                        value={bannerTitle} 
-                        onChange={e => setBannerTitle(e.target.value)} 
-                      />
-                    </div>
-                    <div>
-                      <label className="input-label" style={{ marginBottom: '0.3rem', display: 'block' }}>Fondo Gradiente del Banner</label>
-                      <select 
-                        className="input-control" 
-                        value={bannerGradient} 
-                        onChange={e => setBannerGradient(e.target.value)}
-                      >
-                        <option value="linear-gradient(135deg,#667eea,#764ba2)">Púrpura Elegante</option>
-                        <option value="linear-gradient(135deg,#203a43,#2c5364)">Azul Profundo</option>
-                        <option value="linear-gradient(135deg,#1f4037,#99f2c8)">Verde EcoSilence</option>
-                        <option value="linear-gradient(135deg,#e74c3c,#c0392b)">Rojo Eventos</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="input-label" style={{ marginBottom: '0.3rem', display: 'block' }}>Encabezado Principal del Mensaje</label>
-                    <input 
-                      type="text" 
-                      className="input-control" 
-                      value={heading} 
-                      onChange={e => setHeading(e.target.value)} 
-                    />
-                  </div>
-
-                  <div>
-                    <label className="input-label" style={{ marginBottom: '0.3rem', display: 'block' }}>Cuerpo / Mensaje Principal</label>
-                    <textarea 
-                      className="input-control" 
-                      rows={5} 
-                      placeholder="Redacta el mensaje del correo electrónico..."
-                      style={{ resize: 'vertical', width: '100%', fontFamily: 'inherit', padding: '0.8rem' }}
-                      value={bodyText} 
-                      onChange={e => setBodyText(e.target.value)} 
-                    />
-                  </div>
-
-                  <div>
-                    <label className="input-label" style={{ marginBottom: '0.3rem', display: 'block', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <ImageIcon size={14} /> URL del Flyer / Imagen Promocional (Opcional)
-                    </label>
-                    <input 
-                      type="text" 
-                      className="input-control" 
-                      placeholder="https://ejemplo.com/flyer-evento.jpg" 
-                      value={imageUrl} 
-                      onChange={e => setImageUrl(e.target.value)} 
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                    <div>
-                      <label className="input-label" style={{ marginBottom: '0.3rem', display: 'block' }}>Texto del Botón CTA</label>
-                      <input 
-                        type="text" 
-                        className="input-control" 
-                        value={ctaText} 
-                        onChange={e => setCtaText(e.target.value)} 
-                      />
-                    </div>
-                    <div>
-                      <label className="input-label" style={{ marginBottom: '0.3rem', display: 'block' }}>Enlace del Botón CTA</label>
-                      <input 
-                        type="text" 
-                        className="input-control" 
-                        value={ctaLink} 
-                        onChange={e => setCtaLink(e.target.value)} 
-                      />
-                    </div>
-                  </div>
+                  
+                  <CanvaEmailEditor data={editorData} onChange={handleEditorChange} />
                 </div>
               )}
 
