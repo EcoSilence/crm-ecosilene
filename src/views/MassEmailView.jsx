@@ -20,6 +20,7 @@ const MassEmailView = () => {
   const [imageUrl, setImageUrl] = useState('');
   const [ctaText, setCtaText] = useState('Visitar EcoSilence');
   const [ctaLink, setCtaLink] = useState('https://ecosilence.cl');
+  const [templateDesign, setTemplateDesign] = useState('lanzamiento');
 
   // Estados de Envío y Progreso
   const [isSending, setIsSending] = useState(false);
@@ -28,13 +29,160 @@ const MassEmailView = () => {
   const [sendingLogs, setSendingLogs] = useState([]);
   const [activeTab, setActiveTab] = useState('compose'); // 'compose' | 'recipients' | 'preview'
 
-  // Generar HTML completo con las reglas de email-design
   const compiledHtml = useMemo(() => {
     const bannerStyle = `background: ${bannerGradient};`;
     const imageTag = imageUrl 
-      ? `<div style="text-align:center;padding:10px 0;"><img src="${imageUrl}" alt="Flyer del Evento" width="560" style="display:block;max-width:100%;height:auto;border-radius:8px;border:0;margin:0 auto;" /></div>`
+      ? `<img src="${imageUrl}" alt="Flyer del Evento" width="540" style="display:block;max-width:100%;height:auto;border-radius:8px;border:0;margin:0 auto;" />`
       : '';
 
+    // Plantilla 1: Lanzamiento / Experiencia Visual (Estilo Canva Minimalista - Oscuro)
+    if (templateDesign === 'lanzamiento') {
+      return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject || 'EcoSilence Newsletter'}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#1a1a2e;font-family:Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a1a2e">
+    <tr>
+      <td align="center" style="padding:40px 10px;">
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color:#161625;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);">
+          <!-- Banner Superior -->
+          <tr>
+            <td align="center" style="${bannerStyle}padding:50px 20px;text-align:center;">
+              <h1 style="color:#ffffff;font-size:36px;margin:0;font-weight:900;letter-spacing:1px;text-transform:uppercase;text-shadow:0 2px 4px rgba(0,0,0,0.2);">${bannerTitle}</h1>
+            </td>
+          </tr>
+          <!-- Contenido Principal -->
+          <tr>
+            <td style="padding:45px 30px;color:#ffffff;">
+              <h2 style="color:#ffffff;font-size:24px;margin:0 0 16px;font-weight:bold;text-align:center;line-height:1.3;">${heading}</h2>
+              <p style="color:#a0aec0;font-size:16px;line-height:1.7;margin:0 0 30px;text-align:center;">${bodyText.replace(/\n/g, '<br />')}</p>
+              
+              <!-- Imagen Héroe -->
+              ${imageUrl ? `<div style="text-align:center;margin-bottom:30px;">${imageTag}</div>` : ''}
+              
+              <!-- Botón Central -->
+              <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin-top:20px;">
+                <tr>
+                  <td align="center" bgcolor="#2563eb" style="border-radius:30px;overflow:hidden;">
+                    <a href="${ctaLink}" target="_blank" style="font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;padding:16px 36px;display:inline-block;letter-spacing:0.5px;">
+                      ${ctaText}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding:30px;background-color:#0f0f1b;font-size:12px;color:#718096;text-align:center;border-top:1px solid rgba(255,255,255,0.05);">
+              <p style="margin:0 0 8px 0;"><strong>EcoSilence CRM</strong> — Premium Silent Experiences</p>
+              <p style="margin:0;">Recibiste este correo porque estás registrado en nuestra base de datos. <a href="#" style="color:#2563eb;text-decoration:underline;">Anular suscripción</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+    }
+
+    // Plantilla 2: Catálogo Técnico / Corporativo (Estilo GoDaddy - Claro)
+    if (templateDesign === 'catalogo') {
+      return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject || 'EcoSilence Newsletter'}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f7fafc;font-family:Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#f7fafc">
+    <tr>
+      <td align="center" style="padding:30px 10px;">
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
+          <!-- Top Header -->
+          <tr>
+            <td style="padding:20px 30px;border-bottom:1px solid #edf2f7;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td><strong style="font-size:18px;color:#2d3748;letter-spacing:1px;">ECOSILENCE</strong></td>
+                  <td align="right"><span style="font-size:12px;color:#718096;text-transform:uppercase;">Catálogo de Servicios</span></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Banner -->
+          <tr>
+            <td style="${bannerStyle}padding:40px 30px;color:#ffffff;">
+              <h1 style="font-size:28px;margin:0;font-weight:bold;text-shadow:0 1px 3px rgba(0,0,0,0.15);">${bannerTitle}</h1>
+            </td>
+          </tr>
+          <!-- Mensaje Principal -->
+          <tr>
+            <td style="padding:30px 30px 10px 30px;color:#2d3748;">
+              <h2 style="font-size:20px;color:#1a202c;margin:0 0 12px;font-weight:700;">${heading}</h2>
+              <p style="font-size:15px;line-height:1.6;color:#4a5568;margin:0 0 20px;">${bodyText.replace(/\n/g, '<br />')}</p>
+            </td>
+          </tr>
+          <!-- Cuadrícula 2 Columnas -->
+          <tr>
+            <td style="padding:0 30px 30px 30px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <!-- Columna 1 -->
+                  <td width="260" valign="top" style="background-color:#f8fafc;padding:15px;border-radius:6px;border:1px solid #edf2f7;">
+                    ${imageUrl ? `<div style="text-align:center;margin-bottom:12px;">${imageTag}</div>` : ''}
+                    <h3 style="font-size:16px;margin:0 0 8px;color:#2d3748;font-weight:bold;">Equipamiento Premium</h3>
+                    <p style="font-size:13px;color:#718096;margin:0;line-height:1.4;">Audífonos de tres canales con luces LED integradas y transmisión de largo alcance sin interferencias.</p>
+                  </td>
+                  <!-- Separador -->
+                  <td width="20">&nbsp;</td>
+                  <!-- Columna 2 -->
+                  <td width="260" valign="top" style="background-color:#f8fafc;padding:15px;border-radius:6px;border:1px solid #edf2f7;">
+                    <div style="background-color:#2563eb;color:#ffffff;font-size:11px;font-weight:bold;padding:3px 8px;border-radius:12px;display:inline-block;margin-bottom:12px;text-transform:uppercase;">Destacado</div>
+                    <h3 style="font-size:16px;margin:0 0 8px;color:#2d3748;font-weight:bold;">Entregabilidad y Calidad</h3>
+                    <p style="font-size:13px;color:#718096;margin:0;line-height:1.4;">Soporte técnico dedicado, transmisores de alta fidelidad y logística adaptada para eventos de cualquier tamaño.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- CTA -->
+          <tr>
+            <td align="center" style="padding:0 30px 35px 30px;border-bottom:1px solid #edf2f7;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td align="center" bgcolor="#1a202c" style="border-radius:4px;">
+                    <a href="${ctaLink}" target="_blank" style="font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;padding:14px 24px;display:block;">
+                      ${ctaText}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer Corporativo -->
+          <tr>
+            <td align="center" style="padding:25px 30px;background-color:#f7fafc;font-size:11px;color:#a0aec0;text-align:center;">
+              <p style="margin:0 0 4px 0;text-transform:uppercase;letter-spacing:1px;font-weight:bold;color:#718096;">EcoSilence Chile</p>
+              <p style="margin:0 0 12px 0;">Santiago de Chile — Soluciones de Aislamiento Acústico y Eventos</p>
+              <p style="margin:0;">Para dejar de recibir correos, puedes <a href="#" style="color:#4a5568;text-decoration:underline;">cancelar la suscripción aquí</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+    }
+
+    // Plantilla 3: Informativo / Reserva y Agenda (Elegante y Compacto)
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -42,63 +190,74 @@ const MassEmailView = () => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${subject || 'EcoSilence Newsletter'}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f8f9fa;font-family:Arial,sans-serif;-webkit-font-smoothing:antialiased;">
-  <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#f8f9fa">
+<body style="margin:0;padding:0;background-color:#edf2f7;font-family:Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#edf2f7">
     <tr>
-      <td align="center" style="padding:20px 10px;">
-        <!-- Contenedor Max 600px -->
-        <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
-          
-          <!-- Banner Superior CSS-Only (Garantiza visualización) -->
+      <td align="center" style="padding:40px 10px;">
+        <table cellpadding="0" cellspacing="0" border="0" width="550" style="background-color:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);">
+          <!-- Borde de Acento Superior -->
           <tr>
-            <td align="center" style="${bannerStyle}padding:40px 20px;text-align:center;">
-              <h1 style="color:#ffffff;font-size:32px;margin:0;font-weight:bold;letter-spacing:1px;text-shadow:0 2px 4px rgba(0,0,0,0.1);">${bannerTitle}</h1>
+            <td height="6" style="${bannerStyle}"></td>
+          </tr>
+          <!-- Header -->
+          <tr>
+            <td align="center" style="padding:30px 20px 20px 20px;border-bottom:1px solid #edf2f7;">
+              <h1 style="color:#1a202c;font-size:24px;margin:0;font-weight:bold;font-family:Georgia,serif;letter-spacing:0.5px;">${bannerTitle}</h1>
             </td>
           </tr>
-
-          <!-- Contenido Principal -->
+          <!-- Cuerpo -->
           <tr>
-            <td style="padding:40px 30px;">
-              <h2 style="color:#2d3748;font-size:22px;margin:0 0 16px;font-weight:bold;line-height:1.3;">${heading}</h2>
-              <p style="color:#4a5568;font-size:15px;line-height:1.6;margin:0 0 24px;">${bodyText.replace(/\n/g, '<br />')}</p>
+            <td style="padding:35px 30px;color:#2d3748;">
+              <h2 style="font-size:18px;color:#2d3748;margin:0 0 16px;font-weight:bold;">${heading}</h2>
+              <p style="font-size:14px;line-height:1.6;color:#4a5568;margin:0 0 24px;">${bodyText.replace(/\n/g, '<br />')}</p>
               
-              <!-- Imagen Opcional -->
-              ${imageTag}
-
-              <!-- Botón Bulletproof CTA -->
-              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0 0 0;">
+              <!-- Recuadro Detalle Destacado -->
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#f7fafc" style="border:1px dashed #cbd5e0;border-radius:6px;margin-bottom:24px;">
                 <tr>
-                  <td align="center">
-                    <table cellpadding="0" cellspacing="0" border="0">
+                  <td style="padding:20px;">
+                    <h4 style="margin:0 0 10px 0;font-size:14px;color:#2d3748;text-transform:uppercase;letter-spacing:0.5px;font-weight:bold;">Detalles Clave del Evento / Reserva</h4>
+                    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size:13px;color:#4a5568;line-height:1.6;">
                       <tr>
-                        <td align="center" bgcolor="#2563eb" style="border-radius:6px;">
-                          <a href="${ctaLink}" target="_blank" style="font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;padding:14px 28px;display:inline-block;">
-                            ${ctaText}
-                          </a>
-                        </td>
+                        <td width="30" valign="top">✔️</td>
+                        <td style="padding-bottom:8px;"><strong>Equipos Sanitizados:</strong> Todos los audífonos son desinfectados minuciosamente antes y después del uso.</td>
+                      </tr>
+                      <tr>
+                        <td width="30" valign="top">✔️</td>
+                        <td style="padding-bottom:8px;"><strong>Soporte Profesional:</strong> Contamos con equipo de ingenieros para garantizar la perfecta transmisión en tu recinto.</td>
+                      </tr>
+                      <tr>
+                        <td width="30" valign="top">✔️</td>
+                        <td style="padding-bottom:8px;"><strong>Flexibilidad Horaria:</strong> Retiro y devolución coordinados de forma personalizada en tu domicilio o local.</td>
                       </tr>
                     </table>
                   </td>
                 </tr>
               </table>
+
+              <!-- Flyer Promocional -->
+              ${imageUrl ? `<div style="text-align:center;margin-bottom:24px;">${imageTag}</div>` : ''}
+
+              <!-- Enlace CTA -->
+              <div style="text-align:center;margin-top:10px;">
+                <a href="${ctaLink}" target="_blank" style="font-size:15px;font-weight:bold;color:#2563eb;text-decoration:underline;">
+                  ${ctaText} &rarr;
+                </a>
+              </div>
             </td>
           </tr>
-
-          <!-- Footer con exclusión opcional obligatoria de Ley -->
+          <!-- Footer -->
           <tr>
-            <td align="center" style="padding:20px 30px;background-color:#edf2f7;font-size:12px;color:#718096;text-align:center;border-top:1px solid #e2e8f0;">
-              <p style="margin:0 0 6px 0;"><strong>EcoSilence CRM</strong> — Soluciones de Audio y Eventos</p>
-              <p style="margin:0;">Recibiste este correo porque estás registrado en nuestra base de datos. <a href="#" style="color:#2563eb;text-decoration:underline;">Anular suscripción</a></p>
+            <td align="center" style="padding:20px;background-color:#f7fafc;font-size:11px;color:#718096;text-align:center;border-top:1px solid #edf2f7;">
+              <p style="margin:0;">EcoSilence CRM — Soporte al Cliente: contacto@ecosilence.cl</p>
             </td>
           </tr>
-
         </table>
       </td>
     </tr>
   </table>
 </body>
 </html>`;
-  }, [bannerTitle, bannerGradient, heading, bodyText, imageUrl, ctaText, ctaLink, subject]);
+  }, [bannerTitle, bannerGradient, heading, bodyText, imageUrl, ctaText, ctaLink, subject, templateDesign]);
 
   const handleSelectAll = () => {
     if (selectedClientes.length === clientes.length) {
@@ -232,6 +391,19 @@ const MassEmailView = () => {
                       value={subject} 
                       onChange={e => setSubject(e.target.value)} 
                     />
+                  </div>
+                  <div>
+                    <label className="input-label" style={{ marginBottom: '0.3rem', display: 'block' }}>Diseño Estructural de la Plantilla</label>
+                    <select 
+                      className="input-control" 
+                      value={templateDesign} 
+                      onChange={e => setTemplateDesign(e.target.value)}
+                      style={{ marginBottom: '1rem' }}
+                    >
+                      <option value="lanzamiento">Lanzamiento / Experiencia Visual (Estilo Canva Minimalista - Oscuro)</option>
+                      <option value="catalogo">Catálogo Técnico / Corporativo (Estilo GoDaddy - Claro)</option>
+                      <option value="informativo">Informativo / Reserva y Agenda (Elegante y Compacto)</option>
+                    </select>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
