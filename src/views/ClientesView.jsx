@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../context/AppDataContext';
+import { useToast } from '../context/ToastContext';
 import { Plus, Search, MapPin, Phone, Building, Mail, X, Trash2, Edit2, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const ClientesView = () => {
-  const { clientes, addCliente, editCliente, removeCliente, menuNames } = useAppStore();
-  const [searchTerm, setSearchTerm] = useState('');
+  const { clientes, addCliente, editCliente, removeCliente, menuNames, globalSearchQuery, setGlobalSearchQuery } = useAppStore();
+  const { addToast } = useToast();
+  const searchTerm = globalSearchQuery;
+  const setSearchTerm = setGlobalSearchQuery;
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,7 +62,7 @@ const ClientesView = () => {
   };
 
   const handleExport = (format) => {
-    if (clientes.length === 0) return alert('No hay clientes para exportar');
+    if (clientes.length === 0) return addToast('No hay clientes para exportar', 'warning');
     
     const exportData = clientes.map(c => ({
       ID: c.id,
@@ -98,7 +101,7 @@ const ClientesView = () => {
       const ws = wb.Sheets[wsname];
       const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-      if (data.length < 2) return alert('El archivo está vacío o no tiene encabezados válidos.');
+      if (data.length < 2) return addToast('El archivo está vacío o no tiene encabezados válidos.', 'error');
 
       const headers = data[0].map(h => String(h || '')); 
       const rows = data.slice(1).filter(r => r && r.length > 0);
@@ -149,7 +152,7 @@ const ClientesView = () => {
     });
 
     setIsMappingModalOpen(false);
-    alert(`Importación completada:\n✅ ${imported} clientes agregados\n🔄 ${updated} clientes actualizados.`);
+    addToast(`Importación completada:\n✅ ${imported} clientes agregados\n🔄 ${updated} clientes actualizados.`, 'success');
   };
 
   return (

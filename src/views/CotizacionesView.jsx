@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../context/AppDataContext';
+import { useToast } from '../context/ToastContext';
 import { FileText, Plus, MapPin, CalendarDays, DollarSign, Download, Trash2, Box, Mail, Printer, X, Save, ArrowLeft } from 'lucide-react';
 
 const CotizacionesView = () => {
@@ -8,6 +9,7 @@ const CotizacionesView = () => {
     addItemCotizacion, removeItemCotizacion, editItemCotizacion,
     updateServiceDiscount, updateServiceCurrency, viewParams, getStockActual, navigate, menuNames, formatDateDDMMYYYY
   } = useAppStore();
+  const { addToast } = useToast();
 
   // Servicio seleccionado para cotizar
   const [selectedServicioId, setSelectedServicioId] = useState(viewParams?.servicioId || '');
@@ -86,8 +88,8 @@ const CotizacionesView = () => {
 
   const handleAddItem = (e) => {
     e.preventDefault();
-    if (!selectedServicioId) return alert('Selecciona un servicio primero');
-    if (!formData.equipoId) return alert('Selecciona un equipo');
+    if (!selectedServicioId) return addToast('Selecciona un servicio primero', 'warning');
+    if (!formData.equipoId) return addToast('Selecciona un equipo', 'warning');
 
     addItemCotizacion({
       servicioId: selectedServicioId,
@@ -274,7 +276,7 @@ const CotizacionesView = () => {
 
                 {/* Acciones Finales */}
                 <div className="no-print" style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                  <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => alert('Cotización guardada exitosamente y sincronizada en el flujo de trabajo.')}><Save size={18} /> Guardar Cotización (Soft)</button>
+                  <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => addToast('Cotización guardada exitosamente y sincronizada en el flujo de trabajo.', 'success')}><Save size={18} /> Guardar Cotización (Soft)</button>
                   <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setShowPreview(true)}><Download size={18} /> Generar PDF (Voucher)</button>
                 </div>
               </div>
@@ -369,7 +371,7 @@ Terminos y condiciones para realizar la reserva de nuestro servicios:
 • Aceptamos pagos con tarjetas de credito, debito o transferencias bancarias
 • En caso de que hubiese, perdida, deterioro o destrucción, el monto asciende a $ 60.000 pesos por audífonos
 • En caso de que hubiese, perdida, deterioro o destrucción del transmisor el monto asciende a $250.000 pesos por cada uno.
-• El arriendo es por Jornada completa
+• El arriendo es por Jornada completa 
 
 Estamos a tu disposición para cualquier duda que tengas.
 

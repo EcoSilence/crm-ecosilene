@@ -1,14 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { initGoogleScripts, authenticateGoogle, syncServiceToCalendar, deleteCalendarEvent, listDriveContent, syncMarketingPostToCalendar } from '../services/GoogleCalendarService';
+import { useToast } from './ToastContext';
 
 const AppDataContext = createContext();
 
 export const AppDataProvider = ({ children }) => {
+  const { addToast } = useToast();
   const [currentView, setCurrentView] = useState('dashboard');
   const [viewParams, setViewParams] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGoogleLinked, setIsGoogleLinked] = useState(localStorage.getItem('google_calendar_linked') === 'true');
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
 
   const [menuNames, setMenuNames] = useState({
     dashboard: 'Dashboard',
@@ -221,7 +224,7 @@ export const AppDataProvider = ({ children }) => {
 
     } catch (error) {
       console.error('Error fetching data:', error);
-      alert('Error al conectar con la base de datos: ' + error.message);
+      addToast('Error al conectar con la base de datos: ' + error.message, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -414,7 +417,7 @@ export const AppDataProvider = ({ children }) => {
       const { error } = await supabase.from('servicios').update({ moneda: currency }).eq('id_servicio', idServicio);
       if (error) throw error;
       setServicios(prev => prev.map(s => s.idServicio === idServicio ? { ...s, moneda: currency } : s));
-    } catch (error) { console.error('Error updating service currency', error); alert('Error al actualizar moneda del servicio.'); }
+    } catch (error) { console.error('Error updating service currency', error); addToast('Error al actualizar moneda del servicio.', 'error'); }
   };
 
   const updateServiceInvoice = async (idServicio, invoicesArray) => {
@@ -436,7 +439,7 @@ export const AppDataProvider = ({ children }) => {
       return true;
     } catch (error) { 
       console.error('Error updating service invoice', error); 
-      alert('Error al vincular factura. Asegúrate de tener las columnas folio_factura y url_factura en Supabase.'); 
+      addToast('Error al vincular factura. Asegúrate de tener las columnas folio_factura y url_factura en Supabase.', 'error'); 
       return false;
     }
   };
@@ -462,7 +465,7 @@ export const AppDataProvider = ({ children }) => {
       return publicUrl;
     } catch (error) { 
       console.error('Error uploading invoice file:', error); 
-      alert(`Error de Supabase: ${error.message || error.error || 'Desconocido'}. Revisa el nombre del bucket y las políticas.`); 
+      addToast(`Error de Supabase: ${error.message || error.error || 'Desconocido'}. Revisa el nombre del bucket y las políticas.`, 'error'); 
       return null;
     }
   };
@@ -504,7 +507,8 @@ export const AppDataProvider = ({ children }) => {
       
       if (error) throw error;
       setServicios([...servicios, newS]);
-    } catch (err) { alert('Error: ' + err.message); }
+      addToast('Servicio creado con éxito.', 'success');
+    } catch (err) { addToast('Error: ' + err.message, 'error'); }
   };
 
   const editServicio = async (idServicio, updatedData) => {
@@ -557,7 +561,8 @@ export const AppDataProvider = ({ children }) => {
       });
       if (error) throw error;
       setClientes([...clientes, newC]);
-    } catch (err) { alert('Error: ' + err.message); }
+      addToast('Cliente registrado con éxito.', 'success');
+    } catch (err) { addToast('Error: ' + err.message, 'error'); }
   };
 
   const editCliente = async (id, updatedData) => {
@@ -598,7 +603,8 @@ export const AppDataProvider = ({ children }) => {
       });
       if (error) throw error;
       setInventario([...inventario, newE]);
-    } catch (err) { alert('Error: ' + err.message); }
+      addToast('Equipo agregado con éxito.', 'success');
+    } catch (err) { addToast('Error: ' + err.message, 'error'); }
   };
 
   const editEquipo = async (idEquipo, updatedData) => {
@@ -632,7 +638,8 @@ export const AppDataProvider = ({ children }) => {
       if (error) throw error;
       const updatedCots = [...cotizaciones, newQ];
       setCotizaciones(updatedCots);
-
+      addToast('Ítem de cotización agregado con éxito.', 'success');
+      
       // Sincronizar con Google Calendar si el servicio existe
       if (isGoogleLinked) {
         const s = servicios.find(srv => srv.idServicio === itemData.servicioId);
@@ -641,7 +648,7 @@ export const AppDataProvider = ({ children }) => {
           await handleCalendarSync(s, items);
         }
       }
-    } catch (err) { alert('Error: ' + err.message); }
+    } catch (err) { addToast('Error: ' + err.message, 'error'); }
   };
 
   const removeItemCotizacion = async (idCotizacion) => {
@@ -699,6 +706,7 @@ export const AppDataProvider = ({ children }) => {
   const value = {
     currentView, viewParams, navigate, isLoading,
     menuNames, updateMenuName,
+    globalSearchQuery, setGlobalSearchQuery,
     clientes, addCliente, editCliente, removeCliente,
     inventario, addEquipo, editEquipo, removeEquipo,
     servicios, updateServiceStage, updateServiceDiscount, updateServiceCurrency, updateServiceInvoice, uploadServiceInvoiceFile, addServicio, editServicio, removeServicio,

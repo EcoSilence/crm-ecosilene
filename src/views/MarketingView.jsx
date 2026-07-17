@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../context/AppDataContext';
+import { useToast } from '../context/ToastContext';
 import { 
    Megaphone, 
   TrendingUp, 
@@ -21,6 +22,7 @@ const MarketingView = () => {
     selectedMarketingAccount, brandProfile,
     metaAccessToken, instagramAccountId, saveMetaCredentials
   } = useAppStore();
+  const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState('estrategia');
   const [isMetaModalOpen, setIsMetaModalOpen] = useState(false);
   
@@ -194,7 +196,7 @@ const MarketingView = () => {
                 <pre style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', whiteSpace: 'pre-wrap', fontSize: '0.85rem' }}>{s.copy}</pre>
                 <button className="btn btn-primary" style={{ background: accentColor }} onClick={() => {
                   addPlannedPost({ id: Date.now(), title: s.title, type: 'carousel', date: new Date().toISOString().split('T')[0], copy: s.copy, assets: selectedCarouselAssets });
-                  alert('¡Estrategia planificada!');
+                  addToast('¡Estrategia planificada!', 'success');
                 }}>Confirmar Planificación</button>
               </div>
             ))}
@@ -444,7 +446,7 @@ const CalendarioSection = ({ plannedPosts = [], account }) => {
 
   const handlePublish = async () => {
     if (!metaAccessToken || !instagramAccountId) {
-      alert("⚠️ Error: Debes configurar tu Access Token e Instagram ID primero pulsando el icono de engranaje arriba.");
+      addToast("Debes configurar tu Access Token e Instagram ID primero pulsando el icono de engranaje arriba.", "warning");
       return;
     }
 
@@ -456,10 +458,10 @@ const CalendarioSection = ({ plannedPosts = [], account }) => {
       
       await new Promise(resolve => setTimeout(resolve, 3500));
       
-      alert(`🚀 ¡ÉXITO REAL! El post "${selectedPost.title}" ha sido enviado a la API de Meta. Revisa tu cuenta de Instagram en unos segundos.`);
+      addToast(`El post "${selectedPost.title}" ha sido enviado a la API de Meta. Revisa tu cuenta de Instagram en unos segundos.`, 'success');
       setSelectedPost(null);
     } catch (err) {
-      alert("Error en la conexión con Meta: " + err.message);
+      addToast("Error en la conexión con Meta: " + err.message, 'error');
     } finally {
       setIsPublishing(false);
     }

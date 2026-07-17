@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAppStore } from './context/AppDataContext'
+import { useToast } from './context/ToastContext'
 import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronDown, CalendarDays, Archive, Megaphone } from 'lucide-react'
 
 import Dashboard from './views/Dashboard'
@@ -17,7 +18,8 @@ function App() {
     currentView, navigate, menuNames, updateMenuName, 
     kanbanGroupedData, kanbanExpandedYears, setKanbanExpandedYears, 
     selectedKanbanMonth, setSelectedKanbanMonth, logout, notifications,
-    marketingAccounts, selectedMarketingAccount, setSelectedMarketingAccount, connectSocialAccount
+    marketingAccounts, selectedMarketingAccount, setSelectedMarketingAccount, connectSocialAccount,
+    globalSearchQuery, setGlobalSearchQuery
   } = useAppStore();
   const [editingMenu, setEditingMenu] = useState(null);
   const [tempName, setTempName] = useState('');
@@ -261,8 +263,18 @@ function App() {
                 type="text" 
                 placeholder="Buscar clientes, equipos, servicios..." 
                 className="input-control" 
-                style={{ width: '100%', paddingLeft: '2.5rem', borderRadius: 'var(--radius-full)', background: 'var(--bg-dark)' }} 
+                style={{ width: '100%', paddingLeft: '2.5rem', paddingRight: globalSearchQuery ? '2.5rem' : '1rem', borderRadius: 'var(--radius-full)', background: 'var(--bg-dark)' }} 
+                value={globalSearchQuery}
+                onChange={e => setGlobalSearchQuery(e.target.value)}
               />
+              {globalSearchQuery && (
+                <button 
+                  onClick={() => setGlobalSearchQuery('')}
+                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px' }}
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
           </div>
           
@@ -323,11 +335,12 @@ function App() {
 
 const SocialConnectModal = ({ onClose }) => {
   const { connectSocialAccount } = useAppStore();
+  const { addToast } = useToast();
   const [step, setStep] = useState('choice'); // choice, login, connecting, success
   const [handle, setHandle] = useState('');
 
   const handleConnect = async () => {
-    if (!handle.startsWith('@')) return alert('El handle debe comenzar con @');
+    if (!handle.startsWith('@')) return addToast('El handle debe comenzar con @', 'warning');
     setStep('connecting');
     await connectSocialAccount(handle);
     setStep('success');

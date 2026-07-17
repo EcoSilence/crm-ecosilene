@@ -1,13 +1,16 @@
 import React, { useState, useMemo } from 'react';
 // v1.1 - Added Invoice Linking UI
 import { useAppStore } from '../context/AppDataContext';
+import { useToast } from '../context/ToastContext';
 import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, DollarSign, FileText, ExternalLink, Upload, Folder, File as FileIcon, ArrowLeft, Eye, Mail } from 'lucide-react';
 
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { servicios, updateServiceStage, removeServicio, editServicio, updateServiceInvoice, uploadServiceInvoiceFile, listDriveContentAction, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio, handleCalendarSync, isGoogleLinked, linkGoogle } = useAppStore();
-  const [searchTerm, setSearchTerm] = useState('');
+  const { servicios, updateServiceStage, removeServicio, editServicio, updateServiceInvoice, uploadServiceInvoiceFile, listDriveContentAction, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio, handleCalendarSync, isGoogleLinked, linkGoogle, globalSearchQuery, setGlobalSearchQuery } = useAppStore();
+  const { addToast } = useToast();
+  const searchTerm = globalSearchQuery;
+  const setSearchTerm = setGlobalSearchQuery;
   const [expandedStage, setExpandedStage] = useState('Cotizado');
 
   // Modal States
@@ -464,7 +467,7 @@ https://www.ecosilence.cl/`;
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   const ok = await handleCalendarSync(s, sQuotations);
-                                  if(ok) alert('Sincronización exitosa con Google Calendar');
+                                  if(ok) addToast('Sincronización exitosa con Google Calendar', 'success');
                                 }}
                                 title={s.googleEventId ? "Actualizar en Google Calendar" : "Sincronizar con Google Calendar"}
                               >

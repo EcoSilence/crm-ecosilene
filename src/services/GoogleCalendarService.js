@@ -2,8 +2,8 @@
  * Servicio para integrar Google Calendar con el CRM de EcoSilence
  */
 
-const CLIENT_ID = '718018729593-1j2gdsri0lfmb21llv6abc10cjpacc3d.apps.googleusercontent.com';
-const API_KEY = 'AIzaSyBWlbA1NZOtsP2b7ei6xzPLQBIdNv-KrCY';
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 const DISCOVERY_DOCS = [
   'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest',
   'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../context/AppDataContext';
+import { useToast } from '../context/ToastContext';
 import { ArrowLeft, UserPlus, MapPin, Calendar, Clock, Save, Search, Users } from 'lucide-react';
 
 const NuevoServicioView = () => {
   const { clientes, addServicio, navigate } = useAppStore();
+  const { addToast } = useToast();
   
   const [formData, setFormData] = useState({
     clienteId: '',
@@ -29,7 +31,7 @@ const NuevoServicioView = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.clienteId) {
-      alert('Por favor selecciona un cliente');
+      addToast('Por favor selecciona un cliente', 'warning');
       return;
     }
 

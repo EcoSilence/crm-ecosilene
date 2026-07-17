@@ -3,8 +3,9 @@ import { useAppStore } from '../context/AppDataContext';
 import { Plus, Search, Box, Package as PkgIcon, AlertTriangle, X, CalendarDays } from 'lucide-react';
 
 const InventarioView = () => {
-  const { inventario, getStockActual, addEquipo, editEquipo, removeEquipo, menuNames } = useAppStore();
-  const [searchTerm, setSearchTerm] = useState('');
+  const { inventario, getStockActual, addEquipo, editEquipo, removeEquipo, menuNames, globalSearchQuery, setGlobalSearchQuery } = useAppStore();
+  const searchTerm = globalSearchQuery;
+  const setSearchTerm = setGlobalSearchQuery;
   const [stockDate, setStockDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Modal State para Agregar/Editar Equipo

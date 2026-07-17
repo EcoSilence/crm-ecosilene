@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { AppDataProvider } from './context/AppDataContext.jsx'
+import { ToastProvider } from './context/ToastContext.jsx'
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -39,9 +40,11 @@ class ErrorBoundary extends React.Component {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <AppDataProvider>
-        <App />
-      </AppDataProvider>
+      <ToastProvider>
+        <AppDataProvider>
+          <App />
+        </AppDataProvider>
+      </ToastProvider>
     </ErrorBoundary>
   </StrictMode>,
 )
