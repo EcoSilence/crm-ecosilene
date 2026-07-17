@@ -22,6 +22,7 @@ const MassEmailView = () => {
   const [ctaText, setCtaText] = useState('Visitar EcoSilence');
   const [ctaLink, setCtaLink] = useState('https://ecosilence.cl');
   const [templateDesign, setTemplateDesign] = useState('lanzamiento');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Estados de Envío y Progreso
   const [isSending, setIsSending] = useState(false);
@@ -376,31 +377,41 @@ const MassEmailView = () => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
           
           {/* Navegación de pestañas estilo shadcn */}
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '1rem', paddingBottom: '0.2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', gap: '1rem', paddingBottom: '0.2rem' }}>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button 
+                className={`btn ${activeTab === 'compose' ? 'btn-primary' : 'btn-ghost'}`} 
+                onClick={() => setActiveTab('compose')}
+                style={{ padding: '0.5rem 1.2rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+              >
+                <Layout size={16} /> 1. Redactar Correo
+              </button>
+              <button 
+                className={`btn ${activeTab === 'recipients' ? 'btn-primary' : 'btn-ghost'}`} 
+                onClick={() => setActiveTab('recipients')}
+                style={{ padding: '0.5rem 1.2rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+              >
+                <Users size={16} /> 2. Destinatarios ({selectedClientes.length})
+              </button>
+              <button 
+                className={`btn ${activeTab === 'preview' ? 'btn-primary' : 'btn-ghost'}`} 
+                onClick={() => setActiveTab('preview')}
+                style={{ padding: '0.5rem 1.2rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+              >
+                <Eye size={16} /> 3. Vista Previa HTML
+              </button>
+            </div>
+            
             <button 
-              className={`btn ${activeTab === 'compose' ? 'btn-primary' : 'btn-ghost'}`} 
-              onClick={() => setActiveTab('compose')}
-              style={{ padding: '0.5rem 1.2rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+              className="btn btn-ghost" 
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              style={{ fontSize: '0.8rem', display: 'flex', gap: '0.4rem', alignItems: 'center', padding: '0.4rem 0.8rem' }}
             >
-              <Layout size={16} /> 1. Redactar Correo
-            </button>
-            <button 
-              className={`btn ${activeTab === 'recipients' ? 'btn-primary' : 'btn-ghost'}`} 
-              onClick={() => setActiveTab('recipients')}
-              style={{ padding: '0.5rem 1.2rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}
-            >
-              <Users size={16} /> 2. Destinatarios ({selectedClientes.length})
-            </button>
-            <button 
-              className={`btn ${activeTab === 'preview' ? 'btn-primary' : 'btn-ghost'}`} 
-              onClick={() => setActiveTab('preview')}
-              style={{ padding: '0.5rem 1.2rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}
-            >
-              <Eye size={16} /> 3. Vista Previa HTML
+              {isSidebarCollapsed ? 'Mostrar Estado 📥' : 'Ocultar Estado 📭'}
             </button>
           </div>
 
-          <div className="responsive-grid-2" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isSidebarCollapsed ? '1fr' : '2fr 1.1fr', gap: '1.5rem', transition: 'all 0.3s' }}>
             
             {/* PANEL PRINCIPAL */}
             <div className="glass-card" style={{ padding: '1.5rem' }}>
@@ -485,92 +496,90 @@ const MassEmailView = () => {
             </div>
 
             {/* PANEL LATERAL DE CONTROL Y ENVÍO */}
-            <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', height: 'fit-content' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Estado de Envío</h3>
-              
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Destinatarios:</span>
-                  <strong>{selectedClientes.length}</strong>
+            {!isSidebarCollapsed && (
+              <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', height: 'fit-content' }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Estado de Envío</h3>
+                
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Destinatarios:</span>
+                    <strong>{selectedClientes.length}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Asunto:</span>
+                    <strong style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '120px' }}>{subject || 'Sin Asunto'}</strong>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Asunto:</span>
-                  <strong style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '120px' }}>{subject || 'Sin Asunto'}</strong>
-                </div>
-              </div>
 
-              {isSending && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                    <span>Progreso:</span>
-                    <span>{progress.current} / {progress.total}</span>
-                  </div>
-                  {/* Barra de Progreso */}
-                  <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div 
-                      style={{ 
-                        height: '100%', 
-                        background: 'var(--accent-secondary)', 
-                        width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%`,
-                        transition: 'width 0.3s ease'
-                      }} 
-                    />
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
-                    Enviando a: {progress.email} ({progress.status})
-                  </span>
-                </div>
-              )}
-
-              {results && (
-                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>Resultados del Lote:</h4>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-basil)', fontSize: '0.85rem' }}>
-                    <Check size={16} /> {results.success.length} Enviados Correctamente
-                  </div>
-                  {results.failed.length > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-tomato)', fontSize: '0.85rem' }}>
-                      <AlertCircle size={16} /> {results.failed.length} Errores de entrega
+                {isSending && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                      <span>Progreso:</span>
+                      <span>{progress.current} / {progress.total}</span>
                     </div>
-                  )}
-                </div>
-              )}
-
-              <button 
-                className="btn btn-primary" 
-                onClick={handleSend} 
-                disabled={isSending || selectedClientes.length === 0 || !subject}
-                style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', height: '45px' }}
-              >
-                {isSending ? (
-                  <>
-                    <RefreshCw className="animate-spin" size={16} /> Procesando Lote...
-                  </>
-                ) : (
-                  <>
-                    <Send size={16} /> Iniciar Envío Masivo
-                  </>
-                )}
-              </button>
-
-              {sendingLogs.length > 0 && (
-                <div>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Registro Histórico:</h4>
-                  <div style={{ maxHeight: '150px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontFamily: 'monospace', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    {sendingLogs.map((log, i) => (
-                      <div key={i}>{log}</div>
-                    ))}
+                    {/* Barra de Progreso */}
+                    <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div 
+                        style={{ 
+                          height: '100%', 
+                          background: 'var(--accent-secondary)', 
+                          width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%`,
+                          transition: 'width 0.3s ease'
+                        }} 
+                      />
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                      Enviando a: {progress.email} ({progress.status})
+                    </span>
                   </div>
-                </div>
-              )}
+                )}
 
-            </div>
+                {results && (
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>Resultados del Lote:</h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-basil)', fontSize: '0.85rem' }}>
+                      <Check size={16} /> {results.success.length} Enviados Correctamente
+                    </div>
+                    {results.failed.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-tomato)', fontSize: '0.85rem' }}>
+                        <AlertCircle size={16} /> {results.failed.length} Errores de entrega
+                      </div>
+                    )}
+                  </div>
+                )}
 
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleSend} 
+                  disabled={isSending || selectedClientes.length === 0 || !subject}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', height: '45px' }}
+                >
+                  {isSending ? (
+                    <>
+                      <RefreshCw className="animate-spin" size={16} /> Procesando Lote...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={16} /> Iniciar Envío Masivo
+                    </>
+                  )}
+                </button>
+
+                {sendingLogs.length > 0 && (
+                  <div>
+                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Registro Histórico:</h4>
+                    <div style={{ maxHeight: '150px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontFamily: 'monospace', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {sendingLogs.map((log, i) => (
+                        <div key={i}>{log}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-
         </div>
       )}
-
     </div>
   );
 };
