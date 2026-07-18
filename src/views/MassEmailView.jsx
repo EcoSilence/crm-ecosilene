@@ -30,6 +30,10 @@ const MassEmailView = () => {
     ctaText: { fontFamily: 'Arial', fontSize: 14, color: '#ffffff', bold: true, italic: false, underline: false, align: 'center' }
   });
 
+  const [backgroundColor, setBackgroundColor] = useState('');
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
+  const [backgroundImageOpacity, setBackgroundImageOpacity] = useState(20);
+
   // Estados de Envío y Progreso
   const [isSending, setIsSending] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, email: '', status: '' });
@@ -42,6 +46,25 @@ const MassEmailView = () => {
     const imageTag = imageUrl 
       ? `<img src="${imageUrl}" alt="Flyer del Evento" width="540" style="display:block;max-width:100%;height:auto;border-radius:8px;border:0;margin:0 auto;" />`
       : '';
+
+    const bgOpacity = (backgroundImageOpacity !== undefined ? backgroundImageOpacity : 20) / 100;
+    const isDark = templateDesign === 'lanzamiento';
+    const bgBaseColor = backgroundColor || (isDark ? '#161625' : '#ffffff');
+    
+    let rgbOverlay = isDark ? '22,22,37' : '255,255,255';
+    if (backgroundColor) {
+      const hex = backgroundColor.replace('#', '');
+      if (hex.length === 6) {
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        rgbOverlay = `${r},${g},${b}`;
+      }
+    }
+
+    const containerBgStyle = backgroundImageUrl
+      ? `background: linear-gradient(rgba(${rgbOverlay}, ${1 - bgOpacity}), rgba(${rgbOverlay}, ${1 - bgOpacity})), url('${backgroundImageUrl}') center/cover no-repeat; background-color: ${bgBaseColor};`
+      : `background-color: ${bgBaseColor};`;
 
     const getInlineStyle = (element) => {
       const s = styles[element] || {};
@@ -74,7 +97,7 @@ const MassEmailView = () => {
   <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a1a2e">
     <tr>
       <td align="center" style="padding:40px 10px;">
-        <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color:#161625;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);">
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="${containerBgStyle}border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);">
           <!-- Banner Superior -->
           <tr>
             <td align="center" style="${bannerStyle}padding:50px 20px;text-align:center;">
@@ -130,7 +153,7 @@ const MassEmailView = () => {
   <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#f7fafc">
     <tr>
       <td align="center" style="padding:30px 10px;">
-        <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="${containerBgStyle}border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
           <!-- Top Header -->
           <tr>
             <td style="padding:20px 30px;border-bottom:1px solid #edf2f7;">
@@ -220,7 +243,7 @@ const MassEmailView = () => {
   <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#edf2f7">
     <tr>
       <td align="center" style="padding:40px 10px;">
-        <table cellpadding="0" cellspacing="0" border="0" width="550" style="background-color:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);">
+        <table cellpadding="0" cellspacing="0" border="0" width="550" style="${containerBgStyle}border-radius:10px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);">
           <!-- Borde de Acento Superior -->
           <tr>
             <td height="6" style="${bannerStyle}"></td>
@@ -283,7 +306,7 @@ const MassEmailView = () => {
   </table>
 </body>
 </html>`;
-  }, [bannerTitle, bannerGradient, heading, bodyText, imageUrl, ctaText, ctaLink, subject, templateDesign, styles]);
+  }, [bannerTitle, bannerGradient, heading, bodyText, imageUrl, ctaText, ctaLink, subject, templateDesign, styles, backgroundColor, backgroundImageUrl, backgroundImageOpacity]);
 
   const editorData = {
     subject,
@@ -295,7 +318,10 @@ const MassEmailView = () => {
     ctaText,
     ctaLink,
     templateDesign,
-    styles
+    styles,
+    backgroundColor,
+    backgroundImageUrl,
+    backgroundImageOpacity
   };
 
   const handleEditorChange = (newData) => {
@@ -309,6 +335,9 @@ const MassEmailView = () => {
     if (newData.ctaLink !== undefined) setCtaLink(newData.ctaLink);
     if (newData.templateDesign !== undefined) setTemplateDesign(newData.templateDesign);
     if (newData.styles !== undefined) setStyles(newData.styles);
+    if (newData.backgroundColor !== undefined) setBackgroundColor(newData.backgroundColor);
+    if (newData.backgroundImageUrl !== undefined) setBackgroundImageUrl(newData.backgroundImageUrl);
+    if (newData.backgroundImageOpacity !== undefined) setBackgroundImageOpacity(newData.backgroundImageOpacity);
   };
 
   const handleSelectAll = () => {

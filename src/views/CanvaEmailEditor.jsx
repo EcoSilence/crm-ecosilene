@@ -136,6 +136,25 @@ const CanvaEmailEditor = ({ data, onChange }) => {
     }
   };
 
+  const bgOpacity = (data.backgroundImageOpacity !== undefined ? data.backgroundImageOpacity : 20) / 100;
+  const isDarkCanvas = data.templateDesign === 'lanzamiento';
+  const bgBaseColor = data.backgroundColor || (isDarkCanvas ? '#161625' : '#ffffff');
+  
+  let rgbOverlay = isDarkCanvas ? '22,22,37' : '255,255,255';
+  if (data.backgroundColor) {
+    const hex = data.backgroundColor.replace('#', '');
+    if (hex.length === 6) {
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      rgbOverlay = `${r},${g},${b}`;
+    }
+  }
+
+  const canvasBackgroundStyle = data.backgroundImageUrl
+    ? `linear-gradient(rgba(${rgbOverlay}, ${1 - bgOpacity}), rgba(${rgbOverlay}, ${1 - bgOpacity})), url('${data.backgroundImageUrl}') center/cover no-repeat`
+    : bgBaseColor;
+
   return (
     <div 
       className="glass-card" 
@@ -371,6 +390,63 @@ const CanvaEmailEditor = ({ data, onChange }) => {
                 <option value="linear-gradient(135deg,#e74c3c,#c0392b)">Rojo Eventos</option>
               </select>
             </div>
+
+            <h4 style={{ margin: '1.2rem 0 0 0', fontSize: '0.95rem', fontWeight: 'bold', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>Fondo de Correo</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label className="input-label" style={{ fontSize: '0.75rem' }}>Color de Fondo</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {['#ffffff', '#f7fafc', '#edf2f7', '#161625', '#0f0f1b', '#1a202c'].map((col) => (
+                  <button 
+                    key={col}
+                    onClick={() => updateField('backgroundColor', col)}
+                    style={{ 
+                      width: '24px', 
+                      height: '24px', 
+                      borderRadius: '4px', 
+                      background: col, 
+                      border: data.backgroundColor === col ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                      cursor: 'pointer' 
+                    }}
+                    title={col}
+                  />
+                ))}
+                <input 
+                  type="color" 
+                  value={data.backgroundColor || (data.templateDesign === 'lanzamiento' ? '#161625' : '#ffffff')}
+                  onChange={e => updateField('backgroundColor', e.target.value)}
+                  style={{ width: '24px', height: '24px', padding: 0, border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer', background: 'transparent' }}
+                  title="Color personalizado"
+                />
+              </div>
+            </div>
+
+            {data.backgroundImageUrl && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <label className="input-label" style={{ fontSize: '0.75rem', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Opacidad de Fondo</span>
+                  <span>{data.backgroundImageOpacity !== undefined ? data.backgroundImageOpacity : 20}%</span>
+                </label>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="100" 
+                  value={data.backgroundImageOpacity !== undefined ? data.backgroundImageOpacity : 20}
+                  onChange={e => updateField('backgroundImageOpacity', parseInt(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--accent-primary)' }}
+                />
+                
+                <button 
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    updateField('backgroundImageUrl', '');
+                    updateField('backgroundColor', '');
+                  }}
+                  style={{ fontSize: '0.7rem', color: '#ff8888', marginTop: '0.2rem', padding: '4px 8px' }}
+                >
+                  Restablecer Fondo Original
+                </button>
+              </div>
+            )}
           </>
         )}
 
@@ -409,20 +485,39 @@ const CanvaEmailEditor = ({ data, onChange }) => {
               {uploadedImages.map(img => (
                 <div 
                   key={img.id}
-                  style={{ position: 'relative', cursor: 'pointer', borderRadius: '6px', overflow: 'hidden', height: '80px', border: '1px solid var(--border-color)' }}
-                  onClick={() => updateField('imageUrl', img.url)}
+                  style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden', height: '110px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.2)' }}
                 >
-                  <img src={img.url} alt={img.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setUploadedImages(uploadedImages.filter(x => x.id !== img.id));
-                      if (data.imageUrl === img.url) updateField('imageUrl', '');
-                    }}
-                    style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '4px', color: '#ffaaaa', cursor: 'pointer', padding: '2px' }}
-                  >
-                    <Trash2 size={12} />
-                  </button>
+                  <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                    <img src={img.url} alt={img.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                  <div style={{ display: 'flex', background: 'rgba(0,0,0,0.7)', padding: '4px', gap: '4px', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <button 
+                      onClick={() => updateField('imageUrl', img.url)}
+                      title="Usar como Flyer"
+                      style={{ background: data.imageUrl === img.url ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '3px', color: '#fff', fontSize: '9px', padding: '2px 4px', cursor: 'pointer' }}
+                    >
+                      Flyer
+                    </button>
+                    <button 
+                      onClick={() => updateField('backgroundImageUrl', img.url)}
+                      title="Usar como Fondo"
+                      style={{ background: data.backgroundImageUrl === img.url ? 'var(--accent-secondary)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '3px', color: '#fff', fontSize: '9px', padding: '2px 4px', cursor: 'pointer' }}
+                    >
+                      Fondo
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setUploadedImages(uploadedImages.filter(x => x.id !== img.id));
+                        if (data.imageUrl === img.url) updateField('imageUrl', '');
+                        if (data.backgroundImageUrl === img.url) updateField('backgroundImageUrl', '');
+                      }}
+                      title="Eliminar"
+                      style={{ background: 'transparent', border: 'none', color: '#ffaaaa', cursor: 'pointer', padding: '2px' }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -638,10 +733,11 @@ const CanvaEmailEditor = ({ data, onChange }) => {
               maxWidth: '560px', 
               borderRadius: '12px', 
               overflow: 'hidden', 
-              background: data.templateDesign === 'lanzamiento' ? '#161625' : '#ffffff',
+              background: canvasBackgroundStyle,
+              backgroundColor: bgBaseColor,
               boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
               border: '1px solid var(--border-color)',
-              color: data.templateDesign === 'lanzamiento' ? '#ffffff' : '#2d3748',
+              color: isDarkCanvas ? '#ffffff' : '#2d3748',
               transition: 'all 0.3s'
             }}
           >
