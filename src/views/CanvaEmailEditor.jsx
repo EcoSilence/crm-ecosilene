@@ -585,12 +585,17 @@ const CanvaEmailEditor = ({ data, onChange }) => {
                   cursor: 'pointer'
                 }}
               >
-                <option value="Arial" style={{ color: '#000' }}>Arial</option>
-                <option value="Helvetica" style={{ color: '#000' }}>Helvetica</option>
-                <option value="Times New Roman" style={{ color: '#000' }}>Times New Roman</option>
-                <option value="Georgia" style={{ color: '#000' }}>Georgia</option>
-                <option value="Tahoma" style={{ color: '#000' }}>Tahoma</option>
-                <option value="Verdana" style={{ color: '#000' }}>Verdana</option>
+                <option value="Arial" style={{ color: '#000', fontFamily: 'Arial' }}>Arial</option>
+                <option value="Helvetica" style={{ color: '#000', fontFamily: 'Helvetica' }}>Helvetica</option>
+                <option value="Times New Roman" style={{ color: '#000', fontFamily: 'Times New Roman' }}>Times New Roman</option>
+                <option value="Georgia" style={{ color: '#000', fontFamily: 'Georgia' }}>Georgia</option>
+                <option value="Tahoma" style={{ color: '#000', fontFamily: 'Tahoma' }}>Tahoma</option>
+                <option value="Verdana" style={{ color: '#000', fontFamily: 'Verdana' }}>Verdana</option>
+                <option value="Trebuchet MS" style={{ color: '#000', fontFamily: 'Trebuchet MS' }}>Trebuchet MS</option>
+                <option value="Courier New" style={{ color: '#000', fontFamily: 'Courier New' }}>Courier New</option>
+                <option value="Garamond" style={{ color: '#000', fontFamily: 'Garamond' }}>Garamond</option>
+                <option value="Impact" style={{ color: '#000', fontFamily: 'Impact' }}>Impact</option>
+                <option value="Century Gothic" style={{ color: '#000', fontFamily: 'Century Gothic, sans-serif' }}>Century Gothic</option>
               </select>
 
               {/* Selector de Tamaño Numérico */}
