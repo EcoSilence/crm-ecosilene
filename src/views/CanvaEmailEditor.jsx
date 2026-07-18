@@ -447,6 +447,18 @@ const CanvaEmailEditor = ({ data, onChange }) => {
                 </button>
               </div>
             )}
+            
+            <h4 style={{ margin: '1.2rem 0 0 0', fontSize: '0.95rem', fontWeight: 'bold', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>Enlace del Botón</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '0.5rem', background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '6px 10px' }}>
+              <Link size={14} style={{ color: 'var(--text-muted)' }} />
+              <input 
+                type="text" 
+                value={data.ctaLink || ''} 
+                onChange={e => updateField('ctaLink', e.target.value)}
+                style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.8rem', outline: 'none', padding: 0, width: '100%' }}
+                placeholder="https://ecosilence.cl"
+              />
+            </div>
           </>
         )}
 
@@ -695,6 +707,20 @@ const CanvaEmailEditor = ({ data, onChange }) => {
                 ))}
               </div>
 
+              {/* Enlace del botón (se muestra en la barra superior solo si el botón está enfocado) */}
+              {focusedElement === 'ctaText' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '2px 8px', marginLeft: '8px' }}>
+                  <Link size={12} style={{ color: 'var(--accent-primary)' }} />
+                  <input 
+                    type="text" 
+                    value={data.ctaLink} 
+                    onChange={e => updateField('ctaLink', e.target.value)}
+                    style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.75rem', width: '150px', outline: 'none' }}
+                    placeholder="Enlace del botón"
+                  />
+                </div>
+              )}
+
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
@@ -904,46 +930,24 @@ const CanvaEmailEditor = ({ data, onChange }) => {
 
               {/* Botón CTA */}
               <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-                <div 
+                <span 
+                  contentEditable={true}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => updateField('ctaText', e.target.innerText)}
+                  onClick={() => setFocusedElement('ctaText')}
                   style={{ 
-                    display: 'inline-flex', 
-                    alignItems: 'center',
-                    gap: '8px',
+                    ...getStyleObj('ctaText'),
+                    background: '#2563eb', 
+                    padding: '12px 24px', 
+                    borderRadius: data.templateDesign === 'lanzamiento' ? '30px' : '4px',
+                    display: 'inline-block',
+                    outline: 'none',
+                    cursor: 'text',
                     border: focusedElement === 'ctaText' ? '2px dashed var(--accent-primary)' : '2px solid transparent',
-                    padding: '4px',
-                    borderRadius: '4px'
                   }}
                 >
-                  <span 
-                    contentEditable={true}
-                    suppressContentEditableWarning={true}
-                    onBlur={(e) => updateField('ctaText', e.target.innerText)}
-                    onClick={() => setFocusedElement('ctaText')}
-                    style={{ 
-                      ...getStyleObj('ctaText'),
-                      background: '#2563eb', 
-                      padding: '12px 24px', 
-                      borderRadius: data.templateDesign === 'lanzamiento' ? '30px' : '4px',
-                      display: 'inline-block',
-                      outline: 'none',
-                      cursor: 'text'
-                    }}
-                  >
-                    {data.ctaText}
-                  </span>
-                  
-                  {/* Edición de link del botón */}
-                  <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '2px 6px' }}>
-                    <Link size={12} style={{ marginRight: '4px' }} />
-                    <input 
-                      type="text" 
-                      value={data.ctaLink} 
-                      onChange={e => updateField('ctaLink', e.target.value)}
-                      style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.7rem', width: '120px', outline: 'none' }}
-                      placeholder="URL de enlace"
-                    />
-                  </div>
-                </div>
+                  {data.ctaText}
+                </span>
               </div>
 
             </div>
