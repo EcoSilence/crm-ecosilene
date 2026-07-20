@@ -39,8 +39,15 @@ const CanvaEmailEditor = ({ data, onChange }) => {
   const defaultStyles = {
     bannerTitle: { fontFamily: 'Arial', fontSize: 28, color: '#ffffff', bold: true, italic: false, underline: false, align: 'center' },
     heading: { fontFamily: 'Arial', fontSize: 20, color: '#ffffff', bold: true, italic: false, underline: false, align: 'center' },
+    subtitle: { fontFamily: 'Arial', fontSize: 16, color: '#a0aec0', bold: false, italic: true, underline: false, align: 'center' },
     bodyText: { fontFamily: 'Arial', fontSize: 14, color: '#a0aec0', bold: false, italic: false, underline: false, align: 'center' },
-    ctaText: { fontFamily: 'Arial', fontSize: 14, color: '#ffffff', bold: true, italic: false, underline: false, align: 'center' }
+    ctaText: { fontFamily: 'Arial', fontSize: 14, color: '#ffffff', bold: true, italic: false, underline: false, align: 'center' },
+    col1Title: { fontFamily: 'Arial', fontSize: 14, color: '#2d3748', bold: true, italic: false, underline: false, align: 'left' },
+    col1Text: { fontFamily: 'Arial', fontSize: 12, color: '#718096', bold: false, italic: false, underline: false, align: 'left' },
+    col2Title: { fontFamily: 'Arial', fontSize: 14, color: '#2d3748', bold: true, italic: false, underline: false, align: 'left' },
+    col2Text: { fontFamily: 'Arial', fontSize: 12, color: '#718096', bold: false, italic: false, underline: false, align: 'left' },
+    infoTitle: { fontFamily: 'Arial', fontSize: 14, color: '#2d3748', bold: true, italic: false, underline: false, align: 'left' },
+    infoText: { fontFamily: 'Arial', fontSize: 13, color: '#4a5568', bold: false, italic: false, underline: false, align: 'left' }
   };
 
   const activeStyles = data.styles || defaultStyles;
@@ -49,7 +56,7 @@ const CanvaEmailEditor = ({ data, onChange }) => {
     const updatedStyles = {
       ...activeStyles,
       [element]: {
-        ...activeStyles[element],
+        ...(activeStyles[element] || defaultStyles[element] || {}),
         [key]: value
       }
     };
@@ -57,7 +64,7 @@ const CanvaEmailEditor = ({ data, onChange }) => {
   };
 
   const getStyleObj = (element) => {
-    const styleData = activeStyles[element] || defaultStyles[element];
+    const styleData = activeStyles[element] || defaultStyles[element] || {};
     return {
       fontFamily: styleData.fontFamily || 'Arial, sans-serif',
       fontSize: `${styleData.fontSize || 14}px`,
