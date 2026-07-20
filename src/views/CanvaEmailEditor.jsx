@@ -981,23 +981,130 @@ const CanvaEmailEditor = ({ data, onChange }) => {
 
               {/* Contenedores por plantilla */}
               {data.templateDesign === 'informativo' && (
-                <div style={{ background: '#f7fafc', border: '1px dashed #cbd5e0', padding: '15px', borderRadius: '6px', marginBottom: '20px', color: '#4a5568', fontSize: '13px', fontFamily: 'Arial, sans-serif' }}>
-                  <strong style={{ display: 'block', color: '#2d3748', marginBottom: '6px' }}>🔑 CONDICIONES DE AGENDA</strong>
-                  • Retiro gratuito en sucursales EcoSilence.<br />
-                  • Sanitización exhaustiva certificada.<br />
-                  • Garantía y servicio de asistencia.
+                <div 
+                  style={{ 
+                    background: 'rgba(255,255,255,0.02)', 
+                    border: '1px dashed var(--border-color)', 
+                    padding: '15px', 
+                    borderRadius: '6px', 
+                    marginBottom: '20px', 
+                    color: isDarkCanvas ? 'var(--text-muted)' : '#4a5568', 
+                    fontSize: '13px', 
+                    fontFamily: 'Arial, sans-serif' 
+                  }}
+                >
+                  <strong 
+                    contentEditable={true}
+                    suppressContentEditableWarning={true}
+                    onBlur={(e) => updateField('infoTitle', e.target.innerText)}
+                    onClick={(e) => { e.stopPropagation(); setFocusedElement('infoTitle'); }}
+                    style={{ 
+                      ...getStyleObj('infoTitle'),
+                      display: 'block', 
+                      color: (activeStyles['infoTitle'] || {}).color || (isDarkCanvas ? '#fff' : '#2d3748'), 
+                      marginBottom: '6px', 
+                      outline: 'none',
+                      border: focusedElement === 'infoTitle' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
+                      padding: '2px'
+                    }}
+                  >
+                    {data.infoTitle || '🔑 CONDICIONES DE AGENDA'}
+                  </strong>
+                  <div
+                    contentEditable={true}
+                    suppressContentEditableWarning={true}
+                    onBlur={(e) => updateField('infoText', e.target.innerText)}
+                    onClick={(e) => { e.stopPropagation(); setFocusedElement('infoText'); }}
+                    style={{ 
+                      ...getStyleObj('infoText'),
+                      outline: 'none', 
+                      whiteSpace: 'pre-wrap',
+                      color: (activeStyles['infoText'] || {}).color || (isDarkCanvas ? 'var(--text-muted)' : '#4a5568'),
+                      border: focusedElement === 'infoText' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
+                      padding: '2px',
+                      textAlign: (activeStyles['infoText'] || {}).align || 'left'
+                    }}
+                  >
+                    {data.infoText || '• Retiro gratuito en sucursales EcoSilence.\n• Sanitización exhaustiva certificada.\n• Garantía y servicio de asistencia.'}
+                  </div>
                 </div>
               )}
 
               {data.templateDesign === 'catalogo' && (
                 <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', fontFamily: 'Arial, sans-serif' }}>
-                  <div style={{ flex: 1, background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #edf2f7', fontSize: '12px', color: '#718096' }}>
-                    <strong style={{ color: '#2d3748', display: 'block', marginBottom: '4px' }}>🎧 Silent Disco</strong>
-                    Transmisión en 3 canales con luces LED integradas.
+                  {/* Columna 1 */}
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', color: isDarkCanvas ? 'var(--text-muted)' : '#718096' }}>
+                    <strong 
+                      contentEditable={true}
+                      suppressContentEditableWarning={true}
+                      onBlur={(e) => updateField('col1Title', e.target.innerText)}
+                      onClick={(e) => { e.stopPropagation(); setFocusedElement('col1Title'); }}
+                      style={{ 
+                        ...getStyleObj('col1Title'),
+                        color: (activeStyles['col1Title'] || {}).color || (isDarkCanvas ? '#fff' : '#2d3748'), 
+                        display: 'block', 
+                        marginBottom: '4px', 
+                        outline: 'none',
+                        border: focusedElement === 'col1Title' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
+                        padding: '2px'
+                      }}
+                    >
+                      {data.col1Title || '🎧 Silent Disco'}
+                    </strong>
+                    <div
+                      contentEditable={true}
+                      suppressContentEditableWarning={true}
+                      onBlur={(e) => updateField('col1Text', e.target.innerText)}
+                      onClick={(e) => { e.stopPropagation(); setFocusedElement('col1Text'); }}
+                      style={{ 
+                        ...getStyleObj('col1Text'),
+                        outline: 'none', 
+                        whiteSpace: 'pre-wrap',
+                        color: (activeStyles['col1Text'] || {}).color || (isDarkCanvas ? 'var(--text-muted)' : '#718096'),
+                        border: focusedElement === 'col1Text' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
+                        padding: '2px',
+                        textAlign: (activeStyles['col1Text'] || {}).align || 'left'
+                      }}
+                    >
+                      {data.col1Text || 'Transmisión en 3 canales con luces LED integradas.'}
+                    </div>
                   </div>
-                  <div style={{ flex: 1, background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #edf2f7', fontSize: '12px', color: '#718096' }}>
-                    <strong style={{ color: '#2d3748', display: 'block', marginBottom: '4px' }}>🎙️ Conferencias</strong>
-                    Audioguías profesionales con batería de larga duración.
+                  {/* Columna 2 */}
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', color: isDarkCanvas ? 'var(--text-muted)' : '#718096' }}>
+                    <strong 
+                      contentEditable={true}
+                      suppressContentEditableWarning={true}
+                      onBlur={(e) => updateField('col2Title', e.target.innerText)}
+                      onClick={(e) => { e.stopPropagation(); setFocusedElement('col2Title'); }}
+                      style={{ 
+                        ...getStyleObj('col2Title'),
+                        color: (activeStyles['col2Title'] || {}).color || (isDarkCanvas ? '#fff' : '#2d3748'), 
+                        display: 'block', 
+                        marginBottom: '4px', 
+                        outline: 'none',
+                        border: focusedElement === 'col2Title' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
+                        padding: '2px'
+                      }}
+                    >
+                      {data.col2Title || '🎙️ Conferencias'}
+                    </strong>
+                    <div
+                      contentEditable={true}
+                      suppressContentEditableWarning={true}
+                      onBlur={(e) => updateField('col2Text', e.target.innerText)}
+                      onClick={(e) => { e.stopPropagation(); setFocusedElement('col2Text'); }}
+                      style={{ 
+                        ...getStyleObj('col2Text'),
+                        outline: 'none', 
+                        whiteSpace: 'pre-wrap',
+                        color: (activeStyles['col2Text'] || {}).color || (isDarkCanvas ? 'var(--text-muted)' : '#718096'),
+                        border: focusedElement === 'col2Text' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
+                        padding: '2px',
+                        textAlign: (activeStyles['col2Text'] || {}).align || 'left'
+                      }}
+                    >
+                      {data.col2Text || 'Audioguías profesionales con batería de larga duración.'}
+                    </div>
                   </div>
                 </div>
               )}

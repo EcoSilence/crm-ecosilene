@@ -26,6 +26,12 @@ const MassEmailView = () => {
   const [ctaText, setCtaText] = useState('Visitar EcoSilence');
   const [ctaLink, setCtaLink] = useState('https://ecosilence.cl');
   const [templateDesign, setTemplateDesign] = useState('lanzamiento');
+  const [col1Title, setCol1Title] = useState('🎧 Silent Disco');
+  const [col1Text, setCol1Text] = useState('Transmisión en 3 canales con luces LED integradas.');
+  const [col2Title, setCol2Title] = useState('🎙️ Conferencias');
+  const [col2Text, setCol2Text] = useState('Audioguías profesionales con batería de larga duración.');
+  const [infoTitle, setInfoTitle] = useState('🔑 CONDICIONES DE AGENDA');
+  const [infoText, setInfoText] = useState('• Retiro gratuito en sucursales EcoSilence.\n• Sanitización exhaustiva certificada.\n• Garantía y servicio de asistencia.');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [styles, setStyles] = useState({
     bannerTitle: { fontFamily: 'Arial', fontSize: 28, color: '#ffffff', bold: true, italic: false, underline: false, align: 'center' },
@@ -70,6 +76,18 @@ const MassEmailView = () => {
     const containerBgStyle = backgroundImageUrl
       ? `background: linear-gradient(rgba(${rgbOverlay}, ${1 - bgOpacity}), rgba(${rgbOverlay}, ${1 - bgOpacity})), url('${backgroundImageUrl}') center/cover no-repeat; background-color: ${bgBaseColor};`
       : `background-color: ${bgBaseColor};`;
+
+    const infoRowsHtml = (infoText || '')
+      .split('\n')
+      .filter(line => line.trim())
+      .map(line => {
+        const cleanLine = line.replace(/^[•\-\*✔️\s\t]+/, '').trim();
+        return `<tr>
+                  <td width="30" valign="top">✔️</td>
+                  <td style="padding-bottom:8px;">${cleanLine}</td>
+                </tr>`;
+      })
+      .join('');
 
     const getInlineStyle = (element) => {
       const s = styles[element] || {};
@@ -204,16 +222,16 @@ const MassEmailView = () => {
                   <!-- Columna 1 -->
                   <td width="260" valign="top" style="background-color:#f8fafc;padding:15px;border-radius:6px;border:1px solid #edf2f7;">
                     ${imageUrl ? `<div style="text-align:center;margin-bottom:12px;">${imageTag}</div>` : ''}
-                    <h3 style="font-size:16px;margin:0 0 8px;color:#2d3748;font-weight:bold;">Equipamiento Premium</h3>
-                    <p style="font-size:13px;color:#718096;margin:0;line-height:1.4;">Audífonos de tres canales con luces LED integradas y transmisión de largo alcance sin interferencias.</p>
+                    <h3 style="font-size:16px;margin:0 0 8px;color:#2d3748;font-weight:bold;">${col1Title}</h3>
+                    <p style="font-size:13px;color:#718096;margin:0;line-height:1.4;">${col1Text.replace(/\n/g, '<br />')}</p>
                   </td>
                   <!-- Separador -->
                   <td width="20">&nbsp;</td>
                   <!-- Columna 2 -->
                   <td width="260" valign="top" style="background-color:#f8fafc;padding:15px;border-radius:6px;border:1px solid #edf2f7;">
                     <div style="background-color:#2563eb;color:#ffffff;font-size:11px;font-weight:bold;padding:3px 8px;border-radius:12px;display:inline-block;margin-bottom:12px;text-transform:uppercase;">Destacado</div>
-                    <h3 style="font-size:16px;margin:0 0 8px;color:#2d3748;font-weight:bold;">Entregabilidad y Calidad</h3>
-                    <p style="font-size:13px;color:#718096;margin:0;line-height:1.4;">Soporte técnico dedicado, transmisores de alta fidelidad y logística adaptada para eventos de cualquier tamaño.</p>
+                    <h3 style="font-size:16px;margin:0 0 8px;color:#2d3748;font-weight:bold;">${col2Title}</h3>
+                    <p style="font-size:13px;color:#718096;margin:0;line-height:1.4;">${col2Text.replace(/\n/g, '<br />')}</p>
                   </td>
                 </tr>
               </table>
@@ -288,20 +306,9 @@ const MassEmailView = () => {
               <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#f7fafc" style="border:1px dashed #cbd5e0;border-radius:6px;margin-bottom:24px;">
                 <tr>
                   <td style="padding:20px;">
-                    <h4 style="margin:0 0 10px 0;font-size:14px;color:#2d3748;text-transform:uppercase;letter-spacing:0.5px;font-weight:bold;">Detalles Clave del Evento / Reserva</h4>
+                    <h4 style="margin:0 0 10px 0;font-size:14px;color:#2d3748;text-transform:uppercase;letter-spacing:0.5px;font-weight:bold;">${infoTitle}</h4>
                     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size:13px;color:#4a5568;line-height:1.6;">
-                      <tr>
-                        <td width="30" valign="top">✔️</td>
-                        <td style="padding-bottom:8px;"><strong>Equipos Sanitizados:</strong> Todos los audífonos son desinfectados minuciosamente antes y después del uso.</td>
-                      </tr>
-                      <tr>
-                        <td width="30" valign="top">✔️</td>
-                        <td style="padding-bottom:8px;"><strong>Soporte Profesional:</strong> Contamos con equipo de ingenieros para garantizar la perfecta transmisión en tu recinto.</td>
-                      </tr>
-                      <tr>
-                        <td width="30" valign="top">✔️</td>
-                        <td style="padding-bottom:8px;"><strong>Flexibilidad Horaria:</strong> Retiro y devolución coordinados de forma personalizada en tu domicilio o local.</td>
-                      </tr>
+                      ${infoRowsHtml}
                     </table>
                   </td>
                 </tr>
@@ -334,7 +341,7 @@ const MassEmailView = () => {
   </table>
 </body>
 </html>`;
-  }, [bannerTitle, bannerGradient, heading, bodyText, imageUrl, ctaText, ctaLink, subject, templateDesign, styles, backgroundColor, backgroundImageUrl, backgroundImageOpacity, preheader, subtitle, ctaRadius, ctaBg]);
+  }, [bannerTitle, bannerGradient, heading, bodyText, imageUrl, ctaText, ctaLink, subject, templateDesign, styles, backgroundColor, backgroundImageUrl, backgroundImageOpacity, preheader, subtitle, ctaRadius, ctaBg, col1Title, col1Text, col2Title, col2Text, infoTitle, infoText]);
 
   const editorData = {
     subject,
@@ -353,7 +360,13 @@ const MassEmailView = () => {
     styles,
     backgroundColor,
     backgroundImageUrl,
-    backgroundImageOpacity
+    backgroundImageOpacity,
+    col1Title,
+    col1Text,
+    col2Title,
+    col2Text,
+    infoTitle,
+    infoText
   };
 
   const handleEditorChange = (newData) => {
@@ -374,6 +387,12 @@ const MassEmailView = () => {
     if (newData.backgroundColor !== undefined) setBackgroundColor(newData.backgroundColor);
     if (newData.backgroundImageUrl !== undefined) setBackgroundImageUrl(newData.backgroundImageUrl);
     if (newData.backgroundImageOpacity !== undefined) setBackgroundImageOpacity(newData.backgroundImageOpacity);
+    if (newData.col1Title !== undefined) setCol1Title(newData.col1Title);
+    if (newData.col1Text !== undefined) setCol1Text(newData.col1Text);
+    if (newData.col2Title !== undefined) setCol2Title(newData.col2Title);
+    if (newData.col2Text !== undefined) setCol2Text(newData.col2Text);
+    if (newData.infoTitle !== undefined) setInfoTitle(newData.infoTitle);
+    if (newData.infoText !== undefined) setInfoText(newData.infoText);
   };
 
   const handleSelectAll = () => {

@@ -60,6 +60,10 @@ export const generateDesignFromPrompt = (prompt) => {
         heading: `¡Mayor disponibilidad de audio en ${location}!`,
         subtitle: "Equipos sanitizados con tecnología de transmisión UHF de largo alcance.",
         bodyText: "• 3 canales de transmisión simultánea para música, charlas o DJ sets con aislamiento total.\n• Luces LED integradas que brillan según el canal sintonizado, creando un show visual único.\n• Baterías de litio de alto rendimiento con hasta 10 horas de autonomía continua.\n• Sistema ergonómico de vincha ajustable ideal para conferencias y activaciones corporativas.",
+        col1Title: "🎧 Canales LED",
+        col1Text: "Audífonos de tres canales con luces LED que brillan según la sintonía.",
+        col2Title: "🔋 Alta Duración",
+        col2Text: "Batería recargable integrada con hasta 10 horas de autonomía continua.",
         ctaText: "Ver Equipos Disponibles",
         ctaLink: "https://ecosilence.cl/equipos",
         imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600"
@@ -76,6 +80,8 @@ export const generateDesignFromPrompt = (prompt) => {
         heading: `Reserva formal y segura para tu evento en ${location}`,
         subtitle: "Asegura el audio inmersivo con nuestro proceso ágil y 100% digital.",
         bodyText: "• Paso 1: Solicitas tu cotización adaptada al número de invitados y requerimientos.\n• Paso 2: Abonas el 50% de reserva para congelar la fecha y separar los audífonos.\n• Paso 3: Firmamos el contrato digital y despachamos los equipos listos para sonar directamente.",
+        infoTitle: "🔑 CONDICIONES DE AGENDA",
+        infoText: "• Retiro gratuito en sucursales EcoSilence.\n• Sanitización exhaustiva certificada.\n• Garantía y servicio de asistencia.",
         ctaText: "Iniciar Mi Cotización",
         ctaLink: "https://ecosilence.cl/cotizar",
         imageUrl: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600"
@@ -94,6 +100,12 @@ export const generateDesignFromPrompt = (prompt) => {
       let suggestedTheme = "cinema";
       let subject = "🎬 Silent Show: Vive experiencias al aire libre sin ruidos molestos";
       let preheader = "Sonido inmersivo directo a los auriculares individuales de tus invitados.";
+      let col1Title = "🎧 Sonido Premium";
+      let col1Text = "Audífonos individuales UHF con alta fidelidad sonora.";
+      let col2Title = "💡 Luces LED";
+      let col2Text = "Atmósfera única nocturna interactiva según el canal.";
+      let infoTitle = "🔑 CONDICIONES DE AGENDA";
+      let infoText = "• Retiro coordinado directamente.\n• Sanitización e higiene certificada.\n• Soporte técnico incluido.";
 
       if (isCine) {
         subject = "🎬 Silent Cinema: Diseña una noche de películas bajo las estrellas";
@@ -105,6 +117,10 @@ export const generateDesignFromPrompt = (prompt) => {
         imageUrl = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600";
         gradient = "linear-gradient(135deg,#1c0202,#000000)";
         suggestedTheme = "cinema";
+        col1Title = "🎬 Pantalla LED";
+        col1Text = "Proyección e imagen de alto brillo incluso en la noche.";
+        col2Title = "🔇 Cero Ruido";
+        col2Text = "Respeta las ordenanzas municipales usando audio individual.";
       } else if (isYoga) {
         subject = "🧘 Yoga Silent Concerts: Clases al aire libre sin distracciones urbanas";
         preheader = "Lleva a tus alumnos a una meditación guiada con nitidez absoluta.";
@@ -115,6 +131,10 @@ export const generateDesignFromPrompt = (prompt) => {
         imageUrl = "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600";
         gradient = "linear-gradient(135deg,#c84b31,#2d4263)";
         suggestedTheme = "outdoor";
+        col1Title = "🧘 Instructor en Vivo";
+        col1Text = "Transmisión de voz cristalina directamente a cada alumno.";
+        col2Title = "🎶 Ambientación";
+        col2Text = "Música de fondo relajante para lograr una concentración absoluta.";
       }
 
       return {
@@ -127,6 +147,12 @@ export const generateDesignFromPrompt = (prompt) => {
         heading,
         subtitle,
         bodyText,
+        col1Title,
+        col1Text,
+        col2Title,
+        col2Text,
+        infoTitle,
+        infoText,
         ctaText: "Planificar Mi Evento",
         ctaLink: "https://ecosilence.cl/eventos",
         imageUrl
@@ -147,6 +173,12 @@ export const generateDesignFromPrompt = (prompt) => {
         heading: "Diseño Inteligente Personalizado",
         subtitle: "Correos persuasivos generados a partir de tu prompt.",
         bodyText: `Generamos este correo en respuesta a tu solicitud: "${prompt}".\n\n• Puedes editar este texto de forma libre haciendo clic en cualquier bloque.\n• Ajusta las tipografías y el tamaño de la letra con la barra superior de Canva.\n• Configura gradientes e imágenes de fondo desde la pestaña Elementos.`,
+        col1Title: "🎧 Auriculares",
+        col1Text: "Audífonos inalámbricos ergonómicos de 3 canales.",
+        col2Title: "💡 Soporte",
+        col2Text: "Asistencia in situ para montaje y entrega garantizada.",
+        infoTitle: "🔑 CONDICIONES",
+        infoText: "• Sanitización certificada.\n• Despacho a domicilio.",
         ctaText: "Comenzar Edición",
         ctaLink: "https://ecosilence.cl",
         imageUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600"
