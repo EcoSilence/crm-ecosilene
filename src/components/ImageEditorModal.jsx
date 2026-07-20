@@ -393,7 +393,7 @@ const ImageEditorModal = ({ imageUrl, onClose, onSave }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '2rem'
+        padding: '1rem'
       }}
     >
       <div 
@@ -401,7 +401,8 @@ const ImageEditorModal = ({ imageUrl, onClose, onSave }) => {
         style={{
           width: '100%',
           maxWidth: '1100px',
-          height: '85vh',
+          height: 'calc(100vh - 2rem)',
+          maxHeight: '850px',
           background: 'var(--bg-dark)',
           border: '1px solid var(--border-color)',
           borderRadius: '16px',
@@ -413,10 +414,10 @@ const ImageEditorModal = ({ imageUrl, onClose, onSave }) => {
         }}
       >
         {/* Cabecera del modal */}
-        <div style={{ padding: '1.2rem 1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '0.8rem 1.2rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Sparkles size={18} color="var(--accent-primary)" />
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Editor de Imágenes Avanzado con IA</h3>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Editor de Imágenes Avanzado con IA</h3>
           </div>
           <button 
             onClick={onClose}
@@ -459,7 +460,7 @@ const ImageEditorModal = ({ imageUrl, onClose, onSave }) => {
                   }}
                   style={{
                     flex: 1,
-                    padding: '12px 6px',
+                    padding: '8px 4px',
                     border: 'none',
                     borderBottom: activeTab === tab.id ? '2px solid var(--accent-primary)' : '2px solid transparent',
                     background: 'transparent',
@@ -481,7 +482,7 @@ const ImageEditorModal = ({ imageUrl, onClose, onSave }) => {
             </div>
 
             {/* Contenidos de las solapas */}
-            <div style={{ flex: 1, padding: '1.2rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+            <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               
               {/* Tab 1: FILTROS PREESTABLECIDOS (Presets) */}
               {activeTab === 'filtros' && (
@@ -613,11 +614,11 @@ const ImageEditorModal = ({ imageUrl, onClose, onSave }) => {
             </div>
 
             {/* Footer de Controles de Reset General */}
-            <div style={{ padding: '1.2rem', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '0.5rem' }}>
+            <div style={{ padding: '0.8rem 1rem', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={resetAllAdjustments}
                 className="btn btn-ghost"
-                style={{ width: '100%', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                style={{ width: '100%', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '6px' }}
               >
                 <RotateCcw size={12} /> Restablecer Ajustes
               </button>
@@ -633,7 +634,7 @@ const ImageEditorModal = ({ imageUrl, onClose, onSave }) => {
               alignItems: 'center', 
               justifyContent: 'center', 
               background: '#0a0a0f', 
-              padding: '1.5rem', 
+              padding: '1rem', 
               position: 'relative',
               overflow: 'hidden'
             }}
@@ -647,7 +648,7 @@ const ImageEditorModal = ({ imageUrl, onClose, onSave }) => {
                 style={{ 
                   display: 'block',
                   maxWidth: '100%', 
-                  maxHeight: '60vh', 
+                  maxHeight: '52vh', 
                   objectFit: 'contain',
                   borderRadius: '6px'
                 }} 
@@ -704,18 +705,18 @@ const ImageEditorModal = ({ imageUrl, onClose, onSave }) => {
         </div>
 
         {/* Footer del Modal */}
-        <div style={{ padding: '1.2rem 1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '0.8rem', background: 'rgba(0,0,0,0.1)' }}>
+        <div style={{ padding: '0.8rem 1.2rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '0.8rem', background: 'rgba(0,0,0,0.1)' }}>
           <button 
             onClick={onClose} 
             className="btn btn-ghost"
-            style={{ fontSize: '0.85rem', padding: '8px 16px' }}
+            style={{ fontSize: '0.82rem', padding: '6px 12px' }}
           >
             Cancelar
           </button>
           <button 
             onClick={handleSaveAndInsert}
             className="btn btn-primary"
-            style={{ fontSize: '0.85rem', padding: '8px 20px', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--accent-gradient)' }}
+            style={{ fontSize: '0.82rem', padding: '6px 16px', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--accent-gradient)' }}
           >
             <Check size={14} /> Guardar e Insertar en la Plantilla
           </button>
