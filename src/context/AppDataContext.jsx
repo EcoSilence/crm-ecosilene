@@ -177,7 +177,8 @@ export const AppDataProvider = ({ children }) => {
       if (clis) setClientes(clis.map(c => ({
         ...c,
         direccionEmpresa: c.direccion_empresa,
-        tipoEvento: c.tipo_evento
+        tipoEvento: c.tipo_evento,
+        fechaIngreso: c.fecha_ingreso || null
       })));
 
       // Inventario
@@ -544,7 +545,8 @@ export const AppDataProvider = ({ children }) => {
 
   const addCliente = async (clienteData) => {
     const id = generateId('C');
-    const newC = { ...clienteData, id };
+    const todayStr = new Date().toISOString().split('T')[0];
+    const newC = { ...clienteData, id, fechaIngreso: clienteData.fechaIngreso || todayStr };
     try {
       const { error } = await supabase.from('clientes').insert({
         id,
@@ -557,7 +559,8 @@ export const AppDataProvider = ({ children }) => {
         pais: clienteData.pais,
         empresa: clienteData.empresa,
         cargo: clienteData.cargo,
-        tipo_evento: clienteData.tipoEvento
+        tipo_evento: clienteData.tipoEvento,
+        fecha_ingreso: clienteData.fechaIngreso || todayStr
       });
       if (error) throw error;
       setClientes([...clientes, newC]);
@@ -577,7 +580,8 @@ export const AppDataProvider = ({ children }) => {
       pais: updatedData.pais,
       empresa: updatedData.empresa,
       cargo: updatedData.cargo,
-      tipo_evento: updatedData.tipoEvento
+      tipo_evento: updatedData.tipoEvento,
+      fecha_ingreso: updatedData.fechaIngreso || null
     }).eq('id', id);
   };
 
@@ -704,7 +708,7 @@ export const AppDataProvider = ({ children }) => {
   };
 
   const value = {
-    currentView, viewParams, navigate, isLoading,
+    currentView, viewParams, setViewParams, navigate, isLoading,
     menuNames, updateMenuName,
     globalSearchQuery, setGlobalSearchQuery,
     clientes, addCliente, editCliente, removeCliente,
