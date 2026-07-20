@@ -5,6 +5,127 @@ import { generateDesignFromPrompt } from '../services/aiDesignGenerator';
 import ImageEditorModal from '../components/ImageEditorModal';
 import { emailThemes } from '../data/emailThemesData';
 
+const BlockWrapper = ({ id, data, onChange, children }) => {
+  const activeBlocks = data.blockOrder || ['heading_block', 'body_block', 'grid_block', 'conditions_block', 'image_block', 'cta_block'];
+  const filteredBlocks = activeBlocks.filter(b => {
+    if (b === 'grid_block') return data.templateDesign === 'catalogo';
+    if (b === 'conditions_block') return data.templateDesign === 'informativo';
+    return true;
+  });
+  const index = filteredBlocks.indexOf(id);
+
+  const moveUp = (e) => {
+    e.stopPropagation();
+    if (index <= 0) return;
+    const newOrder = [...activeBlocks];
+    const currentBlockId = filteredBlocks[index];
+    const prevBlockId = filteredBlocks[index - 1];
+    const currentIdxInState = newOrder.indexOf(currentBlockId);
+    const prevIdxInState = newOrder.indexOf(prevBlockId);
+    
+    newOrder[currentIdxInState] = prevBlockId;
+    newOrder[prevIdxInState] = currentBlockId;
+    onChange({ ...data, blockOrder: newOrder });
+  };
+
+  const moveDown = (e) => {
+    e.stopPropagation();
+    if (index >= filteredBlocks.length - 1) return;
+    const newOrder = [...activeBlocks];
+    const currentBlockId = filteredBlocks[index];
+    const nextBlockId = filteredBlocks[index + 1];
+    const currentIdxInState = newOrder.indexOf(currentBlockId);
+    const nextIdxInState = newOrder.indexOf(nextBlockId);
+    
+    newOrder[currentIdxInState] = nextBlockId;
+    newOrder[nextIdxInState] = currentBlockId;
+    onChange({ ...data, blockOrder: newOrder });
+  };
+
+  return (
+    <div 
+      className="group-block-hover"
+      style={{ 
+        position: 'relative', 
+        border: '1px dashed transparent',
+        borderRadius: '8px',
+        padding: '6px',
+        marginBottom: '10px',
+        transition: 'all 0.2s',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'var(--accent-primary)';
+        const overlay = e.currentTarget.querySelector('.block-reorder-handle');
+        if (overlay) overlay.style.opacity = '1';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'transparent';
+        const overlay = e.currentTarget.querySelector('.block-reorder-handle');
+        if (overlay) overlay.style.opacity = '0';
+      }}
+    >
+      {/* Floating Controls */}
+      <div 
+        className="block-reorder-handle"
+        style={{ 
+          position: 'absolute', 
+          top: '-12px', 
+          right: '10px', 
+          display: 'flex', 
+          gap: '4px', 
+          background: '#18181b', 
+          border: '1px solid var(--border-color)', 
+          borderRadius: '6px', 
+          padding: '2px 6px',
+          zIndex: 1000,
+          opacity: 0,
+          transition: 'opacity 0.2s',
+          boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
+        }}
+      >
+        <button 
+          onClick={moveUp} 
+          disabled={index === 0}
+          style={{ 
+            background: 'transparent', 
+            border: 'none', 
+            color: index === 0 ? '#444' : 'var(--accent-primary)', 
+            cursor: index === 0 ? 'not-allowed' : 'pointer', 
+            fontSize: '10px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            padding: '2px 4px',
+            outline: 'none'
+          }}
+          title="Subir Bloque"
+        >
+          ⬆️ Subir
+        </button>
+        <span style={{ color: '#444', fontSize: '10px', alignSelf: 'center' }}>|</span>
+        <button 
+          onClick={moveDown} 
+          disabled={index === filteredBlocks.length - 1}
+          style={{ 
+            background: 'transparent', 
+            border: 'none', 
+            color: index === filteredBlocks.length - 1 ? '#444' : 'var(--accent-primary)', 
+            cursor: index === filteredBlocks.length - 1 ? 'not-allowed' : 'pointer', 
+            fontSize: '10px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            padding: '2px 4px',
+            outline: 'none'
+          }}
+          title="Bajar Bloque"
+        >
+          ⬇️ Bajar
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+};
+
 const CanvaEmailEditor = ({ data, onChange }) => {
   const [activeTab, setActiveTab] = useState('plantillas'); // 'plantillas' | 'elementos' | 'subidos'
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,6 +172,13 @@ const CanvaEmailEditor = ({ data, onChange }) => {
   };
 
   const activeStyles = data.styles || defaultStyles;
+
+  const activeBlocks = data.blockOrder || ['heading_block', 'body_block', 'grid_block', 'conditions_block', 'image_block', 'cta_block'];
+  const filteredBlocks = activeBlocks.filter(b => {
+    if (b === 'grid_block') return data.templateDesign === 'catalogo';
+    if (b === 'conditions_block') return data.templateDesign === 'informativo';
+    return true;
+  });
 
   const updateStyleField = (element, key, value) => {
     const updatedStyles = {
@@ -908,299 +1036,333 @@ const CanvaEmailEditor = ({ data, onChange }) => {
 
             {/* 2. Cuerpo Principal */}
             <div style={{ padding: '30px 25px' }}>
-              
-              {/* Encabezado */}
-              <div 
-                style={{ 
-                  cursor: 'text',
-                  border: focusedElement === 'heading' ? '2px dashed var(--accent-primary)' : '2px solid transparent',
-                  padding: '4px',
-                  borderRadius: '4px',
-                  marginBottom: '1rem'
-                }}
-                onClick={() => setFocusedElement('heading')}
-              >
-                <h2 
-                  contentEditable={true}
-                  suppressContentEditableWarning={true}
-                  onBlur={(e) => updateField('heading', e.target.innerText)}
-                  style={{ 
-                    ...getStyleObj('heading'),
-                    margin: 0, 
-                    outline: 'none'
-                  }}
-                >
-                  {data.heading}
-                </h2>
-              </div>
+              {filteredBlocks.map(blockId => {
+                if (blockId === 'heading_block') {
+                  return (
+                    <BlockWrapper key="heading" id="heading_block" data={data} onChange={onChange}>
+                      {/* Encabezado */}
+                      <div 
+                        style={{ 
+                          cursor: 'text',
+                          border: focusedElement === 'heading' ? '2px dashed var(--accent-primary)' : '2px solid transparent',
+                          padding: '4px',
+                          borderRadius: '4px',
+                          marginBottom: '1rem'
+                        }}
+                        onClick={() => setFocusedElement('heading')}
+                      >
+                        <h2 
+                          contentEditable={true}
+                          suppressContentEditableWarning={true}
+                          onBlur={(e) => updateField('heading', e.target.innerText)}
+                          style={{ 
+                            ...getStyleObj('heading'),
+                            margin: 0, 
+                            outline: 'none'
+                          }}
+                        >
+                          {data.heading}
+                        </h2>
+                      </div>
 
-              {/* Subtítulo */}
-              <div 
-                style={{ 
-                  cursor: 'text',
-                  border: focusedElement === 'subtitle' ? '2px dashed var(--accent-primary)' : '2px solid transparent',
-                  padding: '4px',
-                  borderRadius: '4px',
-                  marginBottom: '1rem',
-                  marginTop: '-0.5rem'
-                }}
-                onClick={() => setFocusedElement('subtitle')}
-              >
-                <h3 
-                  contentEditable={true}
-                  suppressContentEditableWarning={true}
-                  onBlur={(e) => updateField('subtitle', e.target.innerText)}
-                  style={{ 
-                    ...getStyleObj('subtitle'),
-                    margin: 0, 
-                    outline: 'none'
-                  }}
-                >
-                  {data.subtitle || 'Soluciones inmersivas de sonido inalámbrico.'}
-                </h3>
-              </div>
+                      {/* Subtítulo */}
+                      <div 
+                        style={{ 
+                          cursor: 'text',
+                          border: focusedElement === 'subtitle' ? '2px dashed var(--accent-primary)' : '2px solid transparent',
+                          padding: '4px',
+                          borderRadius: '4px',
+                          marginBottom: '1rem',
+                          marginTop: '-0.5rem'
+                        }}
+                        onClick={() => setFocusedElement('subtitle')}
+                      >
+                        <h3 
+                          contentEditable={true}
+                          suppressContentEditableWarning={true}
+                          onBlur={(e) => updateField('subtitle', e.target.innerText)}
+                          style={{ 
+                            ...getStyleObj('subtitle'),
+                            margin: 0, 
+                            outline: 'none'
+                          }}
+                        >
+                          {data.subtitle || 'Soluciones inmersivas de sonido inalámbrico.'}
+                        </h3>
+                      </div>
+                    </BlockWrapper>
+                  );
+                }
 
-              {/* Mensaje principal */}
-              <div 
-                style={{ 
-                  cursor: 'text',
-                  border: focusedElement === 'bodyText' ? '2px dashed var(--accent-primary)' : '2px solid transparent',
-                  padding: '4px',
-                  borderRadius: '4px',
-                  marginBottom: '1.5rem'
-                }}
-                onClick={() => setFocusedElement('bodyText')}
-              >
-                <p 
-                  contentEditable={true}
-                  suppressContentEditableWarning={true}
-                  onBlur={(e) => updateField('bodyText', e.target.innerText)}
-                  style={{ 
-                    ...getStyleObj('bodyText'),
-                    lineHeight: '1.6', 
-                    margin: 0, 
-                    outline: 'none'
-                  }}
-                >
-                  {data.bodyText}
-                </p>
-              </div>
+                if (blockId === 'body_block') {
+                  return (
+                    <BlockWrapper key="body" id="body_block" data={data} onChange={onChange}>
+                      {/* Mensaje principal */}
+                      <div 
+                        style={{ 
+                          cursor: 'text',
+                          border: focusedElement === 'bodyText' ? '2px dashed var(--accent-primary)' : '2px solid transparent',
+                          padding: '4px',
+                          borderRadius: '4px',
+                          marginBottom: '1.5rem'
+                        }}
+                        onClick={() => setFocusedElement('bodyText')}
+                      >
+                        <p 
+                          contentEditable={true}
+                          suppressContentEditableWarning={true}
+                          onBlur={(e) => updateField('bodyText', e.target.innerText)}
+                          style={{ 
+                            ...getStyleObj('bodyText'),
+                            lineHeight: '1.6', 
+                            margin: 0, 
+                            outline: 'none'
+                          }}
+                        >
+                          {data.bodyText}
+                        </p>
+                      </div>
+                    </BlockWrapper>
+                  );
+                }
 
-              {/* Contenedores por plantilla */}
-              {data.templateDesign === 'informativo' && (
-                <div 
-                  style={{ 
-                    background: 'rgba(255,255,255,0.02)', 
-                    border: '1px dashed var(--border-color)', 
-                    padding: '15px', 
-                    borderRadius: '6px', 
-                    marginBottom: '20px', 
-                    color: isDarkCanvas ? 'var(--text-muted)' : '#4a5568', 
-                    fontSize: '13px', 
-                    fontFamily: 'Arial, sans-serif' 
-                  }}
-                >
-                  <strong 
-                    contentEditable={true}
-                    suppressContentEditableWarning={true}
-                    onBlur={(e) => updateField('infoTitle', e.target.innerText)}
-                    onClick={(e) => { e.stopPropagation(); setFocusedElement('infoTitle'); }}
-                    style={{ 
-                      ...getStyleObj('infoTitle'),
-                      display: 'block', 
-                      color: (activeStyles['infoTitle'] || {}).color || (isDarkCanvas ? '#fff' : '#2d3748'), 
-                      marginBottom: '6px', 
-                      outline: 'none',
-                      border: focusedElement === 'infoTitle' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
-                      padding: '2px'
-                    }}
-                  >
-                    {data.infoTitle || '🔑 CONDICIONES DE AGENDA'}
-                  </strong>
-                  <div
-                    contentEditable={true}
-                    suppressContentEditableWarning={true}
-                    onBlur={(e) => updateField('infoText', e.target.innerText)}
-                    onClick={(e) => { e.stopPropagation(); setFocusedElement('infoText'); }}
-                    style={{ 
-                      ...getStyleObj('infoText'),
-                      outline: 'none', 
-                      whiteSpace: 'pre-wrap',
-                      color: (activeStyles['infoText'] || {}).color || (isDarkCanvas ? 'var(--text-muted)' : '#4a5568'),
-                      border: focusedElement === 'infoText' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
-                      padding: '2px',
-                      textAlign: (activeStyles['infoText'] || {}).align || 'left'
-                    }}
-                  >
-                    {data.infoText || '• Retiro gratuito en sucursales EcoSilence.\n• Sanitización exhaustiva certificada.\n• Garantía y servicio de asistencia.'}
-                  </div>
-                </div>
-              )}
+                if (blockId === 'conditions_block') {
+                  return (
+                    <BlockWrapper key="conditions" id="conditions_block" data={data} onChange={onChange}>
+                      <div 
+                        style={{ 
+                          background: 'rgba(255,255,255,0.02)', 
+                          border: '1px dashed var(--border-color)', 
+                          padding: '15px', 
+                          borderRadius: '6px', 
+                          marginBottom: '20px', 
+                          color: isDarkCanvas ? 'var(--text-muted)' : '#4a5568', 
+                          fontSize: '13px', 
+                          fontFamily: 'Arial, sans-serif' 
+                        }}
+                      >
+                        <strong 
+                          contentEditable={true}
+                          suppressContentEditableWarning={true}
+                          onBlur={(e) => updateField('infoTitle', e.target.innerText)}
+                          onClick={(e) => { e.stopPropagation(); setFocusedElement('infoTitle'); }}
+                          style={{ 
+                            ...getStyleObj('infoTitle'),
+                            display: 'block', 
+                            color: (activeStyles['infoTitle'] || {}).color || (isDarkCanvas ? '#fff' : '#2d3748'), 
+                            marginBottom: '6px', 
+                            outline: 'none',
+                            border: focusedElement === 'infoTitle' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
+                            padding: '2px'
+                          }}
+                        >
+                          {data.infoTitle || '🔑 CONDICIONES DE AGENDA'}
+                        </strong>
+                        <div
+                          contentEditable={true}
+                          suppressContentEditableWarning={true}
+                          onBlur={(e) => updateField('infoText', e.target.innerText)}
+                          onClick={(e) => { e.stopPropagation(); setFocusedElement('infoText'); }}
+                          style={{ 
+                            ...getStyleObj('infoText'),
+                            outline: 'none', 
+                            whiteSpace: 'pre-wrap',
+                            color: (activeStyles['infoText'] || {}).color || (isDarkCanvas ? 'var(--text-muted)' : '#4a5568'),
+                            border: focusedElement === 'infoText' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
+                            padding: '2px',
+                            textAlign: (activeStyles['infoText'] || {}).align || 'left'
+                          }}
+                        >
+                          {data.infoText || '• Retiro gratuito en sucursales EcoSilence.\n• Sanitización exhaustiva certificada.\n• Garantía y servicio de asistencia.'}
+                        </div>
+                      </div>
+                    </BlockWrapper>
+                  );
+                }
 
-              {data.templateDesign === 'catalogo' && (
-                <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', fontFamily: 'Arial, sans-serif' }}>
-                  {/* Columna 1 */}
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', color: isDarkCanvas ? 'var(--text-muted)' : '#718096' }}>
-                    <strong 
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      onBlur={(e) => updateField('col1Title', e.target.innerText)}
-                      onClick={(e) => { e.stopPropagation(); setFocusedElement('col1Title'); }}
-                      style={{ 
-                        ...getStyleObj('col1Title'),
-                        color: (activeStyles['col1Title'] || {}).color || (isDarkCanvas ? '#fff' : '#2d3748'), 
-                        display: 'block', 
-                        marginBottom: '4px', 
-                        outline: 'none',
-                        border: focusedElement === 'col1Title' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
-                        padding: '2px'
-                      }}
-                    >
-                      {data.col1Title || '🎧 Silent Disco'}
-                    </strong>
-                    <div
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      onBlur={(e) => updateField('col1Text', e.target.innerText)}
-                      onClick={(e) => { e.stopPropagation(); setFocusedElement('col1Text'); }}
-                      style={{ 
-                        ...getStyleObj('col1Text'),
-                        outline: 'none', 
-                        whiteSpace: 'pre-wrap',
-                        color: (activeStyles['col1Text'] || {}).color || (isDarkCanvas ? 'var(--text-muted)' : '#718096'),
-                        border: focusedElement === 'col1Text' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
-                        padding: '2px',
-                        textAlign: (activeStyles['col1Text'] || {}).align || 'left'
-                      }}
-                    >
-                      {data.col1Text || 'Transmisión en 3 canales con luces LED integradas.'}
-                    </div>
-                  </div>
-                  {/* Columna 2 */}
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', color: isDarkCanvas ? 'var(--text-muted)' : '#718096' }}>
-                    <strong 
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      onBlur={(e) => updateField('col2Title', e.target.innerText)}
-                      onClick={(e) => { e.stopPropagation(); setFocusedElement('col2Title'); }}
-                      style={{ 
-                        ...getStyleObj('col2Title'),
-                        color: (activeStyles['col2Title'] || {}).color || (isDarkCanvas ? '#fff' : '#2d3748'), 
-                        display: 'block', 
-                        marginBottom: '4px', 
-                        outline: 'none',
-                        border: focusedElement === 'col2Title' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
-                        padding: '2px'
-                      }}
-                    >
-                      {data.col2Title || '🎙️ Conferencias'}
-                    </strong>
-                    <div
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      onBlur={(e) => updateField('col2Text', e.target.innerText)}
-                      onClick={(e) => { e.stopPropagation(); setFocusedElement('col2Text'); }}
-                      style={{ 
-                        ...getStyleObj('col2Text'),
-                        outline: 'none', 
-                        whiteSpace: 'pre-wrap',
-                        color: (activeStyles['col2Text'] || {}).color || (isDarkCanvas ? 'var(--text-muted)' : '#718096'),
-                        border: focusedElement === 'col2Text' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
-                        padding: '2px',
-                        textAlign: (activeStyles['col2Text'] || {}).align || 'left'
-                      }}
-                    >
-                      {data.col2Text || 'Audioguías profesionales con batería de larga duración.'}
-                    </div>
-                  </div>
-                </div>
-              )}
+                if (blockId === 'grid_block') {
+                  return (
+                    <BlockWrapper key="grid" id="grid_block" data={data} onChange={onChange}>
+                      <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', fontFamily: 'Arial, sans-serif' }}>
+                        {/* Columna 1 */}
+                        <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', color: isDarkCanvas ? 'var(--text-muted)' : '#718096' }}>
+                          <strong 
+                            contentEditable={true}
+                            suppressContentEditableWarning={true}
+                            onBlur={(e) => updateField('col1Title', e.target.innerText)}
+                            onClick={(e) => { e.stopPropagation(); setFocusedElement('col1Title'); }}
+                            style={{ 
+                              ...getStyleObj('col1Title'),
+                              color: (activeStyles['col1Title'] || {}).color || (isDarkCanvas ? '#fff' : '#2d3748'), 
+                              display: 'block', 
+                              marginBottom: '4px', 
+                              outline: 'none',
+                              border: focusedElement === 'col1Title' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
+                              padding: '2px'
+                            }}
+                          >
+                            {data.col1Title || '🎧 Silent Disco'}
+                          </strong>
+                          <div
+                            contentEditable={true}
+                            suppressContentEditableWarning={true}
+                            onBlur={(e) => updateField('col1Text', e.target.innerText)}
+                            onClick={(e) => { e.stopPropagation(); setFocusedElement('col1Text'); }}
+                            style={{ 
+                              ...getStyleObj('col1Text'),
+                              outline: 'none', 
+                              whiteSpace: 'pre-wrap',
+                              color: (activeStyles['col1Text'] || {}).color || (isDarkCanvas ? 'var(--text-muted)' : '#718096'),
+                              border: focusedElement === 'col1Text' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
+                              padding: '2px',
+                              textAlign: (activeStyles['col1Text'] || {}).align || 'left'
+                            }}
+                          >
+                            {data.col1Text || 'Transmisión en 3 canales con luces LED integradas.'}
+                          </div>
+                        </div>
+                        {/* Columna 2 */}
+                        <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', color: isDarkCanvas ? 'var(--text-muted)' : '#718096' }}>
+                          <strong 
+                            contentEditable={true}
+                            suppressContentEditableWarning={true}
+                            onBlur={(e) => updateField('col2Title', e.target.innerText)}
+                            onClick={(e) => { e.stopPropagation(); setFocusedElement('col2Title'); }}
+                            style={{ 
+                              ...getStyleObj('col2Title'),
+                              color: (activeStyles['col2Title'] || {}).color || (isDarkCanvas ? '#fff' : '#2d3748'), 
+                              display: 'block', 
+                              marginBottom: '4px', 
+                              outline: 'none',
+                              border: focusedElement === 'col2Title' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
+                              padding: '2px'
+                            }}
+                          >
+                            {data.col2Title || '🎙️ Conferencias'}
+                          </strong>
+                          <div
+                            contentEditable={true}
+                            suppressContentEditableWarning={true}
+                            onBlur={(e) => updateField('col2Text', e.target.innerText)}
+                            onClick={(e) => { e.stopPropagation(); setFocusedElement('col2Text'); }}
+                            style={{ 
+                              ...getStyleObj('col2Text'),
+                              outline: 'none', 
+                              whiteSpace: 'pre-wrap',
+                              color: (activeStyles['col2Text'] || {}).color || (isDarkCanvas ? 'var(--text-muted)' : '#718096'),
+                              border: focusedElement === 'col2Text' ? '1px dashed var(--accent-primary)' : '1px solid transparent',
+                              padding: '2px',
+                              textAlign: (activeStyles['col2Text'] || {}).align || 'left'
+                            }}
+                          >
+                            {data.col2Text || 'Audioguías profesionales con batería de larga duración.'}
+                          </div>
+                        </div>
+                      </div>
+                    </BlockWrapper>
+                  );
+                }
 
-              {/* Imagen del Flyer */}
-              {data.imageUrl ? (
-                <div 
-                  style={{ 
-                    position: 'relative', 
-                    textAlign: 'center', 
-                    marginBottom: '20px',
-                    borderRadius: '8px',
-                    overflow: 'hidden'
-                  }}
-                >
-                  <img src={data.imageUrl} alt="Flyer" style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px', display: 'block', margin: '0 auto' }} />
-                  <div 
-                    style={{ 
-                      position: 'absolute', 
-                      inset: 0, 
-                      background: 'rgba(0,0,0,0.7)', 
-                      opacity: 0, 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      color: '#fff', 
-                      gap: '0.8rem',
-                      cursor: 'default',
-                      transition: 'opacity 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
-                    onMouseLeave={(e) => e.currentTarget.style.opacity = 0}
-                  >
-                    <button 
-                      onClick={() => setActiveTab('subidos')}
-                      className="btn btn-primary"
-                      style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
-                    >
-                      <ImageIcon size={14} /> Cambiar Imagen
-                    </button>
-                    <button 
-                      onClick={() => openImageEditor(data.imageUrl, (newUrl) => updateField('imageUrl', newUrl))}
-                      className="btn btn-secondary"
-                      style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
-                    >
-                      <Sparkles size={14} /> Editar con IA 🪄
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div 
-                  onClick={() => setActiveTab('subidos')}
-                  style={{ 
-                    padding: '2rem 1rem', 
-                    border: '1px dashed var(--border-color)', 
-                    borderRadius: '8px', 
-                    textAlign: 'center', 
-                    color: 'var(--text-muted)', 
-                    marginBottom: '20px',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem'
-                  }}
-                >
-                  <ImageIcon size={20} style={{ margin: '0 auto 6px auto' }} /> Añadir Flyer Promocional
-                </div>
-              )}
+                if (blockId === 'image_block') {
+                  return (
+                    <BlockWrapper key="image" id="image_block" data={data} onChange={onChange}>
+                      {/* Imagen del Flyer */}
+                      {data.imageUrl ? (
+                        <div 
+                          style={{ 
+                            position: 'relative', 
+                            textAlign: 'center', 
+                            marginBottom: '20px',
+                            borderRadius: '8px',
+                            overflow: 'hidden'
+                          }}
+                        >
+                          <img src={data.imageUrl} alt="Flyer" style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px', display: 'block', margin: '0 auto' }} />
+                          <div 
+                            style={{ 
+                              position: 'absolute', 
+                              inset: 0, 
+                              background: 'rgba(0,0,0,0.7)', 
+                              opacity: 0, 
+                              display: 'flex', 
+                              flexDirection: 'column',
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              color: '#fff', 
+                              gap: '0.8rem',
+                              cursor: 'default',
+                              transition: 'opacity 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
+                            onMouseLeave={(e) => e.currentTarget.style.opacity = 0}
+                          >
+                            <button 
+                              onClick={() => setActiveTab('subidos')}
+                              className="btn btn-primary"
+                              style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                            >
+                              <ImageIcon size={14} /> Cambiar Imagen
+                            </button>
+                            <button 
+                              onClick={() => openImageEditor(data.imageUrl, (newUrl) => updateField('imageUrl', newUrl))}
+                              className="btn btn-secondary"
+                              style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                            >
+                              <Sparkles size={14} /> Editar con IA 🪄
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div 
+                          onClick={() => setActiveTab('subidos')}
+                          style={{ 
+                            padding: '2rem 1rem', 
+                            border: '1px dashed var(--border-color)', 
+                            borderRadius: '8px', 
+                            textAlign: 'center', 
+                            color: 'var(--text-muted)', 
+                            marginBottom: '20px',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          <ImageIcon size={20} style={{ margin: '0 auto 6px auto' }} /> Añadir Flyer Promocional
+                        </div>
+                      )}
+                    </BlockWrapper>
+                  );
+                }
 
-              {/* Botón CTA */}
-              <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-                <span 
-                  contentEditable={true}
-                  suppressContentEditableWarning={true}
-                  onBlur={(e) => updateField('ctaText', e.target.innerText)}
-                  onClick={() => setFocusedElement('ctaText')}
-                  style={{ 
-                    ...getStyleObj('ctaText'),
-                    background: data.ctaBg || '#2563eb', 
-                    padding: '12px 24px', 
-                    borderRadius: data.ctaRadius || '4px',
-                    display: 'inline-block',
-                    outline: 'none',
-                    cursor: 'text',
-                    border: focusedElement === 'ctaText' ? '2px dashed var(--accent-primary)' : '2px solid transparent',
-                  }}
-                >
-                  {data.ctaText}
-                </span>
-              </div>
+                if (blockId === 'cta_block') {
+                  return (
+                    <BlockWrapper key="cta" id="cta_block" data={data} onChange={onChange}>
+                      {/* Botón CTA */}
+                      <div style={{ textAlign: 'center', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+                        <span 
+                          contentEditable={true}
+                          suppressContentEditableWarning={true}
+                          onBlur={(e) => updateField('ctaText', e.target.innerText)}
+                          onClick={() => setFocusedElement('ctaText')}
+                          style={{ 
+                            ...getStyleObj('ctaText'),
+                            background: data.ctaBg || '#2563eb', 
+                            padding: '12px 24px', 
+                            borderRadius: data.ctaRadius || '4px',
+                            display: 'inline-block',
+                            outline: 'none',
+                            cursor: 'text',
+                            border: focusedElement === 'ctaText' ? '2px dashed var(--accent-primary)' : '2px solid transparent',
+                          }}
+                        >
+                          {data.ctaText}
+                        </span>
+                      </div>
+                    </BlockWrapper>
+                  );
+                }
+
+                return null;
+              })}
 
             </div>
 

@@ -33,6 +33,7 @@ const MassEmailView = () => {
   const [infoTitle, setInfoTitle] = useState('🔑 CONDICIONES DE AGENDA');
   const [infoText, setInfoText] = useState('• Retiro gratuito en sucursales EcoSilence.\n• Sanitización exhaustiva certificada.\n• Garantía y servicio de asistencia.');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [blockOrder, setBlockOrder] = useState(['heading_block', 'body_block', 'grid_block', 'conditions_block', 'image_block', 'cta_block']);
   const [styles, setStyles] = useState({
     bannerTitle: { fontFamily: 'Arial', fontSize: 28, color: '#ffffff', bold: true, italic: false, underline: false, align: 'center' },
     heading: { fontFamily: 'Arial', fontSize: 20, color: '#ffffff', bold: true, italic: false, underline: false, align: 'center' },
@@ -108,6 +109,101 @@ const MassEmailView = () => {
       return `font-family:${font}, sans-serif; font-size:${size}px; color:${color}; font-weight:${boldStyle}; font-style:${italicStyle}; text-decoration:${underlineStyle}; text-align:${alignStyle};`;
     };
 
+    const renderBlock = (blockId) => {
+      if (blockId === 'heading_block') {
+        return `<!-- Encabezado -->
+          <tr>
+            <td style="padding:25px 30px 10px 30px;">
+              <h2 style="${getInlineStyle('heading')} margin:0 0 8px; line-height:1.3;">${heading}</h2>
+              <h3 style="${getInlineStyle('subtitle')} margin:0 0 20px; line-height:1.4;">${subtitle}</h3>
+            </td>
+          </tr>`;
+      }
+      if (blockId === 'body_block') {
+        return `<!-- Cuerpo del Mensaje -->
+          <tr>
+            <td style="padding:0 30px 20px 30px;">
+              <p style="${getInlineStyle('bodyText')} line-height:1.6; margin:0 0 20px;">${bodyText.replace(/\n/g, '<br />')}</p>
+            </td>
+          </tr>`;
+      }
+      if (blockId === 'image_block') {
+        return imageUrl ? `<!-- Imagen del Flyer -->
+          <tr>
+            <td align="center" style="padding:0 30px 25px 30px;">
+              ${imageTag}
+            </td>
+          </tr>` : '';
+      }
+      if (blockId === 'cta_block') {
+        return `<!-- CTA -->
+          <tr>
+            <td align="center" style="padding:0 30px 35px 30px;">
+              <table cellpadding="0" cellspacing="0" border="0" align="center">
+                <tr>
+                  <td align="center" bgcolor="${ctaBg || '#2563eb'}" style="border-radius:${ctaRadius || '8px'};overflow:hidden;">
+                    <a href="${ctaLink}" target="_blank" style="${getInlineStyle('ctaText')} text-decoration:none; padding:12px 28px; display:inline-block; font-weight:bold; letter-spacing:0.5px;">
+                      ${ctaText}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`;
+      }
+      if (blockId === 'grid_block' && templateDesign === 'catalogo') {
+        return `<!-- Cuadrícula 2 Columnas -->
+          <tr>
+            <td style="padding:0 30px 30px 30px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <!-- Columna 1 -->
+                  <td width="260" valign="top" style="background-color:#f8fafc;padding:15px;border-radius:6px;border:1px solid #edf2f7;">
+                    ${imageUrl ? `<div style="text-align:center;margin-bottom:12px;">${imageTag}</div>` : ''}
+                    <h3 style="${getInlineStyle('col1Title')} font-size:16px;margin:0 0 8px;font-weight:bold;">${col1Title}</h3>
+                    <p style="${getInlineStyle('col1Text')} font-size:13px;margin:0;line-height:1.4;">${col1Text.replace(/\n/g, '<br />')}</p>
+                  </td>
+                  <!-- Separador -->
+                  <td width="20">&nbsp;</td>
+                  <!-- Columna 2 -->
+                  <td width="260" valign="top" style="background-color:#f8fafc;padding:15px;border-radius:6px;border:1px solid #edf2f7;">
+                    <div style="background-color:#2563eb;color:#ffffff;font-size:11px;font-weight:bold;padding:3px 8px;border-radius:12px;display:inline-block;margin-bottom:12px;text-transform:uppercase;">Destacado</div>
+                    <h3 style="${getInlineStyle('col2Title')} font-size:16px;margin:0 0 8px;font-weight:bold;">${col2Title}</h3>
+                    <p style="${getInlineStyle('col2Text')} font-size:13px;margin:0;line-height:1.4;">${col2Text.replace(/\n/g, '<br />')}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`;
+      }
+      if (blockId === 'conditions_block' && templateDesign === 'informativo') {
+        return `<!-- Recuadro Detalle Destacado -->
+          <tr>
+            <td style="padding:0 30px 24px 30px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#f7fafc" style="border:1px dashed #cbd5e0;border-radius:6px;">
+                <tr>
+                  <td style="padding:20px;">
+                    <h4 style="${getInlineStyle('infoTitle')} margin:0 0 10px 0;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;font-weight:bold;">${infoTitle}</h4>
+                    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size:13px;color:#4a5568;line-height:1.6;">
+                      ${infoRowsHtml}
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`;
+      }
+      return '';
+    };
+
+    const activeBlocks = (blockOrder || ['heading_block', 'body_block', 'grid_block', 'conditions_block', 'image_block', 'cta_block']).filter(b => {
+      if (b === 'grid_block') return templateDesign === 'catalogo';
+      if (b === 'conditions_block') return templateDesign === 'informativo';
+      return true;
+    });
+
+    const renderedBlocksHtml = activeBlocks.map(renderBlock).join('\n');
+
     // Plantilla 1: Lanzamiento / Experiencia Visual (Estilo Canva Minimalista - Oscuro)
     if (templateDesign === 'lanzamiento') {
       return `<!DOCTYPE html>
@@ -115,47 +211,19 @@ const MassEmailView = () => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <title>${subject || 'EcoSilence Newsletter'}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#1a1a2e;font-family:Arial,sans-serif;-webkit-font-smoothing:antialiased;">
-  <!-- Preheader visible en la bandeja de entrada -->
-  <div style="display:none;max-height:0px;max-width:0px;opacity:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;">
-    ${preheader}
-  </div>
+<body style="margin:0;padding:0;background-color:#1a1a2e;font-family:Arial,sans-serif;">
   <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#1a1a2e">
     <tr>
       <td align="center" style="padding:40px 10px;">
-        <table cellpadding="0" cellspacing="0" border="0" width="600" style="${containerBgStyle}border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05);">
-          <!-- Banner Superior -->
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="${containerBgStyle}border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.3);">
           <tr>
             <td align="center" style="${bannerStyle}padding:50px 20px;text-align:center;">
               <h1 style="${getInlineStyle('bannerTitle')} margin:0; letter-spacing:1px; text-transform:uppercase; text-shadow:0 2px 4px rgba(0,0,0,0.2);">${bannerTitle}</h1>
             </td>
           </tr>
-          <!-- Contenido Principal -->
-          <tr>
-            <td style="padding:45px 30px;color:#ffffff;">
-              <h2 style="${getInlineStyle('heading')} margin:0 0 8px; line-height:1.3;">${heading}</h2>
-              <h3 style="${getInlineStyle('subtitle')} margin:0 0 20px; line-height:1.4;">${subtitle}</h3>
-              <p style="${getInlineStyle('bodyText')} line-height:1.7; margin:0 0 30px;">${bodyText.replace(/\n/g, '<br />')}</p>
-              
-              <!-- Imagen Héroe -->
-              ${imageUrl ? `<div style="text-align:center;margin-bottom:30px;">${imageTag}</div>` : ''}
-              
-              <!-- Botón Central -->
-              <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin-top:20px;">
-                <tr>
-                  <td align="center" bgcolor="${ctaBg || '#2563eb'}" style="border-radius:${ctaRadius || '30px'};overflow:hidden;">
-                    <a href="${ctaLink}" target="_blank" style="${getInlineStyle('ctaText')} text-decoration:none; padding:16px 36px; display:inline-block; letter-spacing:0.5px;">
-                      ${ctaText}
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <!-- Footer -->
+          ${renderedBlocksHtml}
           <tr>
             <td align="center" style="padding:30px;background-color:#0f0f1b;font-size:12px;color:#718096;text-align:center;border-top:1px solid rgba(255,255,255,0.05);">
               <p style="margin:0 0 8px 0;"><strong>EcoSilence CRM</strong> — Premium Silent Experiences</p>
@@ -177,86 +245,23 @@ const MassEmailView = () => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <title>${subject || 'EcoSilence Newsletter'}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f7fafc;font-family:Arial,sans-serif;-webkit-font-smoothing:antialiased;">
-  <!-- Preheader visible en la bandeja de entrada -->
-  <div style="display:none;max-height:0px;max-width:0px;opacity:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;">
-    ${preheader}
-  </div>
+<body style="margin:0;padding:0;background-color:#f7fafc;font-family:Arial,sans-serif;">
   <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#f7fafc">
     <tr>
       <td align="center" style="padding:30px 10px;">
         <table cellpadding="0" cellspacing="0" border="0" width="600" style="${containerBgStyle}border-radius:8px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
-          <!-- Top Header -->
-          <tr>
-            <td style="padding:20px 30px;border-bottom:1px solid #edf2f7;">
-              <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                <tr>
-                  <td><strong style="font-size:18px;color:#2d3748;letter-spacing:1px;">ECOSILENCE</strong></td>
-                  <td align="right"><span style="font-size:12px;color:#718096;text-transform:uppercase;">Catálogo de Servicios</span></td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <!-- Banner -->
           <tr>
             <td style="${bannerStyle}padding:40px 30px;color:#ffffff;">
               <h1 style="${getInlineStyle('bannerTitle')} margin:0; text-shadow:0 1px 3px rgba(0,0,0,0.15);">${bannerTitle}</h1>
             </td>
           </tr>
-          <!-- Mensaje Principal -->
-          <tr>
-            <td style="padding:30px 30px 10px 30px;color:#2d3748;">
-              <h2 style="${getInlineStyle('heading')} margin:0 0 8px;">${heading}</h2>
-              <h3 style="${getInlineStyle('subtitle')} margin:0 0 20px; line-height:1.4;">${subtitle}</h3>
-              <p style="${getInlineStyle('bodyText')} line-height:1.6; margin:0 0 20px;">${bodyText.replace(/\n/g, '<br />')}</p>
-            </td>
-          </tr>
-          <!-- Cuadrícula 2 Columnas -->
-          <tr>
-            <td style="padding:0 30px 30px 30px;">
-              <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                <tr>
-                  <!-- Columna 1 -->
-                  <td width="260" valign="top" style="background-color:#f8fafc;padding:15px;border-radius:6px;border:1px solid #edf2f7;">
-                    ${imageUrl ? `<div style="text-align:center;margin-bottom:12px;">${imageTag}</div>` : ''}
-                    <h3 style="font-size:16px;margin:0 0 8px;color:#2d3748;font-weight:bold;">${col1Title}</h3>
-                    <p style="font-size:13px;color:#718096;margin:0;line-height:1.4;">${col1Text.replace(/\n/g, '<br />')}</p>
-                  </td>
-                  <!-- Separador -->
-                  <td width="20">&nbsp;</td>
-                  <!-- Columna 2 -->
-                  <td width="260" valign="top" style="background-color:#f8fafc;padding:15px;border-radius:6px;border:1px solid #edf2f7;">
-                    <div style="background-color:#2563eb;color:#ffffff;font-size:11px;font-weight:bold;padding:3px 8px;border-radius:12px;display:inline-block;margin-bottom:12px;text-transform:uppercase;">Destacado</div>
-                    <h3 style="font-size:16px;margin:0 0 8px;color:#2d3748;font-weight:bold;">${col2Title}</h3>
-                    <p style="font-size:13px;color:#718096;margin:0;line-height:1.4;">${col2Text.replace(/\n/g, '<br />')}</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <!-- CTA -->
-          <tr>
-            <td align="center" style="padding:0 30px 35px 30px;border-bottom:1px solid #edf2f7;">
-              <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                <tr>
-                  <td align="center" bgcolor="${ctaBg || '#1a202c'}" style="border-radius:${ctaRadius || '4px'};overflow:hidden;">
-                    <a href="${ctaLink}" target="_blank" style="${getInlineStyle('ctaText')} text-decoration:none; padding:14px 24px; display:block;">
-                      ${ctaText}
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <!-- Footer Corporativo -->
+          ${renderedBlocksHtml}
           <tr>
             <td align="center" style="padding:25px 30px;background-color:#f7fafc;font-size:11px;color:#a0aec0;text-align:center;">
               <p style="margin:0 0 4px 0;text-transform:uppercase;letter-spacing:1px;font-weight:bold;color:#718096;">EcoSilence Chile</p>
               <p style="margin:0 0 12px 0;">Santiago de Chile — Soluciones de Aislamiento Acústico y Eventos</p>
-              <p style="margin:0;">Para dejar de recibir correos, puedes <a href="#" style="color:#4a5568;text-decoration:underline;">cancelar la suscripción aquí</a></p>
             </td>
           </tr>
         </table>
@@ -273,63 +278,22 @@ const MassEmailView = () => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <title>${subject || 'EcoSilence Newsletter'}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#edf2f7;font-family:Arial,sans-serif;-webkit-font-smoothing:antialiased;">
-  <!-- Preheader visible en la bandeja de entrada -->
-  <div style="display:none;max-height:0px;max-width:0px;opacity:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;">
-    ${preheader}
-  </div>
+<body style="margin:0;padding:0;background-color:#edf2f7;font-family:Arial,sans-serif;">
   <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#edf2f7">
     <tr>
       <td align="center" style="padding:40px 10px;">
         <table cellpadding="0" cellspacing="0" border="0" width="550" style="${containerBgStyle}border-radius:10px;overflow:hidden;box-shadow:0 4px 15 rgba(0,0,0,0.05);">
-          <!-- Borde de Acento Superior -->
           <tr>
             <td height="6" style="${bannerStyle}"></td>
           </tr>
-          <!-- Header -->
           <tr>
             <td align="center" style="padding:30px 20px 20px 20px;border-bottom:1px solid #edf2f7;">
               <h1 style="${getInlineStyle('bannerTitle')} margin:0; letter-spacing:0.5px;">${bannerTitle}</h1>
             </td>
           </tr>
-          <!-- Cuerpo -->
-          <tr>
-            <td style="padding:35px 30px;color:#2d3748;">
-              <h2 style="${getInlineStyle('heading')} margin:0 0 8px;">${heading}</h2>
-              <h3 style="${getInlineStyle('subtitle')} margin:0 0 20px; line-height:1.4;">${subtitle}</h3>
-              <p style="${getInlineStyle('bodyText')} line-height:1.6; margin:0 0 24px;">${bodyText.replace(/\n/g, '<br />')}</p>
-              
-              <!-- Recuadro Detalle Destacado -->
-              <table cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#f7fafc" style="border:1px dashed #cbd5e0;border-radius:6px;margin-bottom:24px;">
-                <tr>
-                  <td style="padding:20px;">
-                    <h4 style="margin:0 0 10px 0;font-size:14px;color:#2d3748;text-transform:uppercase;letter-spacing:0.5px;font-weight:bold;">${infoTitle}</h4>
-                    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size:13px;color:#4a5568;line-height:1.6;">
-                      ${infoRowsHtml}
-                    </table>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Flyer Promocional -->
-              ${imageUrl ? `<div style="text-align:center;margin-bottom:24px;">${imageTag}</div>` : ''}
-
-              <!-- Botón Central -->
-              <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin-top:20px;">
-                <tr>
-                  <td align="center" bgcolor="${ctaBg || '#0284c7'}" style="border-radius:${ctaRadius || '8px'};overflow:hidden;">
-                    <a href="${ctaLink}" target="_blank" style="${getInlineStyle('ctaText')} text-decoration:none; padding:12px 28px; display:inline-block; font-weight:bold; letter-spacing:0.5px;">
-                      ${ctaText}
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <!-- Footer -->
+          ${renderedBlocksHtml}
           <tr>
             <td align="center" style="padding:20px;background-color:#f7fafc;font-size:11px;color:#718096;text-align:center;border-top:1px solid #edf2f7;">
               <p style="margin:0;">EcoSilence CRM — Soporte al Cliente: contacto@ecosilence.cl</p>
@@ -341,7 +305,7 @@ const MassEmailView = () => {
   </table>
 </body>
 </html>`;
-  }, [bannerTitle, bannerGradient, heading, bodyText, imageUrl, ctaText, ctaLink, subject, templateDesign, styles, backgroundColor, backgroundImageUrl, backgroundImageOpacity, preheader, subtitle, ctaRadius, ctaBg, col1Title, col1Text, col2Title, col2Text, infoTitle, infoText]);
+  }, [bannerTitle, bannerGradient, heading, bodyText, imageUrl, ctaText, ctaLink, subject, templateDesign, styles, backgroundColor, backgroundImageUrl, backgroundImageOpacity, preheader, subtitle, ctaRadius, ctaBg, col1Title, col1Text, col2Title, col2Text, infoTitle, infoText, blockOrder]);
 
   const editorData = {
     subject,
@@ -366,7 +330,8 @@ const MassEmailView = () => {
     col2Title,
     col2Text,
     infoTitle,
-    infoText
+    infoText,
+    blockOrder
   };
 
   const handleEditorChange = (newData) => {
@@ -393,6 +358,7 @@ const MassEmailView = () => {
     if (newData.col2Text !== undefined) setCol2Text(newData.col2Text);
     if (newData.infoTitle !== undefined) setInfoTitle(newData.infoTitle);
     if (newData.infoText !== undefined) setInfoText(newData.infoText);
+    if (newData.blockOrder !== undefined) setBlockOrder(newData.blockOrder);
   };
 
   const handleSelectAll = () => {
