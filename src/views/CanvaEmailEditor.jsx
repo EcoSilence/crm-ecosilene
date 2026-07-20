@@ -2,11 +2,21 @@ import React, { useState, useRef } from 'react';
 import { Layout, Image as ImageIcon, Type, UploadCloud, Trash2, Link, Search, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, AlignJustify, Plus, Minus, Sparkles } from 'lucide-react';
 import { emailTemplates } from '../data/emailTemplatesData';
 import { generateDesignFromPrompt } from '../services/aiDesignGenerator';
+import ImageEditorModal from '../components/ImageEditorModal';
 
 const CanvaEmailEditor = ({ data, onChange }) => {
   const [activeTab, setActiveTab] = useState('plantillas'); // 'plantillas' | 'elementos' | 'subidos'
   const [searchTerm, setSearchTerm] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editingImageUrl, setEditingImageUrl] = useState('');
+  const [onSaveCallback, setOnSaveCallback] = useState(null);
+
+  const openImageEditor = (imgUrl, callback) => {
+    setEditingImageUrl(imgUrl);
+    setOnSaveCallback(() => callback);
+    setIsEditorOpen(true);
+  };
   const [uploadedImages, setUploadedImages] = useState([
     { id: '1', url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500', name: 'Silent Party.jpg' },
     { id: '2', url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500', name: 'Concierto LED.jpg' }
@@ -502,7 +512,7 @@ const CanvaEmailEditor = ({ data, onChange }) => {
                   <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
                     <img src={img.url} alt={img.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </div>
-                  <div style={{ display: 'flex', background: 'rgba(0,0,0,0.7)', padding: '4px', gap: '4px', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', background: 'rgba(0,0,0,0.7)', padding: '4px', gap: '2px', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
                     <button 
                       onClick={() => updateField('imageUrl', img.url)}
                       title="Usar como Flyer"
@@ -516,6 +526,17 @@ const CanvaEmailEditor = ({ data, onChange }) => {
                       style={{ background: data.backgroundImageUrl === img.url ? 'var(--accent-secondary)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '3px', color: '#fff', fontSize: '9px', padding: '2px 4px', cursor: 'pointer' }}
                     >
                       Fondo
+                    </button>
+                    <button 
+                      onClick={() => openImageEditor(img.url, (newUrl) => {
+                        setUploadedImages(prev => prev.map(x => x.id === img.id ? { ...x, url: newUrl } : x));
+                        if (data.imageUrl === img.url) updateField('imageUrl', newUrl);
+                        if (data.backgroundImageUrl === img.url) updateField('backgroundImageUrl', newUrl);
+                      })}
+                      title="Editar con IA"
+                      style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '3px', color: '#fff', fontSize: '9px', padding: '2px 4px', cursor: 'pointer' }}
+                    >
+                      Editar
                     </button>
                     <button 
                       onClick={(e) => {
@@ -895,24 +916,37 @@ const CanvaEmailEditor = ({ data, onChange }) => {
                 >
                   <img src={data.imageUrl} alt="Flyer" style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px', display: 'block', margin: '0 auto' }} />
                   <div 
-                    onClick={() => setActiveTab('subidos')}
                     style={{ 
                       position: 'absolute', 
                       inset: 0, 
-                      background: 'rgba(0,0,0,0.6)', 
+                      background: 'rgba(0,0,0,0.7)', 
                       opacity: 0, 
                       display: 'flex', 
+                      flexDirection: 'column',
                       alignItems: 'center', 
                       justifyContent: 'center', 
                       color: '#fff', 
-                      fontSize: '0.8rem',
-                      cursor: 'pointer',
+                      gap: '0.8rem',
+                      cursor: 'default',
                       transition: 'opacity 0.2s'
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
                     onMouseLeave={(e) => e.currentTarget.style.opacity = 0}
                   >
-                    <ImageIcon size={18} style={{ marginRight: '6px' }} /> Cambiar Imagen
+                    <button 
+                      onClick={() => setActiveTab('subidos')}
+                      className="btn btn-primary"
+                      style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                    >
+                      <ImageIcon size={14} /> Cambiar Imagen
+                    </button>
+                    <button 
+                      onClick={() => openImageEditor(data.imageUrl, (newUrl) => updateField('imageUrl', newUrl))}
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                    >
+                      <Sparkles size={14} /> Editar con IA 🪄
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -968,6 +1002,17 @@ const CanvaEmailEditor = ({ data, onChange }) => {
         </div>
 
       </div>
+
+      {isEditorOpen && (
+        <ImageEditorModal
+          imageUrl={editingImageUrl}
+          onClose={() => setIsEditorOpen(false)}
+          onSave={(newUrl) => {
+            if (onSaveCallback) onSaveCallback(newUrl);
+            setIsEditorOpen(false);
+          }}
+        />
+      )}
 
     </div>
   );
