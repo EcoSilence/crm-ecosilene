@@ -3,6 +3,7 @@ import { Layout, Image as ImageIcon, Type, UploadCloud, Trash2, Link, Search, Bo
 import { emailTemplates } from '../data/emailTemplatesData';
 import { generateDesignFromPrompt } from '../services/aiDesignGenerator';
 import ImageEditorModal from '../components/ImageEditorModal';
+import { emailThemes } from '../data/emailThemesData';
 
 const CanvaEmailEditor = ({ data, onChange }) => {
   const [activeTab, setActiveTab] = useState('plantillas'); // 'plantillas' | 'elementos' | 'subidos'
@@ -97,9 +98,29 @@ const CanvaEmailEditor = ({ data, onChange }) => {
     setIsGenerating(true);
     setTimeout(() => {
       const result = generateDesignFromPrompt(searchTerm);
+      
+      let finalStyles = { ...(data.styles || {}) };
+      let themeColors = {};
+      
+      if (result.suggestedTheme && emailThemes[result.suggestedTheme]) {
+        const theme = emailThemes[result.suggestedTheme];
+        themeColors = {
+          backgroundColor: theme.backgroundColor,
+          bannerGradient: theme.bannerGradient,
+          ctaRadius: theme.ctaRadius,
+          ctaBg: theme.ctaBg
+        };
+        finalStyles = {
+          ...finalStyles,
+          ...theme.styles
+        };
+      }
+      
       onChange({
         ...data,
-        ...result
+        ...result,
+        ...themeColors,
+        styles: finalStyles
       });
       setIsGenerating(false);
     }, 1000); // 1-second dynamic transition delay for premium feeling
@@ -469,6 +490,55 @@ const CanvaEmailEditor = ({ data, onChange }) => {
                 placeholder="https://ecosilence.cl"
               />
             </div>
+            
+            <h4 style={{ margin: '1.2rem 0 0 0', fontSize: '0.95rem', fontWeight: 'bold', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>Temas y Estilos Dinámicos</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.5rem' }}>
+              {Object.values(emailThemes).map(theme => {
+                const isActive = data.backgroundColor === theme.backgroundColor && data.bannerGradient === theme.bannerGradient;
+                return (
+                  <button
+                    key={theme.id}
+                    onClick={() => {
+                      onChange({
+                        ...data,
+                        backgroundColor: theme.backgroundColor,
+                        bannerGradient: theme.bannerGradient,
+                        ctaRadius: theme.ctaRadius,
+                        ctaBg: theme.ctaBg,
+                        styles: {
+                          ...data.styles,
+                          ...theme.styles
+                        }
+                      });
+                    }}
+                    style={{
+                      background: 'rgba(255,255,255,0.02)',
+                      border: isActive ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.2s',
+                      width: '100%'
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', color: '#fff' }}>{theme.name}</span>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Tipografía: {theme.styles.heading.fontFamily}</span>
+                    </div>
+                    {/* Visual Dots Preview */}
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: theme.backgroundColor, border: '1px solid #444' }} title="Fondo" />
+                      <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: theme.ctaBg }} title="Acción" />
+                      <span style={{ width: '12px', height: '12px', borderRadius: '4px', background: theme.bannerGradient }} title="Banner" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </>
         )}
 
@@ -617,6 +687,9 @@ const CanvaEmailEditor = ({ data, onChange }) => {
                 <option value="Garamond" style={{ color: '#000', fontFamily: 'Garamond' }}>Garamond</option>
                 <option value="Impact" style={{ color: '#000', fontFamily: 'Impact' }}>Impact</option>
                 <option value="Century Gothic" style={{ color: '#000', fontFamily: 'Century Gothic, sans-serif' }}>Century Gothic</option>
+                <option value="Inter" style={{ color: '#000', fontFamily: 'Inter, sans-serif' }}>Inter</option>
+                <option value="Montserrat" style={{ color: '#000', fontFamily: 'Montserrat, sans-serif' }}>Montserrat</option>
+                <option value="Roboto" style={{ color: '#000', fontFamily: 'Roboto, sans-serif' }}>Roboto</option>
               </select>
 
               {/* Selector de Tamaño Numérico */}
@@ -854,6 +927,32 @@ const CanvaEmailEditor = ({ data, onChange }) => {
                 </h2>
               </div>
 
+              {/* Subtítulo */}
+              <div 
+                style={{ 
+                  cursor: 'text',
+                  border: focusedElement === 'subtitle' ? '2px dashed var(--accent-primary)' : '2px solid transparent',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  marginBottom: '1rem',
+                  marginTop: '-0.5rem'
+                }}
+                onClick={() => setFocusedElement('subtitle')}
+              >
+                <h3 
+                  contentEditable={true}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => updateField('subtitle', e.target.innerText)}
+                  style={{ 
+                    ...getStyleObj('subtitle'),
+                    margin: 0, 
+                    outline: 'none'
+                  }}
+                >
+                  {data.subtitle || 'Soluciones inmersivas de sonido inalámbrico.'}
+                </h3>
+              </div>
+
               {/* Mensaje principal */}
               <div 
                 style={{ 
@@ -976,9 +1075,9 @@ const CanvaEmailEditor = ({ data, onChange }) => {
                   onClick={() => setFocusedElement('ctaText')}
                   style={{ 
                     ...getStyleObj('ctaText'),
-                    background: '#2563eb', 
+                    background: data.ctaBg || '#2563eb', 
                     padding: '12px 24px', 
-                    borderRadius: data.templateDesign === 'lanzamiento' ? '30px' : '4px',
+                    borderRadius: data.ctaRadius || '4px',
                     display: 'inline-block',
                     outline: 'none',
                     cursor: 'text',

@@ -52,10 +52,14 @@ export const generateDesignFromPrompt = (prompt) => {
     case "stock":
       return {
         templateDesign: "catalogo",
+        suggestedTheme: "cyberpunk",
+        subject: "⚡ ¡Aumento de Stock! Equipos Silent Disco ya disponibles",
+        preheader: "Reserva tus audífonos de 3 canales LED para tu próximo evento silencioso.",
         bannerTitle: "STOCK ACTUALIZADO ECOSILENCE",
-        bannerGradient: "linear-gradient(135deg,#203a43,#2c5364)",
+        bannerGradient: "linear-gradient(135deg,#1d003b, #00103b)",
         heading: `¡Mayor disponibilidad de audio en ${location}!`,
-        bodyText: `Hemos expandido nuestro inventario con audífonos de 3 canales LED de transmisión simultánea UHF. Perfectos para conferencias multitransmisión y eventos de alta concurrencia con total aislamiento acústico. Reserva tus equipos con anticipación y garantiza un evento impecable.`,
+        subtitle: "Equipos sanitizados con tecnología de transmisión UHF de largo alcance.",
+        bodyText: "• 3 canales de transmisión simultánea para música, charlas o DJ sets con aislamiento total.\n• Luces LED integradas que brillan según el canal sintonizado, creando un show visual único.\n• Baterías de litio de alto rendimiento con hasta 10 horas de autonomía continua.\n• Sistema ergonómico de vincha ajustable ideal para conferencias y activaciones corporativas.",
         ctaText: "Ver Equipos Disponibles",
         ctaLink: "https://ecosilence.cl/equipos",
         imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600"
@@ -64,10 +68,14 @@ export const generateDesignFromPrompt = (prompt) => {
     case "proceso":
       return {
         templateDesign: "informativo",
-        bannerTitle: "CÓMO RESERVAR TU SERVICIO",
-        bannerGradient: "linear-gradient(135deg,#1f4037,#99f2c8)",
+        suggestedTheme: "corporate",
+        subject: "📋 Guía Práctica: Cómo asegurar el arriendo de tus equipos EcoSilence",
+        preheader: "Sigue estos 3 simples pasos y garantiza el éxito de tu evento sin ruidos.",
+        bannerTitle: "RESERVA TU FECHA",
+        bannerGradient: "linear-gradient(135deg, #0f1e36, #1b3052)",
         heading: `Reserva formal y segura para tu evento en ${location}`,
-        bodyText: `Asegurar tu arriendo es muy fácil con nuestro proceso digital: \n\n1. Solicitas tu cotización en línea adaptada a tus invitados.\n2. Abonas el 50% de reserva para asegurar los audífonos en tu fecha.\n3. Coordinamos la firma de contrato digital y despachamos los equipos sanitizados directamente a tu locación.`,
+        subtitle: "Asegura el audio inmersivo con nuestro proceso ágil y 100% digital.",
+        bodyText: "• Paso 1: Solicitas tu cotización adaptada al número de invitados y requerimientos.\n• Paso 2: Abonas el 50% de reserva para congelar la fecha y separar los audífonos.\n• Paso 3: Firmamos el contrato digital y despachamos los equipos listos para sonar directamente.",
         ctaText: "Iniciar Mi Cotización",
         ctaLink: "https://ecosilence.cl/cotizar",
         imageUrl: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600"
@@ -79,29 +87,45 @@ export const generateDesignFromPrompt = (prompt) => {
       
       let bannerTitle = "EVENTOS AL AIRE LIBRE";
       let heading = `Experiencias de audio premium en ${location}`;
-      let bodyText = `Organiza activaciones al aire libre memorables sin preocuparte por la contaminación acústica. Con nuestros sistemas Silent Show, la música y el audio se transmiten directamente al audífono de cada asistente, logrando una inmersión completa y respetando las normas de ruido vecinal.`;
+      let subtitle = "Montaje completo de sonido silencioso e inmersivo.";
+      let bodyText = "• Cero contaminación acústica: Respeto estricto a las ordenanzas de ruidos vecinales.\n• Transmisión directa a auriculares inalámbricos individuales de alta fidelidad.\n• Luces LED interactivas que logran una atmósfera única en ambientes nocturnos.\n• Asistencia técnica y sanitización certificada incluida en todos los arriendos.";
       let imageUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600";
-      let gradient = "linear-gradient(135deg,#0f2027,#203a43)";
+      let gradient = "linear-gradient(135deg,#0a0f24,#150e30)";
+      let suggestedTheme = "cinema";
+      let subject = "🎬 Silent Show: Vive experiencias al aire libre sin ruidos molestos";
+      let preheader = "Sonido inmersivo directo a los auriculares individuales de tus invitados.";
 
       if (isCine) {
+        subject = "🎬 Silent Cinema: Diseña una noche de películas bajo las estrellas";
+        preheader = "Cartelera envolvente en pantallas LED gigantes de alto brillo.";
         bannerTitle = "CINE BAJO LAS ESTRELLAS";
         heading = `Función inmersiva de cine al aire libre en ${location}`;
-        bodyText = `Disfruta de la mejor cartelera nocturna en tu condominio, empresa o municipalidad. Llevamos pantallas gigantes LED de alto brillo, proyectores y audífonos individuales de alta fidelidad para que sientas cada detalle y susurro de la película de forma envolvente.`;
+        subtitle = "Organiza proyecciones inolvidables en condominios, empresas o municipios.";
+        bodyText = "• Pantallas gigantes LED inflables y proyectores de alta luminosidad.\n• Audio individual de alta fidelidad para escuchar cada susurro y banda sonora.\n• Nos encargamos del montaje, proyección y asistencia técnica in situ.\n• Evento respetuoso con el entorno ideal para plazas y patios comunes.";
         imageUrl = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600";
-        gradient = "linear-gradient(135deg,#0a0f24,#150e30)";
+        gradient = "linear-gradient(135deg,#1c0202,#000000)";
+        suggestedTheme = "cinema";
       } else if (isYoga) {
+        subject = "🧘 Yoga Silent Concerts: Clases al aire libre sin distracciones urbanas";
+        preheader = "Lleva a tus alumnos a una meditación guiada con nitidez absoluta.";
         bannerTitle = "YOGA & MINDFULNESS OUTDOOR";
-        heading = `Clases y meditación sin distracciones en ${location}`;
-        bodyText = `Lleva tus clases de bienestar al siguiente nivel en parques, terrazas o centros deportivos. Con los audífonos inalámbricos EcoSilence, tus alumnos escucharán tu voz con absoluta nitidez y música ambiental relajante sin ruidos urbanos externos.`;
+        heading = `Clases y meditación sin ruidos externos en ${location}`;
+        subtitle = "Combina la voz en vivo del guía con música relajante directo a los oídos.";
+        bodyText = "• Conexión directa: Los alumnos escuchan tu voz sin interferencias de tráfico.\n• Música ambiental relajante de fondo sintonizada en auriculares ergonómicos.\n• Equipos ligeros e higienizados ideales para parques, azoteas y playas.\n• Perfecto para activaciones corporativas de bienestar o eventos masivos.";
         imageUrl = "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=600";
-        gradient = "linear-gradient(135deg,#134e5e,#71b280)";
+        gradient = "linear-gradient(135deg,#c84b31,#2d4263)";
+        suggestedTheme = "outdoor";
       }
 
       return {
         templateDesign: "lanzamiento",
+        suggestedTheme,
+        subject,
+        preheader,
         bannerTitle,
         bannerGradient: gradient,
         heading,
+        subtitle,
         bodyText,
         ctaText: "Planificar Mi Evento",
         ctaLink: "https://ecosilence.cl/eventos",
@@ -115,10 +139,14 @@ export const generateDesignFromPrompt = (prompt) => {
       
       return {
         templateDesign: "lanzamiento",
+        suggestedTheme: "minimal",
+        subject: "✨ Descubre las Soluciones de Audio de EcoSilence",
+        preheader: "Cotiza tu sistema de audífonos inalámbricos para eventos silenciosos.",
         bannerTitle: titleKeywords ? `ECOSILENCE: ${titleKeywords}` : "NUEVA CAMPAÑA ECOSILENCE",
-        bannerGradient: "linear-gradient(135deg,#667eea,#764ba2)",
+        bannerGradient: "linear-gradient(135deg,#cbd5e0, #e2e8f0)",
         heading: "Diseño Inteligente Personalizado",
-        bodyText: `Generamos este correo en respuesta a tu solicitud: "${prompt}". Puedes editar este contenido directamente haciendo clic sobre cualquier párrafo o título del lienzo, ajustar las tipografías con la barra flotante y arrastrar imágenes de soporte.`,
+        subtitle: "Correos persuasivos generados a partir de tu prompt.",
+        bodyText: `Generamos este correo en respuesta a tu solicitud: "${prompt}".\n\n• Puedes editar este texto de forma libre haciendo clic en cualquier bloque.\n• Ajusta las tipografías y el tamaño de la letra con la barra superior de Canva.\n• Configura gradientes e imágenes de fondo desde la pestaña Elementos.`,
         ctaText: "Comenzar Edición",
         ctaLink: "https://ecosilence.cl",
         imageUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600"
