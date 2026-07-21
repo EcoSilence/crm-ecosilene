@@ -28,9 +28,16 @@ export const initGoogleScripts = () => {
   return new Promise((resolve) => {
     const checkReady = () => {
       if (window.gapi && window.google) {
-        gapiLoaded();
-        gisLoaded();
-        resolve(true);
+        window.gapi.load('client', async () => {
+          try {
+            await initializeGapiClient();
+            gisLoaded();
+            resolve(true);
+          } catch (err) {
+            console.error('Error initializing GAPI client:', err);
+            resolve(false);
+          }
+        });
       } else {
         setTimeout(checkReady, 100);
       }
@@ -38,10 +45,6 @@ export const initGoogleScripts = () => {
     checkReady();
   });
 };
-
-function gapiLoaded() {
-  window.gapi.load('client', initializeGapiClient);
-}
 
 async function initializeGapiClient() {
   await window.gapi.client.init({
@@ -62,9 +65,18 @@ function gisLoaded() {
 
 export const authenticateGoogle = (silent = false) => {
   return new Promise((resolve, reject) => {
+    if (!tokenClient) {
+      reject(new Error('Token client not initialized yet.'));
+      return;
+    }
+
     tokenClient.callback = async (resp) => {
       if (resp.error !== undefined) {
         reject(resp);
+        return;
+      }
+      if (window.gapi && window.gapi.client) {
+        window.gapi.client.setToken(resp);
       }
       resolve(resp);
     };
