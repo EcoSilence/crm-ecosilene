@@ -235,12 +235,12 @@ export const AppDataProvider = ({ children }) => {
     initGoogleScripts().then(() => {
       // Si estaba vinculado antes, intentar reconectar silenciosamente
       if (localStorage.getItem('google_calendar_linked') === 'true') {
-      authenticateGoogle(true).then(() => {
-        setIsGoogleLinked(true);
-      }).catch(err => {
-        console.warn('Auto-link expired, user needs to re-auth:', err);
-        setIsGoogleLinked(false);
-      });
+        authenticateGoogle(true).then(() => {
+          setIsGoogleLinked(true);
+        }).catch(err => {
+          console.warn('Auto-link silent auth failed, token will be requested on demand:', err);
+          setIsGoogleLinked(true);
+        });
       }
     });
   }, []);
@@ -705,6 +705,36 @@ export const AppDataProvider = ({ children }) => {
     }
   };
 
+  const syncAllServicesToCalendar = async () => {
+    if (!isGoogleLinked) return;
+    addToast('Iniciando sincronización masiva con Google Calendar...', 'info');
+    let successCount = 0;
+    
+    // Solo sincronizar servicios con fecha de inicio
+    const activeServicios = servicios.filter(s => s.fechaInicio);
+    
+    for (const s of activeServicios) {
+      try {
+        const items = cotizaciones.filter(c => c.servicioId === s.idServicio);
+        const cliente = clientes.find(c => c.id === s.clienteId);
+        const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+        const eventId = await syncServiceToCalendar(s, clienteName, items);
+        
+        if (eventId && eventId !== s.googleEventId) {
+          s.googleEventId = eventId;
+          await supabase.from('servicios').update({ google_event_id: eventId }).eq('id_servicio', s.idServicio);
+          successCount++;
+        }
+      } catch (err) {
+        console.error(`Error syncing service ${s.idServicio}:`, err);
+      }
+    }
+    
+    // Actualizar estado local
+    setServicios([...servicios]);
+    addToast(`Sincronización finalizada con éxito.`, 'success');
+  };
+
   const value = {
     currentView, viewParams, navigate, isLoading,
     menuNames, updateMenuName,
@@ -727,7 +757,7 @@ export const AppDataProvider = ({ children }) => {
     metaAccessToken, instagramAccountId, saveMetaCredentials,
     brandProfile: brandProfiles[selectedMarketingAccount],
     archivados, isArchived,
-    formatDateDDMMYYYY, handleCalendarSync
+    formatDateDDMMYYYY, handleCalendarSync, syncAllServicesToCalendar
   };
 
   return (

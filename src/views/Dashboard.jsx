@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useAppStore } from '../context/AppDataContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { DollarSign, Briefcase, MapPin, Calendar, Clock, Filter, CalendarDays } from 'lucide-react';
+import { DollarSign, Briefcase, MapPin, Calendar, Clock, Filter, CalendarDays, RefreshCw } from 'lucide-react';
 
 const Dashboard = () => {
-  const { servicios, cotizaciones, isGoogleLinked, linkGoogle, menuNames, navigate, isArchived } = useAppStore();
+  const { servicios, cotizaciones, isGoogleLinked, linkGoogle, syncAllServicesToCalendar, menuNames, navigate, isArchived } = useAppStore();
   const [selectedMonth, setSelectedMonth] = useState('Todos');
 
   const availableMonths = useMemo(() => {
@@ -108,6 +108,18 @@ const Dashboard = () => {
               <CalendarDays size={18} />
               {isGoogleLinked ? 'Google Calendar Vinculado' : 'Vincular Google Calendar'}
             </button>
+
+            {isGoogleLinked && (
+              <button 
+                className="btn btn-secondary"
+                onClick={syncAllServicesToCalendar}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', padding: '0.6rem 1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', color: 'var(--text-main)', cursor: 'pointer' }}
+                title="Sincronizar todos los servicios activos del CRM a Google Calendar"
+              >
+                <RefreshCw size={16} />
+                Sincronizar todo
+              </button>
+            )}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-panel)', padding: '0.6rem 1rem', borderRadius: 'var(--radius-md)' }}>
                <Filter size={18} color="var(--text-muted)" />
