@@ -250,9 +250,11 @@ export const AppDataProvider = ({ children }) => {
       await authenticateGoogle(false);
       setIsGoogleLinked(true);
       localStorage.setItem('google_calendar_linked', 'true');
+      addToast('Google Calendar vinculado con éxito.', 'success');
       return true;
     } catch (err) {
       console.error('Auth error:', err);
+      addToast('Error de vinculación: Verifica si tu navegador bloqueó la ventana emergente (popup) de Google.', 'error');
       return false;
     }
   };

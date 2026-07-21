@@ -27,15 +27,23 @@ const STAGE_COLORS = {
 export const initGoogleScripts = () => {
   return new Promise((resolve) => {
     const checkReady = () => {
-      if (window.gapi && window.google) {
+      if (window.gapi && window.google && window.google.accounts && window.google.accounts.oauth2) {
+        // Inicializar GIS inmediatamente ya que es sincrónico y no depende del cliente GAPI
+        try {
+          gisLoaded();
+        } catch (e) {
+          console.error('Error al inicializar cliente GIS:', e);
+        }
+
+        // Cargar el cliente de GAPI de forma asíncrona
         window.gapi.load('client', async () => {
           try {
             await initializeGapiClient();
-            gisLoaded();
             resolve(true);
           } catch (err) {
-            console.error('Error initializing GAPI client:', err);
-            resolve(false);
+            console.error('Error al inicializar cliente GAPI:', err);
+            // Resolvemos true porque GIS (tokenClient) ya se inicializó y se puede vincular interactivamente
+            resolve(true);
           }
         });
       } else {
@@ -55,6 +63,7 @@ async function initializeGapiClient() {
 }
 
 function gisLoaded() {
+  if (tokenClient) return; // Evitar inicializaciones duplicadas
   tokenClient = window.google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPES,
