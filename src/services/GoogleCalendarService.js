@@ -29,6 +29,9 @@ const STAGE_COLORS = {
 
 export const initGoogleScripts = () => {
   return new Promise((resolve) => {
+    let attempts = 0;
+    const maxAttempts = 50; // 5 segundos máximo
+
     const checkReady = () => {
       if (window.gapi && window.google && window.google.accounts && window.google.accounts.oauth2) {
         // Inicializar GIS inmediatamente ya que es sincrónico y no depende del cliente GAPI
@@ -45,12 +48,17 @@ export const initGoogleScripts = () => {
             resolve(true);
           } catch (err) {
             console.error('Error al inicializar cliente GAPI:', err);
-            // Resolvemos true porque GIS (tokenClient) ya se inicializó y se puede vincular interactivamente
-            resolve(true);
+            resolve(false);
           }
         });
       } else {
-        setTimeout(checkReady, 100);
+        attempts++;
+        if (attempts >= maxAttempts) {
+          console.warn('Google scripts failed to load within timeout limit (possibly blocked by AdBlock or lack of internet).');
+          resolve(false);
+        } else {
+          setTimeout(checkReady, 100);
+        }
       }
     };
     checkReady();
@@ -60,8 +68,31 @@ export const initGoogleScripts = () => {
 async function initializeGapiClient() {
   await window.gapi.client.init({
     apiKey: API_KEY,
-    discoveryDocs: DISCOVERY_DOCS,
   });
+
+  // Cargar las APIs individualmente para que la falta de habilitación de una no rompa a las demás
+  try {
+    await window.gapi.client.load('calendar', 'v3');
+    console.log('Google Calendar API cargada con éxito.');
+  } catch (e) {
+    console.error('Error al cargar Google Calendar API:', e);
+    throw new Error('No se pudo cargar la API de Google Calendar. Asegúrate de tener habilitada la Calendar API en la consola de Google.');
+  }
+
+  try {
+    await window.gapi.client.load('gmail', 'v1');
+    console.log('Google Gmail API cargada con éxito.');
+  } catch (e) {
+    console.warn('Google Gmail API opcional no habilitada o falló al cargar:', e);
+  }
+
+  try {
+    await window.gapi.client.load('drive', 'v3');
+    console.log('Google Drive API cargada con éxito.');
+  } catch (e) {
+    console.warn('Google Drive API opcional no habilitada o falló al cargar:', e);
+  }
+
   gapiInited = true;
 }
 
