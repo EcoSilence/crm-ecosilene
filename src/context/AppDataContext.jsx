@@ -559,8 +559,7 @@ export const AppDataProvider = ({ children }) => {
         pais: clienteData.pais,
         empresa: clienteData.empresa,
         cargo: clienteData.cargo,
-        tipo_evento: clienteData.tipoEvento,
-        fecha_ingreso: clienteData.fechaIngreso || todayStr
+        tipo_evento: clienteData.tipoEvento
       });
       if (error) throw error;
       setClientes([...clientes, newC]);
@@ -580,8 +579,7 @@ export const AppDataProvider = ({ children }) => {
       pais: updatedData.pais,
       empresa: updatedData.empresa,
       cargo: updatedData.cargo,
-      tipo_evento: updatedData.tipoEvento,
-      fecha_ingreso: updatedData.fechaIngreso || null
+      tipo_evento: updatedData.tipoEvento
     }).eq('id', id);
   };
 
