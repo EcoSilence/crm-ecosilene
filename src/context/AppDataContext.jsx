@@ -10,6 +10,7 @@ export const AppDataProvider = ({ children }) => {
   const [currentView, setCurrentView] = useState('dashboard');
   const [viewParams, setViewParams] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [configurations, setConfigurations] = useState({});
   const [isGoogleLinked, setIsGoogleLinked] = useState(localStorage.getItem('google_calendar_linked') === 'true');
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
 
@@ -222,6 +223,19 @@ export const AppDataProvider = ({ children }) => {
         precioUnitario: c.precio_unitario
       })));
 
+      // Configuraciones
+      const { data: configs, error: eConfig } = await supabase.from('configuracion').select('*');
+      if (!eConfig && configs) {
+        const configMap = {};
+        configs.forEach(c => {
+          configMap[c.clave] = c.valor;
+        });
+        setConfigurations(configMap);
+        if (configMap['menu_names']) {
+          setMenuNames(configMap['menu_names']);
+        }
+      }
+
     } catch (error) {
       console.error('Error fetching data:', error);
       addToast('Error al conectar con la base de datos: ' + error.message, 'error');
@@ -309,12 +323,23 @@ export const AppDataProvider = ({ children }) => {
     return `${prefix}${String(nextNum).padStart(2, '0')}`;
   };
 
+  const saveConfiguration = async (clave, valor) => {
+    setConfigurations(prev => ({ ...prev, [clave]: valor }));
+    try {
+      await supabase.from('configuracion').upsert({ clave, valor });
+    } catch (e) {
+      console.error('Error al guardar configuración:', e);
+    }
+  };
+
   const updateMenuName = async (id, newName) => {
     const updated = { ...menuNames, [id]: newName };
     setMenuNames(updated);
-    try {
-      await supabase.from('configuracion').upsert({ clave: 'menu_names', valor: updated });
-    } catch (e) { console.error(e); }
+    await saveConfiguration('menu_names', updated);
+  };
+
+  const reorderCotizacionItems = async (servicioId, orderedIds) => {
+    await saveConfiguration('orden_cotizacion_' + servicioId, orderedIds);
   };
 
   const navigate = (view, params = null) => {
@@ -774,7 +799,8 @@ export const AppDataProvider = ({ children }) => {
     brandProfile: brandProfiles[selectedMarketingAccount],
     archivados, isArchived,
     formatDateDDMMYYYY, handleCalendarSync, syncAllServicesToCalendar,
-    googleApiInited, googleGisInited
+    googleApiInited, googleGisInited,
+    configurations, reorderCotizacionItems
   };
 
   return (

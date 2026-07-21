@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '../context/AppDataContext';
 import { useToast } from '../context/ToastContext';
-import { FileText, Plus, MapPin, CalendarDays, DollarSign, Download, Trash2, Box, Mail, Printer, X, Save, ArrowLeft } from 'lucide-react';
+import { FileText, Plus, MapPin, CalendarDays, DollarSign, Download, Trash2, Box, Mail, Printer, X, Save, ArrowLeft, ArrowUp, ArrowDown } from 'lucide-react';
 
 const CotizacionesView = () => {
   const {
     servicios, clientes, inventario, cotizaciones,
     addItemCotizacion, removeItemCotizacion, editItemCotizacion,
-    updateServiceDiscount, updateServiceCurrency, viewParams, getStockActual, navigate, menuNames, formatDateDDMMYYYY
+    updateServiceDiscount, updateServiceCurrency, viewParams, getStockActual, navigate, menuNames, formatDateDDMMYYYY,
+    configurations, reorderCotizacionItems
   } = useAppStore();
   const { addToast } = useToast();
 
@@ -29,7 +30,23 @@ const CotizacionesView = () => {
 
   const servicio = servicios.find(s => s.idServicio === selectedServicioId);
   const cliente = servicio ? clientes.find(c => c.id === servicio.clienteId) : null;
-  const itemsCotizacion = cotizaciones.filter(c => c.servicioId === selectedServicioId);
+  const rawItems = cotizaciones.filter(c => c.servicioId === selectedServicioId);
+  const itemsOrder = configurations['orden_cotizacion_' + selectedServicioId] || [];
+
+  const itemsCotizacion = useMemo(() => {
+    const items = [...rawItems];
+    if (itemsOrder.length > 0) {
+      items.sort((a, b) => {
+        const indexA = itemsOrder.indexOf(a.idCotizacion);
+        const indexB = itemsOrder.indexOf(b.idCotizacion);
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+    }
+    return items;
+  }, [rawItems, itemsOrder]);
 
   // Efecto absoluto para cambiar el title del DOM y persistirlo mientras la vista previa esté abierta
   useEffect(() => {
@@ -97,6 +114,24 @@ const CotizacionesView = () => {
     });
 
     setFormData({ equipoId: '', cantidad: 1, dias: 1, precioUnitario: 0, descripcion: '' });
+  };
+
+  const handleMoveUp = (index) => {
+    if (index === 0) return;
+    const newItems = [...itemsCotizacion];
+    const temp = newItems[index];
+    newItems[index] = newItems[index - 1];
+    newItems[index - 1] = temp;
+    reorderCotizacionItems(selectedServicioId, newItems.map(item => item.idCotizacion));
+  };
+
+  const handleMoveDown = (index) => {
+    if (index === itemsCotizacion.length - 1) return;
+    const newItems = [...itemsCotizacion];
+    const temp = newItems[index];
+    newItems[index] = newItems[index + 1];
+    newItems[index + 1] = temp;
+    reorderCotizacionItems(selectedServicioId, newItems.map(item => item.idCotizacion));
   };
 
   return (
@@ -216,6 +251,7 @@ const CotizacionesView = () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>
+                        <th style={{ padding: '0.8rem 0', width: '60px', textAlign: 'center' }} className="no-print">Pos.</th>
                         <th style={{ padding: '0.8rem 0' }}>Descripción</th>
                         <th style={{ padding: '0.8rem 0', textAlign: 'center' }}>Cant.</th>
                         <th style={{ padding: '0.8rem 0', textAlign: 'center' }}>Días</th>
@@ -225,8 +261,48 @@ const CotizacionesView = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {itemsCotizacion.map(item => (
+                      {itemsCotizacion.map((item, index) => (
                         <tr key={item.idCotizacion} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td style={{ padding: '0.5rem 0', textAlign: 'center' }} className="no-print">
+                            <div style={{ display: 'flex', gap: '0.2rem', justifyContent: 'center', alignItems: 'center' }}>
+                              <button
+                                onClick={() => handleMoveUp(index)}
+                                disabled={index === 0}
+                                style={{
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  borderRadius: '4px',
+                                  color: index === 0 ? 'var(--text-muted)' : 'var(--text-main)',
+                                  opacity: index === 0 ? 0.3 : 1,
+                                  cursor: index === 0 ? 'default' : 'pointer',
+                                  padding: '4px',
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                }}
+                                title="Subir ítem"
+                              >
+                                <ArrowUp size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleMoveDown(index)}
+                                disabled={index === itemsCotizacion.length - 1}
+                                style={{
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  borderRadius: '4px',
+                                  color: index === itemsCotizacion.length - 1 ? 'var(--text-muted)' : 'var(--text-main)',
+                                  opacity: index === itemsCotizacion.length - 1 ? 0.3 : 1,
+                                  cursor: index === itemsCotizacion.length - 1 ? 'default' : 'pointer',
+                                  padding: '4px',
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                }}
+                                title="Bajar ítem"
+                              >
+                                <ArrowDown size={12} />
+                              </button>
+                            </div>
+                          </td>
                           <td style={{ padding: '1rem 0' }}>
                             <div style={{ fontWeight: 500 }}>{item.descripcion}</div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{inventario.find(i => i.idEquipo === item.equipoId)?.categoria}</div>
@@ -249,7 +325,7 @@ const CotizacionesView = () => {
                         </tr>
                       ))}
                       {itemsCotizacion.length === 0 && (
-                        <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Sin ítems en el presupuesto.</td></tr>
+                        <tr><td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Sin ítems en el presupuesto.</td></tr>
                       )}
                     </tbody>
                   </table>
