@@ -7,7 +7,7 @@ import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarD
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { servicios, updateServiceStage, removeServicio, editServicio, updateServiceInvoice, uploadServiceInvoiceFile, listDriveContentAction, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio, handleCalendarSync, isGoogleLinked, linkGoogle, globalSearchQuery, setGlobalSearchQuery } = useAppStore();
+  const { servicios, updateServiceStage, removeServicio, editServicio, updateServiceInvoice, uploadServiceInvoiceFile, listDriveContentAction, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio, handleCalendarSync, isGoogleLinked, linkGoogle, googleApiInited, googleGisInited, globalSearchQuery, setGlobalSearchQuery } = useAppStore();
   const { addToast } = useToast();
   const searchTerm = globalSearchQuery;
   const setSearchTerm = setGlobalSearchQuery;
@@ -281,13 +281,12 @@ https://www.ecosilence.cl/`;
         </div>
       </div>
 
-      {!isGoogleLinked && localStorage.getItem('google_calendar_linked') === 'true' && (
-        <div style={{ background: 'rgba(251, 191, 36, 0.1)', border: '1px solid var(--color-banana)', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', color: 'var(--color-banana)' }}>
+      {isGoogleLinked && (!googleApiInited || !googleGisInited) && (
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--color-tomato)', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', color: 'var(--color-tomato)' }}>
             <Calendar size={20} />
-            <span style={{ fontSize: '0.9rem' }}>Tu sesión de Google ha expirado. <strong>Los cambios no se sincronizarán</strong> hasta que vuelvas a vincular tu cuenta.</span>
+            <span style={{ fontSize: '0.9rem' }}>⚠️ <strong>Error al conectar con Google:</strong> Los scripts de la API de Google no cargaron correctamente (es posible que un bloqueador de anuncios AdBlock los esté bloqueando). Desactiva el bloqueador en este sitio o refresca la página para reintentar.</span>
           </div>
-          <button className="btn btn-primary" style={{ background: 'var(--color-banana)', color: '#000', padding: '0.4rem 1rem', fontSize: '0.8rem' }} onClick={linkGoogle}>Re-vincular ahora</button>
         </div>
       )}
 

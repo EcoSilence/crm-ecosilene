@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import { initGoogleScripts, authenticateGoogle, syncServiceToCalendar, deleteCalendarEvent, listDriveContent, syncMarketingPostToCalendar } from '../services/GoogleCalendarService';
+import { initGoogleScripts, authenticateGoogle, syncServiceToCalendar, deleteCalendarEvent, listDriveContent, syncMarketingPostToCalendar, isGapiInitialized, isGsisInitialized } from '../services/GoogleCalendarService';
 import { useToast } from './ToastContext';
 
 const AppDataContext = createContext();
@@ -230,9 +230,14 @@ export const AppDataProvider = ({ children }) => {
     }
   };
 
+  const [googleApiInited, setGoogleApiInited] = useState(false);
+  const [googleGisInited, setGoogleGisInited] = useState(false);
+
   useEffect(() => {
     fetchData();
     initGoogleScripts().then(() => {
+      setGoogleApiInited(isGapiInitialized());
+      setGoogleGisInited(isGsisInitialized());
       // Si estaba vinculado antes, intentar reconectar silenciosamente
       if (localStorage.getItem('google_calendar_linked') === 'true') {
         authenticateGoogle(true).then(() => {
@@ -359,18 +364,25 @@ export const AppDataProvider = ({ children }) => {
     if (!isGoogleLinked || !servicioObj.fechaInicio) return;
     const cliente = clientes.find(c => c.id === servicioObj.clienteId);
     const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
-    const eventId = await syncServiceToCalendar(servicioObj, clienteName, itemsArr);
     
-    if (eventId) {
-      // Si el ID cambió (porque se re-creó por error 404) o si era nuevo
-      if (eventId !== servicioObj.googleEventId) {
-        servicioObj.googleEventId = eventId;
-        setServicios(prev => prev.map(s => s.idServicio === servicioObj.idServicio ? { ...s, googleEventId: eventId } : s));
-        await supabase.from('servicios').update({ google_event_id: eventId }).eq('id_servicio', servicioObj.idServicio);
+    try {
+      const eventId = await syncServiceToCalendar(servicioObj, clienteName, itemsArr);
+      
+      if (eventId) {
+        // Si el ID cambió (porque se re-creó por error 404) o si era nuevo
+        if (eventId !== servicioObj.googleEventId) {
+          servicioObj.googleEventId = eventId;
+          setServicios(prev => prev.map(s => s.idServicio === servicioObj.idServicio ? { ...s, googleEventId: eventId } : s));
+          await supabase.from('servicios').update({ google_event_id: eventId }).eq('id_servicio', servicioObj.idServicio);
+        }
+        return true;
       }
-      return true;
+      return false;
+    } catch (err) {
+      console.error('Error sincronizando con Google Calendar:', err);
+      addToast('Error al sincronizar con Google Calendar: ' + (err.message || err.error || 'Verifica tu conexión y permisos.'), 'error');
+      return false;
     }
-    return false;
   };
 
   const updateServiceStage = async (idServicio, newStage) => {
@@ -484,15 +496,19 @@ export const AppDataProvider = ({ children }) => {
   const addServicio = async (servicioData) => {
     const idServicio = generateCorrelativeId();
     let newS = { ...servicioData, idServicio, etapa: 'Cotizado', descuento: 0, moneda: 'CLP' };
-    
+    let googleEventId = null;
+
     try {
-      // Sincronizar con Google Calendar ANTES de guardar en Supabase para obtener el eventId
-      let googleEventId = null;
       if (isGoogleLinked) {
-        const cliente = clientes.find(c => c.id === servicioData.clienteId);
-        const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
-        googleEventId = await syncServiceToCalendar(newS, clienteName);
-        newS.googleEventId = googleEventId;
+        try {
+          const cliente = clientes.find(c => c.id === servicioData.clienteId);
+          const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+          googleEventId = await syncServiceToCalendar(newS, clienteName);
+          newS.googleEventId = googleEventId;
+        } catch (calErr) {
+          console.error('Error sincronizando nuevo servicio al calendario:', calErr);
+          addToast('El servicio se creó localmente, pero falló la sincronización con Google Calendar: ' + (calErr.message || 'Verifica permisos.'), 'warning');
+        }
       }
 
       const { error } = await supabase.from('servicios').insert({
@@ -757,7 +773,8 @@ export const AppDataProvider = ({ children }) => {
     metaAccessToken, instagramAccountId, saveMetaCredentials,
     brandProfile: brandProfiles[selectedMarketingAccount],
     archivados, isArchived,
-    formatDateDDMMYYYY, handleCalendarSync, syncAllServicesToCalendar
+    formatDateDDMMYYYY, handleCalendarSync, syncAllServicesToCalendar,
+    googleApiInited, googleGisInited
   };
 
   return (

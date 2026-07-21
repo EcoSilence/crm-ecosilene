@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { DollarSign, Briefcase, MapPin, Calendar, Clock, Filter, CalendarDays, RefreshCw } from 'lucide-react';
 
 const Dashboard = () => {
-  const { servicios, cotizaciones, isGoogleLinked, linkGoogle, syncAllServicesToCalendar, menuNames, navigate, isArchived } = useAppStore();
+  const { servicios, cotizaciones, isGoogleLinked, linkGoogle, syncAllServicesToCalendar, googleApiInited, googleGisInited, menuNames, navigate, isArchived } = useAppStore();
   const [selectedMonth, setSelectedMonth] = useState('Todos');
 
   const availableMonths = useMemo(() => {
@@ -134,7 +134,16 @@ const Dashboard = () => {
                </select>
             </div>
          </div>
-      </div>
+       </div>
+
+      {isGoogleLinked && (!googleApiInited || !googleGisInited) && (
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--color-tomato)', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', color: 'var(--color-tomato)' }}>
+            <Calendar size={20} />
+            <span style={{ fontSize: '0.9rem' }}>⚠️ <strong>Error de carga en la API de Google:</strong> Los scripts oficiales de Google no pudieron inicializarse. Si tienes un bloqueador de publicidad (AdBlock o similar), desactívalo temporalmente en este sitio y recarga la página para habilitar Google Calendar.</span>
+          </div>
+        </div>
+      )}
 
       <div className="responsive-grid-cards">
         

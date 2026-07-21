@@ -15,6 +15,9 @@ let gapiInited = false;
 let gsisInited = false;
 let tokenClient;
 
+export const isGapiInitialized = () => gapiInited;
+export const isGsisInitialized = () => gsisInited;
+
 // Mapeo de Etapas a Colores de Google Calendar
 // 1: Lavanda (Berry), 5: Plátano (Cotizado), 11: Tomate (Por Cobrar), 10: Albahaca (Pagado)
 const STAGE_COLORS = {
@@ -99,7 +102,9 @@ export const authenticateGoogle = (silent = false) => {
 };
 
 export const syncServiceToCalendar = async (servicio, clienteName, items = []) => {
-  if (!gapiInited || !gsisInited) return null;
+  if (!gapiInited || !gsisInited) {
+    throw new Error('La API de Google o el cliente de autenticación no se han cargado correctamente en este momento.');
+  }
   
   // Si no hay fecha de inicio, no podemos crear evento en Google Calendar
   if (!servicio.fechaInicio) {
@@ -211,20 +216,34 @@ export const syncServiceToCalendar = async (servicio, clienteName, items = []) =
   } catch (err) {
     console.error('Error sincronizando con Google Calendar:', err);
     
-    // Si el error es 401 (no autorizado), re-autenticar
-    if (err.status === 401) {
-       await authenticateGoogle();
-       return syncServiceToCalendar(servicio, clienteName, items);
+    const isUnauthenticated = 
+      err.status === 401 || 
+      err.code === 401 || 
+      (err.result && err.result.error && (err.result.error.code === 401 || err.result.error.status === 'UNAUTHENTICATED'));
+    
+    if (isUnauthenticated) {
+       console.log('Token de Google vencido o no válido, iniciando autenticación interactiva...');
+       try {
+         await authenticateGoogle(false);
+         return syncServiceToCalendar(servicio, clienteName, items);
+       } catch (authErr) {
+         console.error('Error de autenticación interactiva:', authErr);
+         throw authErr;
+       }
     }
     
-    // Si el error es 404 (el evento ya no existe en Google), limpiar el ID y re-intentar como insert
-    if (err.status === 404 && servicio.googleEventId) {
+    const isNotFound = 
+      err.status === 404 || 
+      err.code === 404 || 
+      (err.result && err.result.error && err.result.error.code === 404);
+      
+    if (isNotFound && servicio.googleEventId) {
       console.log('Evento no encontrado en Google, re-creando...');
       const { googleEventId, ...servicioSinId } = servicio;
       return syncServiceToCalendar(servicioSinId, clienteName, items);
     }
     
-    return null;
+    throw err;
   }
 };
 
