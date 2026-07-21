@@ -7,7 +7,7 @@ import { ChevronDown, ChevronRight, Search, Plus, Calendar, X, MapPin, CalendarD
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const KanbanBoard = () => {
-  const { servicios, updateServiceStage, removeServicio, editServicio, updateServiceInvoice, uploadServiceInvoiceFile, listDriveContentAction, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio, handleCalendarSync, syncAllServicesToCalendar, isGoogleLinked, linkGoogle, globalSearchQuery, setGlobalSearchQuery } = useAppStore();
+  const { servicios, updateServiceStage, removeServicio, editServicio, updateServiceInvoice, uploadServiceInvoiceFile, listDriveContentAction, clientes, cotizaciones, inventario, navigate, formatDateDDMMYYYY, selectedKanbanMonth, isArchived, togglePagoAdelanto, addServicio, handleCalendarSync, isGoogleLinked, linkGoogle, globalSearchQuery, setGlobalSearchQuery } = useAppStore();
   const { addToast } = useToast();
   const searchTerm = globalSearchQuery;
   const setSearchTerm = setGlobalSearchQuery;
@@ -275,11 +275,6 @@ https://www.ecosilence.cl/`;
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          {isGoogleLinked && (
-            <button className="btn btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }} onClick={syncAllServicesToCalendar} title="Sincronizar todos los servicios pendientes de inmediato">
-              <Calendar size={16} /> Sincronizar Todo
-            </button>
-          )}
           <button className="btn btn-primary" onClick={() => navigate('nuevo-servicio')}>
             <Plus size={18} /> Nuevo Servicio
           </button>

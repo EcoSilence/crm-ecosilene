@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import { initGoogleScripts, authenticateGoogle, syncServiceToCalendar, deleteCalendarEvent, listDriveContent, syncMarketingPostToCalendar, CalendarSyncQueue } from '../services/GoogleCalendarService';
+import { initGoogleScripts, authenticateGoogle, syncServiceToCalendar, deleteCalendarEvent, listDriveContent, syncMarketingPostToCalendar } from '../services/GoogleCalendarService';
 import { useToast } from './ToastContext';
 
 const AppDataContext = createContext();
@@ -177,8 +177,7 @@ export const AppDataProvider = ({ children }) => {
       if (clis) setClientes(clis.map(c => ({
         ...c,
         direccionEmpresa: c.direccion_empresa,
-        tipoEvento: c.tipo_evento,
-        fechaIngreso: c.fecha_ingreso || null
+        tipoEvento: c.tipo_evento
       })));
 
       // Inventario
@@ -354,71 +353,26 @@ export const AppDataProvider = ({ children }) => {
     return equipo.stockTotal - totalUsado;
   };
 
-  const handleCalendarSync = (servicioObj, itemsArr = []) => {
+  const handleCalendarSync = async (servicioObj, itemsArr = []) => {
     if (!isGoogleLinked || !servicioObj.fechaInicio) return;
     const cliente = clientes.find(c => c.id === servicioObj.clienteId);
     const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+    const eventId = await syncServiceToCalendar(servicioObj, clienteName, itemsArr);
     
-    // Encolar tarea desacoplada
-    CalendarSyncQueue.push({
-      action: 'SYNC',
-      payload: {
-        servicio: servicioObj,
-        clienteName,
-        items: itemsArr,
-        callback: async (eventId) => {
-          if (eventId && eventId !== servicioObj.googleEventId) {
-            servicioObj.googleEventId = eventId;
-            setServicios(prev => prev.map(s => s.idServicio === servicioObj.idServicio ? { ...s, googleEventId: eventId } : s));
-            await supabase.from('servicios').update({ google_event_id: eventId }).eq('id_servicio', servicioObj.idServicio);
-          }
-        }
+    if (eventId) {
+      // Si el ID cambió (porque se re-creó por error 404) o si era nuevo
+      if (eventId !== servicioObj.googleEventId) {
+        servicioObj.googleEventId = eventId;
+        setServicios(prev => prev.map(s => s.idServicio === servicioObj.idServicio ? { ...s, googleEventId: eventId } : s));
+        await supabase.from('servicios').update({ google_event_id: eventId }).eq('id_servicio', servicioObj.idServicio);
       }
-    });
-  };
-
-  const syncAllServicesToCalendar = async () => {
-    if (!isGoogleLinked) {
-      addToast('Vincula tu cuenta de Google Calendar primero en Configuración.', 'warning');
-      return { total: 0, synced: 0, failed: 0 };
+      return true;
     }
-
-    addToast('Iniciando sincronización completa de emergencia...', 'info');
-    let synced = 0;
-    let failed = 0;
-
-    for (const s of servicios) {
-      if (!s.fechaInicio) continue;
-      const cliente = clientes.find(c => c.id === s.clienteId);
-      const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
-      const items = cotizaciones.filter(c => c.servicioId === s.idServicio);
-
-      try {
-        const eventId = await syncServiceToCalendar(s, clienteName, items);
-        if (eventId) {
-          synced++;
-          if (eventId !== s.googleEventId) {
-            s.googleEventId = eventId;
-            await supabase.from('servicios').update({ google_event_id: eventId }).eq('id_servicio', s.idServicio);
-          }
-        } else {
-          failed++;
-        }
-      } catch (err) {
-        failed++;
-        console.error(`Error sincronizando servicio ${s.idServicio}:`, err);
-      }
-    }
-
-    // Refrescar estado local
-    setServicios([...servicios]);
-    addToast(`Sincronización de Emergencia finalizada. Éxito: ${synced}, Fallidos: ${failed}.`, 'success');
-    return { total: servicios.length, synced, failed };
+    return false;
   };
 
   const updateServiceStage = async (idServicio, newStage) => {
     const s = servicios.find(srv => srv.idServicio === idServicio);
-    if (!s) return;
     const updatedS = { ...s, etapa: newStage };
     
     setServicios(servicios.map(srv => srv.idServicio === idServicio ? updatedS : srv));
@@ -427,7 +381,7 @@ export const AppDataProvider = ({ children }) => {
     // Sincronizar con Google Calendar si está vinculado
     if (isGoogleLinked) {
       const items = cotizaciones.filter(c => c.servicioId === idServicio);
-      handleCalendarSync(updatedS, items);
+      await handleCalendarSync(updatedS, items);
     }
   };
 
@@ -448,23 +402,14 @@ export const AppDataProvider = ({ children }) => {
     // Sincronizar con Google Calendar
     if (isGoogleLinked) {
       const items = cotizaciones.filter(c => c.servicioId === idServicio);
-      handleCalendarSync(updatedS, items);
+      await handleCalendarSync(updatedS, items);
     }
   };
 
   const updateServiceDiscount = async (idServicio, newDiscount) => {
-    const s = servicios.find(srv => srv.idServicio === idServicio);
-    if (!s) return;
     const val = Number(newDiscount) || 0;
-    const updatedS = { ...s, descuento: val };
-
-    setServicios(servicios.map(srv => srv.idServicio === idServicio ? updatedS : srv));
+    setServicios(servicios.map(s => s.idServicio === idServicio ? { ...s, descuento: val } : s));
     await supabase.from('servicios').update({ descuento: val }).eq('id_servicio', idServicio);
-
-    if (isGoogleLinked) {
-      const items = cotizaciones.filter(c => c.servicioId === idServicio);
-      handleCalendarSync(updatedS, items);
-    }
   };
 
   const updateServiceCurrency = async (idServicio, currency) => {
@@ -536,9 +481,18 @@ export const AppDataProvider = ({ children }) => {
 
   const addServicio = async (servicioData) => {
     const idServicio = generateCorrelativeId();
-    let newS = { ...servicioData, idServicio, etapa: 'Cotizado', descuento: 0, moneda: 'CLP', googleEventId: null };
+    let newS = { ...servicioData, idServicio, etapa: 'Cotizado', descuento: 0, moneda: 'CLP' };
     
     try {
+      // Sincronizar con Google Calendar ANTES de guardar en Supabase para obtener el eventId
+      let googleEventId = null;
+      if (isGoogleLinked) {
+        const cliente = clientes.find(c => c.id === servicioData.clienteId);
+        const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+        googleEventId = await syncServiceToCalendar(newS, clienteName);
+        newS.googleEventId = googleEventId;
+      }
+
       const { error } = await supabase.from('servicios').insert({
         id_servicio: idServicio,
         cliente_id: servicioData.clienteId,
@@ -548,17 +502,12 @@ export const AppDataProvider = ({ children }) => {
         etapa: 'Cotizado',
         descuento: 0,
         moneda: 'CLP',
-        google_event_id: null
+        google_event_id: googleEventId
       });
       
       if (error) throw error;
-      setServicios(prev => [...prev, newS]);
+      setServicios([...servicios, newS]);
       addToast('Servicio creado con éxito.', 'success');
-
-      // Sincronizar con Google Calendar en segundo plano
-      if (isGoogleLinked) {
-        handleCalendarSync(newS, []);
-      }
     } catch (err) { addToast('Error: ' + err.message, 'error'); }
   };
 
@@ -577,7 +526,7 @@ export const AppDataProvider = ({ children }) => {
     // Sincronizar con Google Calendar
     if (isGoogleLinked) {
       const items = cotizaciones.filter(c => c.servicioId === idServicio);
-      handleCalendarSync(merged, items);
+      await handleCalendarSync(merged, items);
     }
   };
 
@@ -587,22 +536,15 @@ export const AppDataProvider = ({ children }) => {
     setCotizaciones(cotizaciones.filter(c => c.servicioId !== idServicio));
     await supabase.from('servicios').delete().eq('id_servicio', idServicio);
 
-    // Eliminar de Google Calendar vía Cola Desacoplada
-    if (isGoogleLinked && s && s.googleEventId) {
-      CalendarSyncQueue.push({
-        action: 'DELETE',
-        payload: {
-          googleEventId: s.googleEventId,
-          googleCalendarId: s.googleCalendarId || 'primary'
-        }
-      });
+    // Eliminar de Google Calendar
+    if (isGoogleLinked && s.googleEventId) {
+      await deleteCalendarEvent(s.googleEventId);
     }
   };
 
   const addCliente = async (clienteData) => {
     const id = generateId('C');
-    const todayStr = new Date().toISOString().split('T')[0];
-    const newC = { ...clienteData, id, fechaIngreso: clienteData.fechaIngreso || todayStr };
+    const newC = { ...clienteData, id };
     try {
       const { error } = await supabase.from('clientes').insert({
         id,
@@ -762,7 +704,7 @@ export const AppDataProvider = ({ children }) => {
   };
 
   const value = {
-    currentView, viewParams, setViewParams, navigate, isLoading,
+    currentView, viewParams, navigate, isLoading,
     menuNames, updateMenuName,
     globalSearchQuery, setGlobalSearchQuery,
     clientes, addCliente, editCliente, removeCliente,
@@ -771,7 +713,7 @@ export const AppDataProvider = ({ children }) => {
     togglePagoAdelanto,
     cotizaciones: getCotizacionesEnriched(), addItemCotizacion, removeItemCotizacion, editItemCotizacion,
     getStockActual,
-    isGoogleLinked, linkGoogle, unlinkGoogle, logout, listDriveContent, syncAllServicesToCalendar,
+    isGoogleLinked, linkGoogle, unlinkGoogle, logout, listDriveContent,
     kanbanExpandedYears, setKanbanExpandedYears,
     kanbanExpandedMonths, setKanbanExpandedMonths,
     kanbanExpandedStage, setKanbanExpandedStage,

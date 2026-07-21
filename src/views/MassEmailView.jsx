@@ -6,19 +6,12 @@ import { Mail, Users, Check, AlertCircle, RefreshCw, Send, Image as ImageIcon, L
 import CanvaEmailEditor from './CanvaEmailEditor';
 
 const MassEmailView = () => {
-  const { clientes, isGoogleLinked, linkGoogle, viewParams, setViewParams } = useAppStore();
+  const { clientes, isGoogleLinked, linkGoogle } = useAppStore();
   const { addToast } = useToast();
 
   // Estados de Formulario
   const [subject, setSubject] = useState('');
   const [selectedClientes, setSelectedClientes] = useState([]);
-
-  React.useEffect(() => {
-    if (viewParams && viewParams.preselectedEmails) {
-      setSelectedClientes(viewParams.preselectedEmails);
-      setViewParams(null);
-    }
-  }, [viewParams, setViewParams]);
   
   // Editor del Template de Correo
   const [bannerTitle, setBannerTitle] = useState('Novedades de EcoSilence');

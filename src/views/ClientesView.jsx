@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../context/AppDataContext';
 import { useToast } from '../context/ToastContext';
-import { Plus, Search, MapPin, Phone, Building, Mail, X, Trash2, Edit2, Upload, Download, Sparkles } from 'lucide-react';
+import { Plus, Search, MapPin, Phone, Building, Mail, X, Trash2, Edit2, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import ClientSearchModule from './ClientSearchModule';
 
 const ClientesView = () => {
   const { clientes, addCliente, editCliente, removeCliente, menuNames, globalSearchQuery, setGlobalSearchQuery } = useAppStore();
@@ -11,9 +10,6 @@ const ClientesView = () => {
   const searchTerm = globalSearchQuery;
   const setSearchTerm = setGlobalSearchQuery;
   
-  // Advanced search toggle
-  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
-
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -159,12 +155,6 @@ const ClientesView = () => {
     addToast(`Importación completada:\n✅ ${imported} clientes agregados\n🔄 ${updated} clientes actualizados.`, 'success');
   };
 
-  if (showAdvancedSearch) {
-    return (
-      <ClientSearchModule onBack={() => setShowAdvancedSearch(false)} />
-    );
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -173,13 +163,6 @@ const ClientesView = () => {
           <p style={{ color: 'var(--text-muted)' }}>Gestiona tu base de datos de clientes y empresas.</p>
         </div>
         <div className="responsive-flex-column" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button 
-            className="btn btn-primary" 
-            style={{ width: '100%', background: 'var(--accent-gradient)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            onClick={() => setShowAdvancedSearch(true)}
-          >
-            <Sparkles size={16} /> Segmentación Avanzada (IA)
-          </button>
           <label className="btn btn-ghost" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', justifyContent: 'center' }}>
             <Upload size={16} /> Importar Excel
             <input type="file" accept=".xlsx, .xls, .csv" style={{ display: 'none' }} onChange={handleFileUpload} />
