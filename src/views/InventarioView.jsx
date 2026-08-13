@@ -12,8 +12,16 @@ const InventarioView = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
-    idEquipo: '', nombreEquipo: '', categoria: 'Audio', stockTotal: 0, ubicacionBodega: ''
+    idEquipo: '', nombreEquipo: '', categoria: 'Audio', stockTotal: 0, ubicacionBodega: '', precioBase: 0
   });
+
+  const formatCurrency = (val) => {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).format(val || 0);
+  };
 
   const filteredInv = inventario.filter(e => 
     e.nombreEquipo.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -22,7 +30,7 @@ const InventarioView = () => {
 
   const openNewModal = () => {
     setEditMode(false);
-    setFormData({ idEquipo: '', nombreEquipo: '', categoria: 'Audio', stockTotal: 0, ubicacionBodega: '' });
+    setFormData({ idEquipo: '', nombreEquipo: '', categoria: 'Audio', stockTotal: 0, ubicacionBodega: '', precioBase: 0 });
     setIsModalOpen(true);
   };
 
@@ -88,6 +96,7 @@ const InventarioView = () => {
                 <th style={{ padding: '1rem' }}>Ubicación</th>
                 <th style={{ padding: '1rem', textAlign: 'center' }}>Stock Total</th>
                 <th style={{ padding: '1rem', textAlign: 'center' }}>Stock Actual (Virtual)</th>
+                <th style={{ padding: '1rem', textAlign: 'right' }}>Precio Base</th>
                 <th style={{ padding: '1rem', textAlign: 'right' }}>Acciones</th>
               </tr>
             </thead>
@@ -129,6 +138,7 @@ const InventarioView = () => {
                         {(isLowStock || isOut) && <AlertTriangle size={16} color={isOut ? 'var(--color-tomato)' : 'var(--color-banana)'} />}
                       </div>
                     </td>
+                    <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(e.precioBase)}</td>
                     <td style={{ padding: '1rem', textAlign: 'right' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                          <button className="btn btn-ghost" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={() => openEditModal(e)}>Ajustar / Editar</button>
@@ -182,6 +192,11 @@ const InventarioView = () => {
                    <input required type="text" className="input-control" placeholder="Ej: Pasillo C, Estante 4" value={formData.ubicacionBodega} onChange={e => setFormData({...formData, ubicacionBodega: e.target.value})} />
                  </div>
                  
+                 <div className="input-group" style={{ margin: 0 }}>
+                   <label className="input-label">Precio Base de Arriendo ($ CLP)</label>
+                   <input required type="number" min="0" className="input-control" placeholder="Ej: 5000" value={formData.precioBase || ''} onChange={e => setFormData({...formData, precioBase: e.target.value})} />
+                 </div>
+
                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
                     <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setIsModalOpen(false)}>Cancelar</button>
                     <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>{editMode ? 'Guardar Cambios' : 'Guardar Equipo'}</button>

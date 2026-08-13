@@ -58,6 +58,17 @@ const CotizacionesView = () => {
     precioAudifono: 5000
   });
 
+  // Sincronizar precio base del audífono desde el inventario al cargar
+  useEffect(() => {
+    const aud = inventario.find(i => i.nombreEquipo.toLowerCase().includes('audifono'));
+    if (aud && aud.precioBase) {
+      setQuickForm(prev => ({
+        ...prev,
+        precioAudifono: aud.precioBase
+      }));
+    }
+  }, [inventario]);
+
   // Update selected service if viewParams changes
   useEffect(() => {
     if (viewParams && viewParams.servicioId) {
@@ -436,14 +447,27 @@ const CotizacionesView = () => {
     const priceUnit = Number(quickForm.precioAudifono) || 0;
     const subtotalAudifonos = qty * priceUnit;
     
+    // Obtener precios base reales de otros ítems del inventario
+    const tx = inventario.find(i => i.nombreEquipo.toLowerCase().includes('transmisor'));
+    const transmisorPrecio = tx && tx.precioBase ? tx.precioBase : 25000;
+
+    const st = inventario.find(i => i.nombreEquipo.toLowerCase().includes('operador') || i.nombreEquipo.toLowerCase().includes('staff'));
+    const staffPrecio = st && st.precioBase ? st.precioBase : 80000;
+
+    const lt = inventario.find(i => i.nombreEquipo.toLowerCase().includes('iluminacion') || i.nombreEquipo.toLowerCase().includes('luces'));
+    const lightsPrecio = lt && lt.precioBase ? lt.precioBase : 30000;
+
+    const djItem = inventario.find(i => i.nombreEquipo.toLowerCase().includes('dj') || i.nombreEquipo.toLowerCase().includes('cine'));
+    const djPrecio = djItem && djItem.precioBase ? djItem.precioBase : 100000;
+
     // Si elige 2 o 3 canales, se incluye un transmisor y se añade arriendo extra si aplica
-    const subtotalCanales = quickForm.canales > 1 ? 25000 : 0;
+    const subtotalCanales = quickForm.canales > 1 ? transmisorPrecio : 0;
 
     let subtotalExtras = 0;
-    if (quickForm.extras.staff) subtotalExtras += 80000;
-    if (quickForm.extras.transmisorExtra) subtotalExtras += 25000;
-    if (quickForm.extras.iluminacion) subtotalExtras += 30000;
-    if (quickForm.extras.dj) subtotalExtras += 100000;
+    if (quickForm.extras.staff) subtotalExtras += staffPrecio;
+    if (quickForm.extras.transmisorExtra) subtotalExtras += transmisorPrecio;
+    if (quickForm.extras.iluminacion) subtotalExtras += lightsPrecio;
+    if (quickForm.extras.dj) subtotalExtras += djPrecio;
 
     const subTotalBruto = subtotalAudifonos + subtotalCanales + subtotalExtras;
     const descPorcentaje = Number(quickForm.descuento) || 0;
@@ -462,7 +486,7 @@ const CotizacionesView = () => {
       iva: ivaMonto,
       total: totalMonto
     };
-  }, [quickForm]);
+  }, [quickForm, inventario]);
 
   // Helper para buscar un equipo en inventario de forma segura
   const getValidEquipoId = (keyword) => {
@@ -546,6 +570,19 @@ const CotizacionesView = () => {
 
       // 4. Agregar items en bulk
       const itemsToInsert = [];
+
+      // Obtener precios base reales de otros ítems del inventario
+      const tx = inventario.find(i => i.nombreEquipo.toLowerCase().includes('transmisor'));
+      const transmisorPrecio = tx && tx.precioBase ? tx.precioBase : 25000;
+
+      const st = inventario.find(i => i.nombreEquipo.toLowerCase().includes('operador') || i.nombreEquipo.toLowerCase().includes('staff'));
+      const staffPrecio = st && st.precioBase ? st.precioBase : 80000;
+
+      const lt = inventario.find(i => i.nombreEquipo.toLowerCase().includes('iluminacion') || i.nombreEquipo.toLowerCase().includes('luces'));
+      const lightsPrecio = lt && lt.precioBase ? lt.precioBase : 30000;
+
+      const djItem = inventario.find(i => i.nombreEquipo.toLowerCase().includes('dj') || i.nombreEquipo.toLowerCase().includes('cine'));
+      const djPrecio = djItem && djItem.precioBase ? djItem.precioBase : 100000;
       
       // Item A: Audífonos
       const idCotizacionA = 'Q-' + Math.random().toString(36).substr(2, 9);
@@ -569,7 +606,7 @@ const CotizacionesView = () => {
           descripcion: `Transmisor ${quickForm.canales} canales (UHF Multicanal)`,
           cantidad: 1,
           dias: 1,
-          precio_unitario: 25000
+          precio_unitario: transmisorPrecio
         });
       }
 
@@ -583,7 +620,7 @@ const CotizacionesView = () => {
           descripcion: 'Staff / Operador Técnico en Terreno',
           cantidad: 1,
           dias: 1,
-          precio_unitario: 80000
+          precio_unitario: staffPrecio
         });
       }
 
@@ -596,7 +633,7 @@ const CotizacionesView = () => {
           descripcion: 'Transmisor Adicional Extra',
           cantidad: 1,
           dias: 1,
-          precio_unitario: 25000
+          precio_unitario: transmisorPrecio
         });
       }
 
@@ -609,7 +646,7 @@ const CotizacionesView = () => {
           descripcion: 'Equipo de Iluminación Perimetral LED',
           cantidad: 1,
           dias: 1,
-          precio_unitario: 30000
+          precio_unitario: lightsPrecio
         });
       }
 
@@ -622,7 +659,7 @@ const CotizacionesView = () => {
           descripcion: 'Servicio de DJ / Cine al aire libre',
           cantidad: 1,
           dias: 1,
-          precio_unitario: 100000
+          precio_unitario: djPrecio
         });
       }
 

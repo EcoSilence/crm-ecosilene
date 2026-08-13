@@ -184,13 +184,6 @@ export const AppDataProvider = ({ children }) => {
       // Inventario
       const { data: inv, error: e2 } = await supabase.from('inventario').select('*');
       if (e2) throw e2;
-      if (inv) setInventario(inv.map(i => ({
-        idEquipo: i.id_equipo,
-        nombreEquipo: i.nombre_equipo,
-        categoria: i.categoria,
-        stockTotal: i.stock_total,
-        ubicacionBodega: i.ubicacion_bodega
-      })));
 
       // Servicios
       const { data: servs, error: e3 } = await supabase.from('servicios').select('*');
@@ -224,6 +217,7 @@ export const AppDataProvider = ({ children }) => {
       })));
 
       // Configuraciones
+      let preciosMap = {};
       const { data: configs, error: eConfig } = await supabase.from('configuracion').select('*');
       if (!eConfig && configs) {
         const configMap = {};
@@ -234,7 +228,19 @@ export const AppDataProvider = ({ children }) => {
         if (configMap['menu_names']) {
           setMenuNames(configMap['menu_names']);
         }
+        if (configMap['precios_inventario']) {
+          preciosMap = configMap['precios_inventario'] || {};
+        }
       }
+
+      if (inv) setInventario(inv.map(i => ({
+        idEquipo: i.id_equipo,
+        nombreEquipo: i.nombre_equipo,
+        categoria: i.categoria,
+        stockTotal: i.stock_total,
+        ubicacionBodega: i.ubicacion_bodega,
+        precioBase: Number(preciosMap[i.id_equipo]) || 0
+      })));
 
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -643,7 +649,7 @@ export const AppDataProvider = ({ children }) => {
 
   const addEquipo = async (equipoData) => {
     const idEquipo = generateId('E');
-    const newE = { ...equipoData, idEquipo, stockTotal: Number(equipoData.stockTotal) };
+    const newE = { ...equipoData, idEquipo, stockTotal: Number(equipoData.stockTotal), precioBase: Number(equipoData.precioBase) || 0 };
     try {
       const { error } = await supabase.from('inventario').insert({
         id_equipo: idEquipo,
@@ -653,24 +659,46 @@ export const AppDataProvider = ({ children }) => {
         ubicacion_bodega: equipoData.ubicacionBodega
       });
       if (error) throw error;
+
+      // Guardar el precio base en configuraciones
+      const currentPrices = configurations['precios_inventario'] || {};
+      const newPrices = { ...currentPrices, [idEquipo]: Number(equipoData.precioBase) || 0 };
+      await saveConfiguration('precios_inventario', newPrices);
+
       setInventario([...inventario, newE]);
       addToast('Equipo agregado con éxito.', 'success');
-    } catch (err) { addToast('Error: ' + err.message, 'error'); }
+      return newE;
+    } catch (err) { 
+      addToast('Error: ' + err.message, 'error'); 
+      throw err;
+    }
   };
 
   const editEquipo = async (idEquipo, updatedData) => {
-    setInventario(inventario.map(e => (e.idEquipo === idEquipo ? { ...e, ...updatedData, stockTotal: Number(updatedData.stockTotal) } : e)));
+    const newE = { ...updatedData, stockTotal: Number(updatedData.stockTotal), precioBase: Number(updatedData.precioBase) || 0 };
+    setInventario(inventario.map(e => (e.idEquipo === idEquipo ? newE : e)));
+    
     await supabase.from('inventario').update({
       nombre_equipo: updatedData.nombreEquipo,
       categoria: updatedData.categoria,
       stock_total: Number(updatedData.stockTotal),
       ubicacion_bodega: updatedData.ubicacionBodega
     }).eq('id_equipo', idEquipo);
+
+    // Guardar el precio base actualizado en configuraciones
+    const currentPrices = configurations['precios_inventario'] || {};
+    const newPrices = { ...currentPrices, [idEquipo]: Number(updatedData.precioBase) || 0 };
+    await saveConfiguration('precios_inventario', newPrices);
   };
 
   const removeEquipo = async (idEquipo) => {
     setInventario(inventario.filter(e => e.idEquipo !== idEquipo));
     await supabase.from('inventario').delete().eq('id_equipo', idEquipo);
+    
+    // Limpiar el precio de las configuraciones
+    const currentPrices = configurations['precios_inventario'] || {};
+    const { [idEquipo]: removed, ...restPrices } = currentPrices;
+    await saveConfiguration('precios_inventario', restPrices);
   };
 
   const addItemCotizacion = async (itemData) => {
