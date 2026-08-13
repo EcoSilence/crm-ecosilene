@@ -219,7 +219,7 @@ export const syncServiceToCalendar = async (servicio, clienteName, items = []) =
   const event = {
     'summary': `${prefijoAudifonos}${clienteName} - ${servicio.idServicio}`,
     'location': servicio.direccionEvento,
-    'description': `Servicio de EcoSilence\nEtapa: ${servicio.etapa}\nReserva (50%): ${servicio.pagoAdelanto ? '✅ PAGADA' : '❌ PENDIENTE'}\nID: ${servicio.idServicio}${detalleEquipos}`,
+    'description': `Servicio de EcoSilence\nEtapa: ${servicio.etapa}\nLugar: ${servicio.direccionEvento || 'No especificado'}\nReserva (50%): ${servicio.pagoAdelanto ? '✅ PAGADA' : '❌ PENDIENTE'}\nID: ${servicio.idServicio}${detalleEquipos}`,
     'start': startObj,
     'end': endObj,
     'colorId': STAGE_COLORS[servicio.etapa] || '8'
