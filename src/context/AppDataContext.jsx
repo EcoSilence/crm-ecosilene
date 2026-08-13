@@ -169,8 +169,8 @@ export const AppDataProvider = ({ children }) => {
   }, [servicios]);
 
   // Fetch data from Supabase
-  const fetchData = async () => {
-    setIsLoading(true);
+  const fetchData = async (showSpinner = true) => {
+    if (showSpinner) setIsLoading(true);
     try {
       // Clientes
       const { data: clis, error: e1 } = await supabase.from('clientes').select('*');
@@ -240,7 +240,7 @@ export const AppDataProvider = ({ children }) => {
       console.error('Error fetching data:', error);
       addToast('Error al conectar con la base de datos: ' + error.message, 'error');
     } finally {
-      setIsLoading(false);
+      if (showSpinner) setIsLoading(false);
     }
   };
 
@@ -808,7 +808,7 @@ export const AppDataProvider = ({ children }) => {
     archivados, isArchived,
     formatDateDDMMYYYY, handleCalendarSync, syncAllServicesToCalendar,
     googleApiInited, googleGisInited,
-    configurations, reorderCotizacionItems
+    configurations, reorderCotizacionItems, fetchData
   };
 
   return (

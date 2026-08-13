@@ -13,7 +13,7 @@ const CotizacionesView = () => {
     servicios, clientes, inventario, cotizaciones,
     addItemCotizacion, removeItemCotizacion, editItemCotizacion,
     updateServiceDiscount, updateServiceCurrency, viewParams, getStockActual, navigate, menuNames, formatDateDDMMYYYY,
-    configurations, reorderCotizacionItems, addCliente, editCliente, addServicio, handleCalendarSync
+    configurations, reorderCotizacionItems, addCliente, editCliente, addServicio, handleCalendarSync, fetchData
   } = useAppStore();
   const { addToast } = useToast();
 
@@ -193,109 +193,200 @@ const CotizacionesView = () => {
 
     if (!text) return result;
 
-    // Extract Email
-    const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
-    if (emailMatch) result.correo = emailMatch[0];
+    const lines = text.split('\n');
 
-    // Extract Phone
-    const phoneMatch = text.match(/(?:\+?56\s?9?\s?\d{4}\s?\d{4}|\b9\s?\d{4}\s?\d{4}\b)/i);
-    if (phoneMatch) result.telefono = phoneMatch[0].replace(/\s+/g, '');
+    // 1. INTENTAR EXTRACCIÓN POR LÍNEAS ETIQUETADAS (Altísima precisión para copias estructuradas)
+    lines.forEach(line => {
+      const cleanLine = line.trim();
+      if (!cleanLine) return;
 
-    // Extract RUT
-    const rutMatch = text.match(/\b\d{1,2}\.?\d{3}\.?\d{3}-?[\dKk]\b/i);
-    if (rutMatch) result.rut = rutMatch[0];
+      const colonIdx = cleanLine.indexOf(':');
+      let label = '';
+      let val = '';
+      
+      if (colonIdx !== -1) {
+        label = cleanLine.substring(0, colonIdx).toLowerCase().trim();
+        val = cleanLine.substring(colonIdx + 1).trim();
+      } else {
+        // Fallback: buscar palabras clave al inicio de la línea
+        const lowerLine = cleanLine.toLowerCase();
+        const keywords = [
+          { key: 'nombre de la empresa', prop: 'empresa' },
+          { key: 'empresa', prop: 'empresa' },
+          { key: 'nombre del encargado', prop: 'encargado' },
+          { key: 'encargado', prop: 'encargado' },
+          { key: 'contacto', prop: 'encargado' },
+          { key: 'nombre', prop: 'encargado' },
+          { key: 'dirección comercial', prop: 'direccionComercial' },
+          { key: 'direccion comercial', prop: 'direccionComercial' },
+          { key: 'dirección del evento', prop: 'direccionEvento' },
+          { key: 'direccion del evento', prop: 'direccionEvento' },
+          { key: 'dirección', prop: 'direccionEvento' },
+          { key: 'direccion', prop: 'direccionEvento' },
+          { key: 'lugar', prop: 'direccionEvento' },
+          { key: 'fecha del evento', prop: 'fechaEvento' },
+          { key: 'fecha', prop: 'fechaEvento' },
+          { key: 'teléfono', prop: 'telefono' },
+          { key: 'telefono', prop: 'telefono' },
+          { key: 'fono', prop: 'telefono' },
+          { key: 'celular', prop: 'telefono' },
+          { key: 'correo', prop: 'correo' },
+          { key: 'email', prop: 'correo' },
+          { key: 'mail', prop: 'correo' },
+          { key: 'cantidad de audífonos', prop: 'cantidadAudifonos' },
+          { key: 'cantidad de audifonos', prop: 'cantidadAudifonos' },
+          { key: 'audífonos', prop: 'cantidadAudifonos' },
+          { key: 'audifonos', prop: 'cantidadAudifonos' },
+          { key: 'cantidad de ambiente', prop: 'canales' },
+          { key: 'ambiente', prop: 'canales' },
+          { key: 'canales', prop: 'canales' },
+          { key: 'canal', prop: 'canales' },
+          { key: 'rut', prop: 'rut' }
+        ];
 
-    // Extract Quantity of headphones
-    const qtyMatch = text.match(/(\d+)\s*(?:aud[ií]fonos|auriculares|personas|equipos|invitados|unidades|auris|cascos)/i);
-    if (qtyMatch) {
-      result.cantidadAudifonos = parseInt(qtyMatch[1], 10);
+        for (const kw of keywords) {
+          if (lowerLine.startsWith(kw.key)) {
+            label = kw.key;
+            val = cleanLine.substring(kw.key.length).trim();
+            val = val.replace(/^[\s:\-=]+/, '');
+            break;
+          }
+        }
+      }
+
+      if (label && val) {
+        if (label.includes('empresa') || label === 'nombre de la empresa') {
+          result.empresa = val;
+        } else if (label.includes('encargado') || label.includes('contacto') || label.includes('nombre')) {
+          result.encargado = val;
+        } else if (label.includes('dirección comercial') || label.includes('direccion comercial')) {
+          result.direccionComercial = val;
+        } else if (label.includes('dirección del evento') || label.includes('direccion del evento') || label === 'dirección' || label === 'direccion' || label.includes('lugar')) {
+          result.direccionEvento = val;
+        } else if (label.includes('teléfono') || label.includes('telefono') || label.includes('fono') || label.includes('celular')) {
+          result.telefono = val;
+        } else if (label.includes('correo') || label.includes('email') || label.includes('mail')) {
+          result.correo = val;
+        } else if (label.includes('audífonos') || label.includes('audifonos') || label.includes('cantidad de audifonos') || label.includes('cantidad de audífonos')) {
+          const num = val.match(/\d+/);
+          if (num) result.cantidadAudifonos = parseInt(num[0], 10);
+        } else if (label.includes('ambiente') || label.includes('canales') || label.includes('canal') || label.includes('cantidad de ambiente')) {
+          const num = val.match(/\d+/);
+          if (num) {
+            const ch = parseInt(num[0], 10);
+            if (ch >= 1 && ch <= 3) result.canales = ch;
+          }
+        } else if (label.includes('fecha')) {
+          const dateVal = parseDateFromString(val);
+          if (dateVal) result.fechaEvento = dateVal;
+        } else if (label.includes('rut') || label.includes('id')) {
+          result.rut = val;
+        }
+      }
+    });
+
+    // 2. BUSCAR VALORES FALTANTES CON REGEX GLOBALES (Para texto libre/conversacional)
+    if (!result.correo) {
+      const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i);
+      if (emailMatch) result.correo = emailMatch[0];
     }
 
-    // Extract channels
-    const channelsMatch = text.match(/(\d+)\s*(?:canal(es)?|ambiente(s)?|transmisor(es)?)/i);
-    if (channelsMatch) {
-      const parsedChannels = parseInt(channelsMatch[1], 10);
-      if (parsedChannels >= 1 && parsedChannels <= 3) {
-        result.canales = parsedChannels;
+    if (!result.telefono) {
+      const phoneMatch = text.match(/(?:\+?56\s?9?\s?\d{4}\s?\d{4}|\b9\s?\d{4}\s?\d{4}\b)/i);
+      if (phoneMatch) result.telefono = phoneMatch[0].replace(/\s+/g, '');
+    }
+
+    if (!result.rut) {
+      const rutMatch = text.match(/\b\d{1,2}\.?\d{3}\.?\d{3}-?[\dKk]\b/i);
+      if (rutMatch) {
+        const potentialRut = rutMatch[0].replace(/\s+/g, '');
+        if (potentialRut !== result.telefono?.replace(/\D/g, '')) {
+          result.rut = rutMatch[0];
+        }
       }
     }
 
-    // Extract Extras
+    if (result.cantidadAudifonos === 50) {
+      const qtyMatch = text.match(/(\d+)\s*(?:aud[ií]fonos|auriculares|personas|equipos|invitados|unidades|auris|cascos)/i);
+      if (qtyMatch) {
+        result.cantidadAudifonos = parseInt(qtyMatch[1], 10);
+      }
+    }
+
+    if (result.canales === 3) {
+      const channelsMatch = text.match(/(\d+)\s*(?:canal(es)?|ambiente(s)?|transmisor(es)?)/i);
+      if (channelsMatch) {
+        const parsedChannels = parseInt(channelsMatch[1], 10);
+        if (parsedChannels >= 1 && parsedChannels <= 3) {
+          result.canales = parsedChannels;
+        }
+      }
+    }
+
     if (/staff|operador|t[eé]cnico/i.test(text)) result.extras.staff = true;
     if (/transmisor\s*(adicional|extra|otro)/i.test(text)) result.extras.transmisorExtra = true;
     if (/iluminaci[oó]n|luces/i.test(text)) result.extras.iluminacion = true;
     if (/dj|cine|pel[ií]cula|outdoor/i.test(text)) result.extras.dj = true;
 
-    // Extract Date (Spanish months or ISO formats)
+    if (!result.fechaEvento) {
+      const dateVal = parseDateFromString(text);
+      if (dateVal) result.fechaEvento = dateVal;
+    }
+
+    if (!result.horaInicio || result.horaInicio === '18:00') {
+      const hoursMatch = text.match(/(\d{1,2})[\s:]*(\d{2})?\s*(?:a|hasta|-)\s*(\d{1,2})[\s:]*(\d{2})?/i);
+      if (hoursMatch) {
+        const h1 = hoursMatch[1].padStart(2, '0');
+        const m1 = (hoursMatch[2] || '00').padStart(2, '0');
+        const h2 = hoursMatch[3].padStart(2, '0');
+        const m2 = (hoursMatch[4] || '00').padStart(2, '0');
+        result.horaInicio = `${h1}:${m1}`;
+        result.horaFin = `${h2}:${m2}`;
+      }
+    }
+
+    if (!result.direccionEvento) {
+      const dirMatch = text.match(/(?:direcci[oó]n|lugar|evento en|en)\s*:\s*([^\n\r]+)/i);
+      if (dirMatch) {
+        result.direccionEvento = dirMatch[1].trim();
+        result.direccionComercial = dirMatch[1].trim();
+      }
+    }
+
+    return result;
+  };
+
+  // Helper para analizar fechas
+  const parseDateFromString = (str) => {
     const monthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-    const dateTextMatch = text.match(/(\d{1,2})\s*(?:de)?\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/i);
+    
+    const dateTextMatch = str.match(/(\d{1,2})\s*(?:de)?\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/i);
     if (dateTextMatch) {
       const day = parseInt(dateTextMatch[1], 10);
       const monthName = dateTextMatch[2].toLowerCase();
       const monthIndex = monthNames.indexOf(monthName);
       if (monthIndex !== -1) {
-        const year = 2026; // Usamos 2026 según la fecha de la sesión local
+        const year = 2026;
         const formattedMonth = String(monthIndex + 1).padStart(2, '0');
         const formattedDay = String(day).padStart(2, '0');
-        result.fechaEvento = `${year}-${formattedMonth}-${formattedDay}`;
-      }
-    } else {
-      const isoDateMatch = text.match(/(\d{4})[-/](\d{2})[-/](\d{2})/);
-      if (isoDateMatch) {
-        result.fechaEvento = `${isoDateMatch[1]}-${isoDateMatch[2]}-${isoDateMatch[3]}`;
-      } else {
-        const slashDateMatch = text.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
-        if (slashDateMatch) {
-          const day = slashDateMatch[1].padStart(2, '0');
-          const month = slashDateMatch[2].padStart(2, '0');
-          const year = slashDateMatch[3];
-          result.fechaEvento = `${year}-${month}-${day}`;
-        }
+        return `${year}-${formattedMonth}-${formattedDay}`;
       }
     }
 
-    // Extract Hours
-    const hoursMatch = text.match(/(\d{1,2})[\s:]*(\d{2})?\s*(?:a|hasta|-)\s*(\d{1,2})[\s:]*(\d{2})?/i);
-    if (hoursMatch) {
-      const h1 = hoursMatch[1].padStart(2, '0');
-      const m1 = (hoursMatch[2] || '00').padStart(2, '0');
-      const h2 = hoursMatch[3].padStart(2, '0');
-      const m2 = (hoursMatch[4] || '00').padStart(2, '0');
-      result.horaInicio = `${h1}:${m1}`;
-      result.horaFin = `${h2}:${m2}`;
+    const isoDateMatch = str.match(/(\d{4})[-/](\d{2})[-/](\d{2})/);
+    if (isoDateMatch) {
+      return `${isoDateMatch[1]}-${isoDateMatch[2]}-${isoDateMatch[3]}`;
     }
 
-    // Address
-    const dirMatch = text.match(/(?:direcci[oó]n|lugar|evento en|en)\s*:\s*([^\n\r]+)/i);
-    if (dirMatch) {
-      result.direccionEvento = dirMatch[1].trim();
-      result.direccionComercial = dirMatch[1].trim();
-    } else {
-      const enMatch = text.match(/en\s+([A-Za-z0-9\s.]+)(?:de|el|para|con|$)/i);
-      if (enMatch && enMatch[1].trim().length > 5) {
-        result.direccionEvento = enMatch[1].trim();
-        result.direccionComercial = enMatch[1].trim();
-      }
+    const slashDateMatch = str.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if (slashDateMatch) {
+      const day = slashDateMatch[1].padStart(2, '0');
+      const month = slashDateMatch[2].padStart(2, '0');
+      const year = slashDateMatch[3];
+      return `${year}-${month}-${day}`;
     }
 
-    // Contact name
-    const nameMatch = text.match(/(?:nombre|encargado|contacto|atenci[oó]n|soy|mi nombre es)\s*:?\s*([A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)?)/i);
-    if (nameMatch) {
-      result.encargado = nameMatch[1].trim();
-    }
-
-    // Company
-    const companyMatch = text.match(/(?:empresa|compa[ñn][ií]a|de)\s*:\s*([A-Za-z0-9À-ÿ\s.]+)/i);
-    if (companyMatch) {
-      result.empresa = companyMatch[1].trim();
-    } else {
-      const deCompany = text.match(/de\s+([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)?)/);
-      if (deCompany) {
-        result.empresa = deCompany[1].trim();
-      }
-    }
-
-    return result;
+    return null;
   };
 
   const handleIAAnalysis = () => {
@@ -453,82 +544,121 @@ const CotizacionesView = () => {
       const audifonoId = getValidEquipoId('audifono');
       const transmisorId = getValidEquipoId('transmisor');
 
-      // 4. Agregar items secuencialmente
+      // 4. Agregar items en bulk
+      const itemsToInsert = [];
+      
       // Item A: Audífonos
-      await addItemCotizacion({
-        servicioId: idServicio,
-        equipoId: audifonoId,
+      const idCotizacionA = 'Q-' + Math.random().toString(36).substr(2, 9);
+      itemsToInsert.push({
+        id_cotizacion: idCotizacionA,
+        servicio_id: idServicio,
+        equipo_id: audifonoId,
         descripcion: `${quickForm.cantidadAudifonos}x Audifonos EcoSilence (Arriendo)`,
         cantidad: Number(quickForm.cantidadAudifonos),
         dias: 1,
-        precioUnitario: Number(quickForm.precioAudifono)
+        precio_unitario: Number(quickForm.precioAudifono)
       });
 
-      // Item B: Transmisor Multicanal si se seleccionaron más de 1 canal
+      // Item B: Transmisor Multicanal
       if (quickForm.canales > 1) {
-        await addItemCotizacion({
-          servicioId: idServicio,
-          equipoId: transmisorId,
+        const idCotizacionB = 'Q-' + Math.random().toString(36).substr(2, 9);
+        itemsToInsert.push({
+          id_cotizacion: idCotizacionB,
+          servicio_id: idServicio,
+          equipo_id: transmisorId,
           descripcion: `Transmisor ${quickForm.canales} canales (UHF Multicanal)`,
           cantidad: 1,
           dias: 1,
-          precioUnitario: 25000
+          precio_unitario: 25000
         });
       }
 
-      // Items Extras de la Matriz
+      // Extras...
       if (quickForm.extras.staff) {
-        await addItemCotizacion({
-          servicioId: idServicio,
-          equipoId: getValidEquipoId('operador') || audifonoId,
+        const id = 'Q-' + Math.random().toString(36).substr(2, 9);
+        itemsToInsert.push({
+          id_cotizacion: id,
+          servicio_id: idServicio,
+          equipo_id: getValidEquipoId('operador') || audifonoId,
           descripcion: 'Staff / Operador Técnico en Terreno',
           cantidad: 1,
           dias: 1,
-          precioUnitario: 80000
+          precio_unitario: 80000
         });
       }
 
       if (quickForm.extras.transmisorExtra) {
-        await addItemCotizacion({
-          servicioId: idServicio,
-          equipoId: transmisorId,
+        const id = 'Q-' + Math.random().toString(36).substr(2, 9);
+        itemsToInsert.push({
+          id_cotizacion: id,
+          servicio_id: idServicio,
+          equipo_id: transmisorId,
           descripcion: 'Transmisor Adicional Extra',
           cantidad: 1,
           dias: 1,
-          precioUnitario: 25000
+          precio_unitario: 25000
         });
       }
 
       if (quickForm.extras.iluminacion) {
-        await addItemCotizacion({
-          servicioId: idServicio,
-          equipoId: getValidEquipoId('iluminacion') || getValidEquipoId('luces') || audifonoId,
+        const id = 'Q-' + Math.random().toString(36).substr(2, 9);
+        itemsToInsert.push({
+          id_cotizacion: id,
+          servicio_id: idServicio,
+          equipo_id: getValidEquipoId('iluminacion') || getValidEquipoId('luces') || audifonoId,
           descripcion: 'Equipo de Iluminación Perimetral LED',
           cantidad: 1,
           dias: 1,
-          precioUnitario: 30000
+          precio_unitario: 30000
         });
       }
 
       if (quickForm.extras.dj) {
-        await addItemCotizacion({
-          servicioId: idServicio,
-          equipoId: getValidEquipoId('dj') || getValidEquipoId('cine') || audifonoId,
+        const id = 'Q-' + Math.random().toString(36).substr(2, 9);
+        itemsToInsert.push({
+          id_cotizacion: id,
+          servicio_id: idServicio,
+          equipo_id: getValidEquipoId('dj') || getValidEquipoId('cine') || audifonoId,
           descripcion: 'Servicio de DJ / Cine al aire libre',
           cantidad: 1,
           dias: 1,
-          precioUnitario: 100000
+          precio_unitario: 100000
         });
       }
+
+      // Insert bulk items into Supabase
+      const { error: bulkError } = await supabase.from('cotizaciones').insert(itemsToInsert);
+      if (bulkError) throw bulkError;
 
       // 5. Aplicar descuento si aplica
       if (quickForm.descuento > 0) {
         await updateServiceDiscount(idServicio, quickForm.descuento);
       }
 
-      // 6. Sincronizar final con calendario (addItemCotizacion ya lo hace, pero forzamos por seguridad)
-      const updatedCots = cotizaciones.filter(c => c.servicioId === idServicio);
-      await handleCalendarSync(newService, updatedCots);
+      // 6. Recargar datos del App Store para que el estado de React local se actualice completamente
+      await fetchData(false); // Recarga silenciosa (sin loader de pantalla completa)
+
+      // 7. Sincronizar con Google Calendar
+      const freshService = {
+        ...newService,
+        direccionEvento: quickForm.direccionEvento,
+        fechaInicio,
+        fechaFin,
+        descuento: Number(quickForm.descuento) || 0
+      };
+      
+      const mappedCotsForCalendar = itemsToInsert.map(item => ({
+        idCotizacion: item.id_cotizacion,
+        servicioId: item.servicio_id,
+        equipoId: item.equipo_id,
+        descripcion: item.descripcion,
+        cantidad: item.cantidad,
+        dias: item.dias,
+        precioUnitario: item.precio_unitario,
+        subtotal: item.cantidad * item.dias * item.precio_unitario
+      }));
+
+      await handleCalendarSync(freshService, mappedCotsForCalendar);
 
       addToast('¡Cotización e ID de servicio creados con éxito! Stock reservado.', 'success');
 
