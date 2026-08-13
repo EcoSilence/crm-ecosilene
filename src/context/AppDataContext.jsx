@@ -551,7 +551,11 @@ export const AppDataProvider = ({ children }) => {
       if (error) throw error;
       setServicios([...servicios, newS]);
       addToast('Servicio creado con éxito.', 'success');
-    } catch (err) { addToast('Error: ' + err.message, 'error'); }
+      return newS;
+    } catch (err) { 
+      addToast('Error: ' + err.message, 'error'); 
+      throw err;
+    }
   };
 
   const editServicio = async (idServicio, updatedData) => {
@@ -605,7 +609,11 @@ export const AppDataProvider = ({ children }) => {
       if (error) throw error;
       setClientes([...clientes, newC]);
       addToast('Cliente registrado con éxito.', 'success');
-    } catch (err) { addToast('Error: ' + err.message, 'error'); }
+      return newC;
+    } catch (err) { 
+      addToast('Error: ' + err.message, 'error'); 
+      throw err;
+    }
   };
 
   const editCliente = async (id, updatedData) => {
