@@ -266,7 +266,7 @@ https://www.ecosilence.cl/`;
           <p style={{ margin: 0, color: 'var(--text-muted)' }}>Utiliza el menú lateral izquierdo para seleccionar el mes y año que deseas visualizar.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div className="search-bar" style={{ width: '250px' }}>
+          <div className="search-bar" style={{ width: '100%', maxWidth: '380px' }}>
             <Search size={18} />
             <input 
               type="text" 
