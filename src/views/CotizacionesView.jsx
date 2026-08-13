@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient';
 import { 
   FileText, Plus, MapPin, CalendarDays, DollarSign, Download, Trash2, Box, 
   Mail, Printer, X, Save, ArrowLeft, ArrowUp, ArrowDown, Zap, Sparkles, 
-  Layers, User, Clock, Percent, ClipboardCheck, AlertCircle, HelpCircle
+  Layers, User, Clock, Percent, ClipboardCheck, AlertCircle, HelpCircle, PlusCircle
 } from 'lucide-react';
 
 const CotizacionesView = () => {
