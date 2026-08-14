@@ -49,10 +49,13 @@ const CotizacionesView = () => {
     cantidadAudifonos: 50,
     canales: 3,
     extras: {
+      audifonos: true,
+      transmisor: true,
+      mesa: false,
+      micMano: false,
+      micSolapa: false,
       staff: false,
-      transmisorExtra: false,
-      iluminacion: false,
-      dj: false
+      diaPrueba: false
     },
     descuento: 0,
     precioAudifono: 5000,
@@ -88,16 +91,22 @@ const CotizacionesView = () => {
   }, [viewParams]);
 
   const staffReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('operador') || i.nombreEquipo.toLowerCase().includes('staff'));
-  const staffPrice = staffReal ? staffReal.precioBase : 80000;
+  const staffPrice = staffReal ? staffReal.precioBase : 85000;
 
   const txReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('transmisor'));
   const txPrice = txReal ? txReal.precioBase : 25000;
 
-  const lightsReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('iluminacion') || i.nombreEquipo.toLowerCase().includes('luces'));
-  const lightsPrice = lightsReal ? lightsReal.precioBase : 30000;
+  const mesaReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('wharfedale') || i.nombreEquipo.toLowerCase().includes('mesa'));
+  const mesaPrice = mesaReal ? mesaReal.precioBase : 45000;
 
-  const djReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('dj') || i.nombreEquipo.toLowerCase().includes('cine'));
-  const djPrice = djReal ? djReal.precioBase : 100000;
+  const micManoReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('mano'));
+  const micManoPrice = micManoReal ? micManoReal.precioBase : 20000;
+
+  const micSolapaReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('solapa'));
+  const micSolapaPrice = micSolapaReal ? micSolapaReal.precioBase : 20000;
+
+  const diaPruebaReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('dia de prueba'));
+  const diaPruebaPrice = diaPruebaReal ? diaPruebaReal.precioBase : 50000;
 
   const servicio = servicios.find(s => s.idServicio === selectedServicioId);
   const cliente = servicio ? clientes.find(c => c.id === servicio.clienteId) : null;
@@ -465,16 +474,19 @@ const CotizacionesView = () => {
   const quickEstimates = useMemo(() => {
     const qty = Number(quickForm.cantidadAudifonos) || 0;
     const priceUnit = Number(quickForm.precioAudifono) || 0;
-    const subtotalAudifonos = qty * priceUnit;
     
-    // Si elige 2 o 3 canales, se incluye un transmisor y se añade arriendo extra si aplica
-    const subtotalCanales = quickForm.canales > 1 ? (quickForm.canales - 1) * Number(quickForm.precioTransmisor) : 0;
+    // Audífonos
+    const subtotalAudifonos = quickForm.extras.audifonos ? qty * priceUnit : 0;
+    
+    // Si elige 2 o 3 canales y está marcado transmisor en la matriz, se incluye el arriendo extra de transmisor
+    const subtotalCanales = (quickForm.canales > 1 && quickForm.extras.transmisor) ? (quickForm.canales - 1) * Number(quickForm.precioTransmisor) : 0;
 
     let subtotalExtras = 0;
+    if (quickForm.extras.mesa) subtotalExtras += mesaPrice;
+    if (quickForm.extras.micMano) subtotalExtras += micManoPrice;
+    if (quickForm.extras.micSolapa) subtotalExtras += micSolapaPrice;
     if (quickForm.extras.staff) subtotalExtras += staffPrice;
-    if (quickForm.extras.transmisorExtra) subtotalExtras += Number(quickForm.precioTransmisor);
-    if (quickForm.extras.iluminacion) subtotalExtras += lightsPrice;
-    if (quickForm.extras.dj) subtotalExtras += djPrice;
+    if (quickForm.extras.diaPrueba) subtotalExtras += diaPruebaPrice;
 
     const subTotalBruto = subtotalAudifonos + subtotalCanales + subtotalExtras;
     const descPorcentaje = Number(quickForm.descuento) || 0;
@@ -493,7 +505,7 @@ const CotizacionesView = () => {
       iva: ivaMonto,
       total: totalMonto
     };
-  }, [quickForm, staffPrice, txPrice, lightsPrice, djPrice]);
+  }, [quickForm, staffPrice, txPrice, mesaPrice, micManoPrice, micSolapaPrice, diaPruebaPrice]);
 
   // Helper para buscar un equipo en inventario de forma segura
   const getValidEquipoId = (keyword) => {
@@ -579,19 +591,21 @@ const CotizacionesView = () => {
       const itemsToInsert = [];
 
       // Item A: Audífonos
-      const idCotizacionA = 'Q-' + Math.random().toString(36).substr(2, 9);
-      itemsToInsert.push({
-        id_cotizacion: idCotizacionA,
-        servicio_id: idServicio,
-        equipo_id: audifonoId,
-        descripcion: `${quickForm.cantidadAudifonos}x Audifonos EcoSilence (Arriendo)`,
-        cantidad: Number(quickForm.cantidadAudifonos),
-        dias: 1,
-        precio_unitario: Number(quickForm.precioAudifono)
-      });
+      if (quickForm.extras.audifonos) {
+        const idCotizacionA = 'Q-' + Math.random().toString(36).substr(2, 9);
+        itemsToInsert.push({
+          id_cotizacion: idCotizacionA,
+          servicio_id: idServicio,
+          equipo_id: audifonoId,
+          descripcion: `${quickForm.cantidadAudifonos}x Audifonos EcoSilence (Arriendo)`,
+          cantidad: Number(quickForm.cantidadAudifonos),
+          dias: 1,
+          precio_unitario: Number(quickForm.precioAudifono)
+        });
+      }
 
       // Item B: Transmisor Multicanal
-      if (quickForm.canales > 1) {
+      if (quickForm.extras.transmisor && quickForm.canales > 1) {
         const idCotizacionB = 'Q-' + Math.random().toString(36).substr(2, 9);
         itemsToInsert.push({
           id_cotizacion: idCotizacionB,
@@ -605,6 +619,45 @@ const CotizacionesView = () => {
       }
 
       // Extras...
+      if (quickForm.extras.mesa) {
+        const id = 'Q-' + Math.random().toString(36).substr(2, 9);
+        itemsToInsert.push({
+          id_cotizacion: id,
+          servicio_id: idServicio,
+          equipo_id: getValidEquipoId('wharfedale') || getValidEquipoId('mesa') || audifonoId,
+          descripcion: 'Mesa de sonido Wharfedale',
+          cantidad: 1,
+          dias: 1,
+          precio_unitario: mesaPrice
+        });
+      }
+
+      if (quickForm.extras.micMano) {
+        const id = 'Q-' + Math.random().toString(36).substr(2, 9);
+        itemsToInsert.push({
+          id_cotizacion: id,
+          servicio_id: idServicio,
+          equipo_id: getValidEquipoId('mano') || audifonoId,
+          descripcion: 'Microfono de mano SKP 700 Pro',
+          cantidad: 1,
+          dias: 1,
+          precio_unitario: micManoPrice
+        });
+      }
+
+      if (quickForm.extras.micSolapa) {
+        const id = 'Q-' + Math.random().toString(36).substr(2, 9);
+        itemsToInsert.push({
+          id_cotizacion: id,
+          servicio_id: idServicio,
+          equipo_id: getValidEquipoId('solapa') || audifonoId,
+          descripcion: 'Microfono solapa SKP 700 Pro',
+          cantidad: 1,
+          dias: 1,
+          precio_unitario: micSolapaPrice
+        });
+      }
+
       if (quickForm.extras.staff) {
         const id = 'Q-' + Math.random().toString(36).substr(2, 9);
         itemsToInsert.push({
@@ -618,42 +671,16 @@ const CotizacionesView = () => {
         });
       }
 
-      if (quickForm.extras.transmisorExtra) {
+      if (quickForm.extras.diaPrueba) {
         const id = 'Q-' + Math.random().toString(36).substr(2, 9);
         itemsToInsert.push({
           id_cotizacion: id,
           servicio_id: idServicio,
-          equipo_id: transmisorId,
-          descripcion: 'Transmisor Adicional Extra',
+          equipo_id: getValidEquipoId('dia de prueba') || audifonoId,
+          descripcion: 'Dia de prueba (Montaje Previo)',
           cantidad: 1,
           dias: 1,
-          precio_unitario: Number(quickForm.precioTransmisor)
-        });
-      }
-
-      if (quickForm.extras.iluminacion) {
-        const id = 'Q-' + Math.random().toString(36).substr(2, 9);
-        itemsToInsert.push({
-          id_cotizacion: id,
-          servicio_id: idServicio,
-          equipo_id: getValidEquipoId('iluminacion') || getValidEquipoId('luces') || audifonoId,
-          descripcion: 'Equipo de Iluminación Perimetral LED',
-          cantidad: 1,
-          dias: 1,
-          precio_unitario: lightsPrice
-        });
-      }
-
-      if (quickForm.extras.dj) {
-        const id = 'Q-' + Math.random().toString(36).substr(2, 9);
-        itemsToInsert.push({
-          id_cotizacion: id,
-          servicio_id: idServicio,
-          equipo_id: getValidEquipoId('dj') || getValidEquipoId('cine') || audifonoId,
-          descripcion: 'Servicio de DJ / Cine al aire libre',
-          cantidad: 1,
-          dias: 1,
-          precio_unitario: djPrice
+          precio_unitario: diaPruebaPrice
         });
       }
 
@@ -699,8 +726,8 @@ const CotizacionesView = () => {
         empresa: '', rut: '', encargado: '', telefono: '', correo: '',
         direccionComercial: '', direccionEvento: '', fechaEvento: '',
         horaInicio: '18:00', horaFin: '23:59', cantidadAudifonos: 50,
-        canales: 3, extras: { staff: false, transmisorExtra: false, iluminacion: false, dj: false },
-        descuento: 0, precioAudifono: 5000
+        canales: 3, extras: { audifonos: true, transmisor: true, mesa: false, micMano: false, micSolapa: false, staff: false, diaPrueba: false },
+        descuento: 0, precioAudifono: 5000, precioTransmisor: 15000
       });
 
       setSelectedServicioId(idServicio);
@@ -1330,7 +1357,86 @@ const CotizacionesView = () => {
                     {/* Matriz de Extras */}
                     <div className="input-group" style={{ margin: 0 }}>
                       <label className="input-label" style={{ marginBottom: '0.4rem' }}>Matriz de Equipos y Servicios Adicionales</label>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.8rem' }}>
+                        
+                        {/* 1. Audífonos */}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                            checked={quickForm.extras.audifonos}
+                            onChange={(e) => setQuickForm({ ...quickForm, extras: { ...quickForm.extras, audifonos: e.target.checked } })}
+                            disabled={isGenerating}
+                          />
+                          <div style={{ fontSize: '0.85rem' }}>
+                            <strong>Audífonos EcoSilence</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(quickForm.precioAudifono)} (Cant: {quickForm.cantidadAudifonos})</div>
+                          </div>
+                        </label>
+                        
+                        {/* 2. Transmisor */}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                            checked={quickForm.extras.transmisor}
+                            onChange={(e) => setQuickForm({ ...quickForm, extras: { ...quickForm.extras, transmisor: e.target.checked } })}
+                            disabled={isGenerating}
+                          />
+                          <div style={{ fontSize: '0.85rem' }}>
+                            <strong>Transmisor UHF</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {quickForm.canales > 1 ? `+ ${formatCurrency((quickForm.canales - 1) * Number(quickForm.precioTransmisor))} (Canales: ${quickForm.canales})` : 'Incluido en arriendo'}
+                            </div>
+                          </div>
+                        </label>
+                        
+                        {/* 3. Mesa de sonido Whatafable */}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                            checked={quickForm.extras.mesa}
+                            onChange={(e) => setQuickForm({ ...quickForm, extras: { ...quickForm.extras, mesa: e.target.checked } })}
+                            disabled={isGenerating}
+                          />
+                          <div style={{ fontSize: '0.85rem' }}>
+                            <strong>Mesa Sonido Whatafable</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(mesaPrice)} (Wharfedale)</div>
+                          </div>
+                        </label>
+
+                        {/* 4. Micrófono de mano */}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                            checked={quickForm.extras.micMano}
+                            onChange={(e) => setQuickForm({ ...quickForm, extras: { ...quickForm.extras, micMano: e.target.checked } })}
+                            disabled={isGenerating}
+                          />
+                          <div style={{ fontSize: '0.85rem' }}>
+                            <strong>Micrófono de Mano</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(micManoPrice)} (SKP 700 Pro)</div>
+                          </div>
+                        </label>
+
+                        {/* 5. Micrófono de solapa */}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                            checked={quickForm.extras.micSolapa}
+                            onChange={(e) => setQuickForm({ ...quickForm, extras: { ...quickForm.extras, micSolapa: e.target.checked } })}
+                            disabled={isGenerating}
+                          />
+                          <div style={{ fontSize: '0.85rem' }}>
+                            <strong>Micrófono de Solapa</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(micSolapaPrice)} (SKP 700 Pro)</div>
+                          </div>
+                        </label>
+
+                        {/* 6. Operador */}
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
                           <input
                             type="checkbox"
@@ -1340,52 +1446,26 @@ const CotizacionesView = () => {
                             disabled={isGenerating}
                           />
                           <div style={{ fontSize: '0.85rem' }}>
-                            <strong>Staff Técnico</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(staffPrice)} (Operador en Terreno)</div>
-                          </div>
-                        </label>
-                        
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
-                            checked={quickForm.extras.transmisorExtra}
-                            onChange={(e) => setQuickForm({ ...quickForm, extras: { ...quickForm.extras, transmisorExtra: e.target.checked } })}
-                            disabled={isGenerating}
-                          />
-                          <div style={{ fontSize: '0.85rem' }}>
-                            <strong>Transmisor Extra</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(txPrice)} (Arriendo Adicional)</div>
-                          </div>
-                        </label>
-                        
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
-                            checked={quickForm.extras.iluminacion}
-                            onChange={(e) => setQuickForm({ ...quickForm, extras: { ...quickForm.extras, iluminacion: e.target.checked } })}
-                            disabled={isGenerating}
-                          />
-                          <div style={{ fontSize: '0.85rem' }}>
-                            <strong>Iluminación LED</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(lightsPrice)} (Ambiental perimetral)</div>
+                            <strong>Operador Técnico</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(staffPrice)} (En Terreno)</div>
                           </div>
                         </label>
 
+                        {/* 7. Día de prueba */}
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem', background: 'rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
                           <input
                             type="checkbox"
                             style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
-                            checked={quickForm.extras.dj}
-                            onChange={(e) => setQuickForm({ ...quickForm, extras: { ...quickForm.extras, dj: e.target.checked } })}
+                            checked={quickForm.extras.diaPrueba}
+                            onChange={(e) => setQuickForm({ ...quickForm, extras: { ...quickForm.extras, diaPrueba: e.target.checked } })}
                             disabled={isGenerating}
                           />
                           <div style={{ fontSize: '0.85rem' }}>
-                            <strong>DJ / Cine al aire libre</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(djPrice)} (Servicio Completo)</div>
+                            <strong>Día de Prueba</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(diaPruebaPrice)} (Montaje Previo)</div>
                           </div>
                         </label>
+
                       </div>
                     </div>
                   </div>
