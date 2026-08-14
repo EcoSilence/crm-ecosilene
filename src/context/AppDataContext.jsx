@@ -263,8 +263,9 @@ export const AppDataProvider = ({ children }) => {
         authenticateGoogle(true).then(() => {
           setIsGoogleLinked(true);
         }).catch(err => {
-          console.warn('Auto-link silent auth failed, token will be requested on demand:', err);
-          setIsGoogleLinked(true);
+          console.warn('Auto-link silent auth failed, setting unlinked:', err);
+          setIsGoogleLinked(false);
+          localStorage.removeItem('google_calendar_linked');
         });
       }
     });
