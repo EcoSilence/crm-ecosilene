@@ -295,31 +295,32 @@ const CotizacionesView = () => {
       }
 
       if (label && val) {
-        if (label.includes('empresa') || label === 'nombre de la empresa') {
+        const cleanLabel = label.toLowerCase().trim();
+        if (cleanLabel === 'empresa' || cleanLabel === 'nombre de la empresa') {
           result.empresa = val;
-        } else if (label.includes('encargado') || label.includes('contacto') || label.includes('nombre')) {
+        } else if (cleanLabel === 'encargado' || cleanLabel === 'nombre del encargado' || cleanLabel === 'contacto' || cleanLabel === 'nombre') {
           result.encargado = val;
-        } else if (label.includes('dirección comercial') || label.includes('direccion comercial')) {
+        } else if (cleanLabel === 'dirección comercial' || cleanLabel === 'direccion comercial') {
           result.direccionComercial = val;
-        } else if (label.includes('dirección del evento') || label.includes('direccion del evento') || label === 'dirección' || label === 'direccion' || label.includes('lugar')) {
+        } else if (cleanLabel === 'dirección del evento' || cleanLabel === 'direccion del evento' || cleanLabel === 'dirección' || cleanLabel === 'direccion' || cleanLabel === 'lugar') {
           result.direccionEvento = val;
-        } else if (label.includes('teléfono') || label.includes('telefono') || label.includes('fono') || label.includes('celular')) {
+        } else if (cleanLabel === 'teléfono' || cleanLabel === 'telefono' || cleanLabel === 'fono' || cleanLabel === 'celular') {
           result.telefono = val;
-        } else if (label.includes('correo') || label.includes('email') || label.includes('mail')) {
+        } else if (cleanLabel === 'correo' || cleanLabel === 'email' || cleanLabel === 'mail') {
           result.correo = val;
-        } else if (label.includes('audífonos') || label.includes('audifonos') || label.includes('cantidad de audifonos') || label.includes('cantidad de audífonos')) {
+        } else if (cleanLabel === 'cantidad de audífonos' || cleanLabel === 'cantidad de audifonos' || cleanLabel === 'audífonos' || cleanLabel === 'audifonos') {
           const num = val.match(/\d+/);
           if (num) result.cantidadAudifonos = parseInt(num[0], 10);
-        } else if (label.includes('ambiente') || label.includes('canales') || label.includes('canal') || label.includes('cantidad de ambiente')) {
+        } else if (cleanLabel === 'ambiente' || cleanLabel === 'canales' || cleanLabel === 'canal' || cleanLabel === 'cantidad de ambiente') {
           const num = val.match(/\d+/);
           if (num) {
             const ch = parseInt(num[0], 10);
-            if (ch >= 1 && ch <= 3) result.canales = ch;
+            if (ch >= 1 && ch <= 10) result.canales = ch;
           }
-        } else if (label.includes('fecha')) {
+        } else if (cleanLabel === 'fecha' || cleanLabel === 'fecha del evento') {
           const dateVal = parseDateFromString(val);
           if (dateVal) result.fechaEvento = dateVal;
-        } else if (label.includes('rut') || label.includes('id')) {
+        } else if (cleanLabel === 'rut' || cleanLabel === 'id') {
           result.rut = val;
         }
       }
@@ -357,16 +358,26 @@ const CotizacionesView = () => {
       const channelsMatch = text.match(/(\d+)\s*(?:canal(es)?|ambiente(s)?|transmisor(es)?)/i);
       if (channelsMatch) {
         const parsedChannels = parseInt(channelsMatch[1], 10);
-        if (parsedChannels >= 1 && parsedChannels <= 3) {
+        if (parsedChannels >= 1 && parsedChannels <= 10) {
           result.canales = parsedChannels;
         }
       }
     }
 
     if (/staff|operador|t[eé]cnico/i.test(text)) result.extras.staff = true;
-    if (/transmisor\s*(adicional|extra|otro)/i.test(text)) result.extras.transmisorExtra = true;
-    if (/iluminaci[oó]n|luces/i.test(text)) result.extras.iluminacion = true;
-    if (/dj|cine|pel[ií]cula|outdoor/i.test(text)) result.extras.dj = true;
+    if (/wharfedale|mesa/i.test(text)) result.extras.mesa = true;
+    if (/mano|micr[oó]fono de mano/i.test(text)) result.extras.micMano = true;
+    if (/solapa|lavalier/i.test(text)) result.extras.micSolapa = true;
+    if (/prueba|ensayo|montaje previo/i.test(text)) result.extras.diaPrueba = true;
+
+    // Si la cantidad de audífonos extraída es > 0, asegurar checkbox de audífonos
+    if (result.cantidadAudifonos > 0) {
+      result.extras.audifonos = true;
+    }
+    // Si la cantidad de canales/transmisores extraída es > 1, asegurar checkbox de transmisores
+    if (result.canales > 1) {
+      result.extras.transmisor = true;
+    }
 
     if (!result.fechaEvento) {
       const dateVal = parseDateFromString(text);
@@ -1314,34 +1325,22 @@ const CotizacionesView = () => {
                     </div>
 
                     {/* Selector de Ambientes/Canales */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                       <div className="input-group" style={{ margin: 0 }}>
-                        <label className="input-label" style={{ marginBottom: '0.4rem' }}>Ambientes / Canales UHF</label>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem' }}>
-                          {[1, 2, 3].map((ch) => (
-                            <div
-                              key={ch}
-                              onClick={() => !isGenerating && setQuickForm({ ...quickForm, canales: ch })}
-                              style={{
-                                padding: '0.6rem',
-                                textAlign: 'center',
-                                borderRadius: 'var(--radius-sm)',
-                                border: quickForm.canales === ch ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
-                                background: quickForm.canales === ch ? 'rgba(99,102,241,0.1)' : 'rgba(0,0,0,0.2)',
-                                color: quickForm.canales === ch ? 'var(--accent-primary)' : 'var(--text-muted)',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'var(--transition)',
-                                fontSize: '0.85rem'
-                              }}
-                            >
-                              {ch} Canal{ch > 1 ? 'es' : ''} {ch > 1 ? '📡' : '📻'}
-                            </div>
-                          ))}
-                        </div>
+                        <label className="input-label" style={{ marginBottom: '0.4rem' }}>Cantidad de Canales / Transmisores</label>
+                        <input
+                          required
+                          type="number"
+                          min="1"
+                          max="10"
+                          className="input-control"
+                          value={quickForm.canales}
+                          onChange={(e) => setQuickForm({ ...quickForm, canales: Number(e.target.value) || 1 })}
+                          disabled={isGenerating}
+                        />
                       </div>
                       <div className="input-group" style={{ margin: 0 }}>
-                        <label className="input-label" style={{ marginBottom: '0.4rem' }}>Precio Transmisor ($)</label>
+                        <label className="input-label" style={{ marginBottom: '0.4rem' }}>Precio Unitario Transmisor ($/unidad)</label>
                         <input
                           required
                           type="number"
