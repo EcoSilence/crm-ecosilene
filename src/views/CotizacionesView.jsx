@@ -59,7 +59,8 @@ const CotizacionesView = () => {
     },
     descuento: 0,
     precioAudifono: 5000,
-    precioTransmisor: 25000
+    precioTransmisor: 25000,
+    tipoEvento: 'Conferencia'
   });
 
   // Sincronizar precio base del audífono y transmisor desde el inventario al cargar
@@ -228,7 +229,8 @@ const CotizacionesView = () => {
         dj: false
       },
       descuento: 0,
-      precioAudifono: 5000
+      precioAudifono: 5000,
+      tipoEvento: 'Conferencia'
     };
 
     if (!text) return result;
@@ -322,6 +324,8 @@ const CotizacionesView = () => {
           if (dateVal) result.fechaEvento = dateVal;
         } else if (cleanLabel === 'rut' || cleanLabel === 'id') {
           result.rut = val;
+        } else if (cleanLabel === 'tipo de evento' || cleanLabel === 'tipo evento' || cleanLabel === 'categoría de evento' || cleanLabel === 'categoria de evento') {
+          result.tipoEvento = val;
         }
       }
     });
@@ -377,6 +381,18 @@ const CotizacionesView = () => {
     // Si la cantidad de canales/transmisores extraída es > 1, asegurar checkbox de transmisores
     if (result.canales > 1) {
       result.extras.transmisor = true;
+    }
+
+    // Auto-detección de Tipo de Evento
+    const eventTypes = [
+      'Conferencia', 'Boda', 'Fiesta', 'Traducción Simultánea', 
+      'Experiencias Inmersivas', 'Workshop', 'Talleres', 'Ferias', 'Otros'
+    ];
+    for (const type of eventTypes) {
+      if (new RegExp(type, 'i').test(text)) {
+        result.tipoEvento = type;
+        break;
+      }
     }
 
     if (!result.fechaEvento) {
@@ -562,7 +578,7 @@ const CotizacionesView = () => {
         pais: 'Chile',
         empresa: quickForm.empresa || `${nombre} ${apellido}`,
         cargo: 'Encargado',
-        tipoEvento: 'Silent Disco'
+        tipoEvento: quickForm.tipoEvento || 'Silent Disco'
       };
 
       if (existingClient) {
@@ -1204,7 +1220,7 @@ const CotizacionesView = () => {
                         disabled={isGenerating}
                       />
                     </div>
-                    <div className="input-group" style={{ gridColumn: 'span 2', margin: 0 }}>
+                    <div className="input-group" style={{ margin: 0 }}>
                       <label className="input-label">Correo Electrónico</label>
                       <input
                         required
@@ -1215,6 +1231,26 @@ const CotizacionesView = () => {
                         onChange={(e) => setQuickForm({ ...quickForm, correo: e.target.value })}
                         disabled={isGenerating}
                       />
+                    </div>
+                    
+                    <div className="input-group" style={{ margin: 0 }}>
+                      <label className="input-label">Tipo de Evento</label>
+                      <select
+                        className="input-control"
+                        value={quickForm.tipoEvento}
+                        onChange={(e) => setQuickForm({ ...quickForm, tipoEvento: e.target.value })}
+                        disabled={isGenerating}
+                      >
+                        <option value="Conferencia">Conferencia</option>
+                        <option value="Boda">Boda</option>
+                        <option value="Fiesta">Fiesta</option>
+                        <option value="Traducción Simultánea">Traducción Simultánea</option>
+                        <option value="Experiencias Inmersivas">Experiencias Inmersivas</option>
+                        <option value="Workshop">Workshop</option>
+                        <option value="Talleres">Talleres</option>
+                        <option value="Ferias">Ferias</option>
+                        <option value="Otros">Otros</option>
+                      </select>
                     </div>
                   </div>
                 </div>
