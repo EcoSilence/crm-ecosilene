@@ -93,21 +93,33 @@ const CotizacionesView = () => {
 
   const staffReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('operador') || i.nombreEquipo.toLowerCase().includes('staff'));
   const staffPrice = staffReal ? staffReal.precioBase : 85000;
+  const staffName = staffReal ? staffReal.nombreEquipo : 'Operador Tecnico ';
 
-  const txReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('transmisor'));
+  const txReal = quickForm.canales > 3 
+    ? (inventario.find(i => i.nombreEquipo.toLowerCase().includes('transmisor de 10')) || inventario.find(i => i.nombreEquipo.toLowerCase().includes('transmisor')))
+    : (inventario.find(i => i.nombreEquipo.toLowerCase().includes('transmisor 3')) || inventario.find(i => i.nombreEquipo.toLowerCase().includes('transmisor')));
   const txPrice = txReal ? txReal.precioBase : 25000;
+  const txName = txReal ? txReal.nombreEquipo : 'Transmisor 3 canales ';
+
+  const audReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('audifonos eco') || i.nombreEquipo.toLowerCase().includes('audifono'));
+  const audPrice = audReal ? audReal.precioBase : 5000;
+  const audName = audReal ? audReal.nombreEquipo : 'Audifonos EcoSilence';
 
   const mesaReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('wharfedale') || i.nombreEquipo.toLowerCase().includes('mesa'));
   const mesaPrice = mesaReal ? mesaReal.precioBase : 45000;
+  const mesaName = mesaReal ? mesaReal.nombreEquipo : 'Mesa de sonido Wharfedale';
 
   const micManoReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('mano'));
   const micManoPrice = micManoReal ? micManoReal.precioBase : 20000;
+  const micManoName = micManoReal ? micManoReal.nombreEquipo : 'Microfono de mano SKP 700 Pro';
 
   const micSolapaReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('solapa'));
   const micSolapaPrice = micSolapaReal ? micSolapaReal.precioBase : 20000;
+  const micSolapaName = micSolapaReal ? micSolapaReal.nombreEquipo : 'Microfono solapa SKP 700 Pro';
 
   const diaPruebaReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('dia de prueba'));
   const diaPruebaPrice = diaPruebaReal ? diaPruebaReal.precioBase : 50000;
+  const diaPruebaName = diaPruebaReal ? diaPruebaReal.nombreEquipo : 'Dia de prueba';
 
   const servicio = servicios.find(s => s.idServicio === selectedServicioId);
   const cliente = servicio ? clientes.find(c => c.id === servicio.clienteId) : null;
@@ -624,7 +636,7 @@ const CotizacionesView = () => {
           id_cotizacion: idCotizacionA,
           servicio_id: idServicio,
           equipo_id: audifonoId,
-          descripcion: `${quickForm.cantidadAudifonos}x Audifonos EcoSilence (Arriendo)`,
+          descripcion: audName,
           cantidad: Number(quickForm.cantidadAudifonos),
           dias: 1,
           precio_unitario: Number(quickForm.precioAudifono)
@@ -638,7 +650,7 @@ const CotizacionesView = () => {
           id_cotizacion: idCotizacionB,
           servicio_id: idServicio,
           equipo_id: transmisorId,
-          descripcion: `Transmisor ${quickForm.canales} canales (UHF Multicanal)`,
+          descripcion: txName,
           cantidad: quickForm.canales - 1,
           dias: 1,
           precio_unitario: Number(quickForm.precioTransmisor)
@@ -652,7 +664,7 @@ const CotizacionesView = () => {
           id_cotizacion: id,
           servicio_id: idServicio,
           equipo_id: getValidEquipoId('wharfedale') || getValidEquipoId('mesa') || audifonoId,
-          descripcion: 'Mesa de sonido Wharfedale',
+          descripcion: mesaName,
           cantidad: 1,
           dias: 1,
           precio_unitario: mesaPrice
@@ -665,7 +677,7 @@ const CotizacionesView = () => {
           id_cotizacion: id,
           servicio_id: idServicio,
           equipo_id: getValidEquipoId('mano') || audifonoId,
-          descripcion: 'Microfono de mano SKP 700 Pro',
+          descripcion: micManoName,
           cantidad: 1,
           dias: 1,
           precio_unitario: micManoPrice
@@ -678,7 +690,7 @@ const CotizacionesView = () => {
           id_cotizacion: id,
           servicio_id: idServicio,
           equipo_id: getValidEquipoId('solapa') || audifonoId,
-          descripcion: 'Microfono solapa SKP 700 Pro',
+          descripcion: micSolapaName,
           cantidad: 1,
           dias: 1,
           precio_unitario: micSolapaPrice
@@ -691,7 +703,7 @@ const CotizacionesView = () => {
           id_cotizacion: id,
           servicio_id: idServicio,
           equipo_id: getValidEquipoId('operador') || audifonoId,
-          descripcion: 'Staff / Operador Técnico en Terreno',
+          descripcion: staffName,
           cantidad: 1,
           dias: 1,
           precio_unitario: staffPrice
@@ -704,7 +716,7 @@ const CotizacionesView = () => {
           id_cotizacion: id,
           servicio_id: idServicio,
           equipo_id: getValidEquipoId('dia de prueba') || audifonoId,
-          descripcion: 'Dia de prueba (Montaje Previo)',
+          descripcion: diaPruebaName,
           cantidad: 1,
           dias: 1,
           precio_unitario: diaPruebaPrice
@@ -1404,7 +1416,7 @@ const CotizacionesView = () => {
                             disabled={isGenerating}
                           />
                           <div style={{ fontSize: '0.85rem' }}>
-                            <strong>Audífonos EcoSilence</strong>
+                            <strong>{audName}</strong>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(quickForm.precioAudifono)} (Cant: {quickForm.cantidadAudifonos})</div>
                           </div>
                         </label>
@@ -1419,7 +1431,7 @@ const CotizacionesView = () => {
                             disabled={isGenerating}
                           />
                           <div style={{ fontSize: '0.85rem' }}>
-                            <strong>Transmisor UHF</strong>
+                            <strong>{txName}</strong>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                               {quickForm.canales > 1 ? `+ ${formatCurrency((quickForm.canales - 1) * Number(quickForm.precioTransmisor))} (Canales: ${quickForm.canales})` : 'Incluido en arriendo'}
                             </div>
@@ -1436,8 +1448,8 @@ const CotizacionesView = () => {
                             disabled={isGenerating}
                           />
                           <div style={{ fontSize: '0.85rem' }}>
-                            <strong>Mesa Sonido Whatafable</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(mesaPrice)} (Wharfedale)</div>
+                            <strong>{mesaName}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(mesaPrice)}</div>
                           </div>
                         </label>
 
@@ -1451,8 +1463,8 @@ const CotizacionesView = () => {
                             disabled={isGenerating}
                           />
                           <div style={{ fontSize: '0.85rem' }}>
-                            <strong>Micrófono de Mano</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(micManoPrice)} (SKP 700 Pro)</div>
+                            <strong>{micManoName}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(micManoPrice)}</div>
                           </div>
                         </label>
 
@@ -1466,8 +1478,8 @@ const CotizacionesView = () => {
                             disabled={isGenerating}
                           />
                           <div style={{ fontSize: '0.85rem' }}>
-                            <strong>Micrófono de Solapa</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(micSolapaPrice)} (SKP 700 Pro)</div>
+                            <strong>{micSolapaName}</strong>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(micSolapaPrice)}</div>
                           </div>
                         </label>
 
@@ -1481,7 +1493,7 @@ const CotizacionesView = () => {
                             disabled={isGenerating}
                           />
                           <div style={{ fontSize: '0.85rem' }}>
-                            <strong>Operador Técnico</strong>
+                            <strong>{staffName}</strong>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(staffPrice)} (En Terreno)</div>
                           </div>
                         </label>
@@ -1496,7 +1508,7 @@ const CotizacionesView = () => {
                             disabled={isGenerating}
                           />
                           <div style={{ fontSize: '0.85rem' }}>
-                            <strong>Día de Prueba</strong>
+                            <strong>{diaPruebaName}</strong>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(diaPruebaPrice)} (Montaje Previo)</div>
                           </div>
                         </label>
