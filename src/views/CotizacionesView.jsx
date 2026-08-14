@@ -55,16 +55,24 @@ const CotizacionesView = () => {
       dj: false
     },
     descuento: 0,
-    precioAudifono: 5000
+    precioAudifono: 5000,
+    precioTransmisor: 25000
   });
 
-  // Sincronizar precio base del audífono desde el inventario al cargar
+  // Sincronizar precio base del audífono y transmisor desde el inventario al cargar
   useEffect(() => {
     const aud = inventario.find(i => i.nombreEquipo.toLowerCase().includes('audifono'));
     if (aud && aud.precioBase) {
       setQuickForm(prev => ({
         ...prev,
         precioAudifono: aud.precioBase
+      }));
+    }
+    const tx = inventario.find(i => i.nombreEquipo.toLowerCase().includes('transmisor'));
+    if (tx && tx.precioBase) {
+      setQuickForm(prev => ({
+        ...prev,
+        precioTransmisor: tx.precioBase
       }));
     }
   }, [inventario]);
@@ -78,6 +86,18 @@ const CotizacionesView = () => {
       }
     }
   }, [viewParams]);
+
+  const staffReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('operador') || i.nombreEquipo.toLowerCase().includes('staff'));
+  const staffPrice = staffReal ? staffReal.precioBase : 80000;
+
+  const txReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('transmisor'));
+  const txPrice = txReal ? txReal.precioBase : 25000;
+
+  const lightsReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('iluminacion') || i.nombreEquipo.toLowerCase().includes('luces'));
+  const lightsPrice = lightsReal ? lightsReal.precioBase : 30000;
+
+  const djReal = inventario.find(i => i.nombreEquipo.toLowerCase().includes('dj') || i.nombreEquipo.toLowerCase().includes('cine'));
+  const djPrice = djReal ? djReal.precioBase : 100000;
 
   const servicio = servicios.find(s => s.idServicio === selectedServicioId);
   const cliente = servicio ? clientes.find(c => c.id === servicio.clienteId) : null;
@@ -447,27 +467,14 @@ const CotizacionesView = () => {
     const priceUnit = Number(quickForm.precioAudifono) || 0;
     const subtotalAudifonos = qty * priceUnit;
     
-    // Obtener precios base reales de otros ítems del inventario
-    const tx = inventario.find(i => i.nombreEquipo.toLowerCase().includes('transmisor'));
-    const transmisorPrecio = tx && tx.precioBase ? tx.precioBase : 25000;
-
-    const st = inventario.find(i => i.nombreEquipo.toLowerCase().includes('operador') || i.nombreEquipo.toLowerCase().includes('staff'));
-    const staffPrecio = st && st.precioBase ? st.precioBase : 80000;
-
-    const lt = inventario.find(i => i.nombreEquipo.toLowerCase().includes('iluminacion') || i.nombreEquipo.toLowerCase().includes('luces'));
-    const lightsPrecio = lt && lt.precioBase ? lt.precioBase : 30000;
-
-    const djItem = inventario.find(i => i.nombreEquipo.toLowerCase().includes('dj') || i.nombreEquipo.toLowerCase().includes('cine'));
-    const djPrecio = djItem && djItem.precioBase ? djItem.precioBase : 100000;
-
     // Si elige 2 o 3 canales, se incluye un transmisor y se añade arriendo extra si aplica
-    const subtotalCanales = quickForm.canales > 1 ? transmisorPrecio : 0;
+    const subtotalCanales = quickForm.canales > 1 ? (quickForm.canales - 1) * Number(quickForm.precioTransmisor) : 0;
 
     let subtotalExtras = 0;
-    if (quickForm.extras.staff) subtotalExtras += staffPrecio;
-    if (quickForm.extras.transmisorExtra) subtotalExtras += transmisorPrecio;
-    if (quickForm.extras.iluminacion) subtotalExtras += lightsPrecio;
-    if (quickForm.extras.dj) subtotalExtras += djPrecio;
+    if (quickForm.extras.staff) subtotalExtras += staffPrice;
+    if (quickForm.extras.transmisorExtra) subtotalExtras += Number(quickForm.precioTransmisor);
+    if (quickForm.extras.iluminacion) subtotalExtras += lightsPrice;
+    if (quickForm.extras.dj) subtotalExtras += djPrice;
 
     const subTotalBruto = subtotalAudifonos + subtotalCanales + subtotalExtras;
     const descPorcentaje = Number(quickForm.descuento) || 0;
@@ -486,7 +493,7 @@ const CotizacionesView = () => {
       iva: ivaMonto,
       total: totalMonto
     };
-  }, [quickForm, inventario]);
+  }, [quickForm, staffPrice, txPrice, lightsPrice, djPrice]);
 
   // Helper para buscar un equipo en inventario de forma segura
   const getValidEquipoId = (keyword) => {
@@ -571,19 +578,6 @@ const CotizacionesView = () => {
       // 4. Agregar items en bulk
       const itemsToInsert = [];
 
-      // Obtener precios base reales de otros ítems del inventario
-      const tx = inventario.find(i => i.nombreEquipo.toLowerCase().includes('transmisor'));
-      const transmisorPrecio = tx && tx.precioBase ? tx.precioBase : 25000;
-
-      const st = inventario.find(i => i.nombreEquipo.toLowerCase().includes('operador') || i.nombreEquipo.toLowerCase().includes('staff'));
-      const staffPrecio = st && st.precioBase ? st.precioBase : 80000;
-
-      const lt = inventario.find(i => i.nombreEquipo.toLowerCase().includes('iluminacion') || i.nombreEquipo.toLowerCase().includes('luces'));
-      const lightsPrecio = lt && lt.precioBase ? lt.precioBase : 30000;
-
-      const djItem = inventario.find(i => i.nombreEquipo.toLowerCase().includes('dj') || i.nombreEquipo.toLowerCase().includes('cine'));
-      const djPrecio = djItem && djItem.precioBase ? djItem.precioBase : 100000;
-      
       // Item A: Audífonos
       const idCotizacionA = 'Q-' + Math.random().toString(36).substr(2, 9);
       itemsToInsert.push({
@@ -604,9 +598,9 @@ const CotizacionesView = () => {
           servicio_id: idServicio,
           equipo_id: transmisorId,
           descripcion: `Transmisor ${quickForm.canales} canales (UHF Multicanal)`,
-          cantidad: 1,
+          cantidad: quickForm.canales - 1,
           dias: 1,
-          precio_unitario: transmisorPrecio
+          precio_unitario: Number(quickForm.precioTransmisor)
         });
       }
 
@@ -620,7 +614,7 @@ const CotizacionesView = () => {
           descripcion: 'Staff / Operador Técnico en Terreno',
           cantidad: 1,
           dias: 1,
-          precio_unitario: staffPrecio
+          precio_unitario: staffPrice
         });
       }
 
@@ -633,7 +627,7 @@ const CotizacionesView = () => {
           descripcion: 'Transmisor Adicional Extra',
           cantidad: 1,
           dias: 1,
-          precio_unitario: transmisorPrecio
+          precio_unitario: Number(quickForm.precioTransmisor)
         });
       }
 
@@ -646,7 +640,7 @@ const CotizacionesView = () => {
           descripcion: 'Equipo de Iluminación Perimetral LED',
           cantidad: 1,
           dias: 1,
-          precio_unitario: lightsPrecio
+          precio_unitario: lightsPrice
         });
       }
 
@@ -659,7 +653,7 @@ const CotizacionesView = () => {
           descripcion: 'Servicio de DJ / Cine al aire libre',
           cantidad: 1,
           dias: 1,
-          precio_unitario: djPrecio
+          precio_unitario: djPrice
         });
       }
 
@@ -1293,28 +1287,43 @@ const CotizacionesView = () => {
                     </div>
 
                     {/* Selector de Ambientes/Canales */}
-                    <div className="input-group" style={{ margin: 0 }}>
-                      <label className="input-label" style={{ marginBottom: '0.4rem' }}>Ambientes / Canales UHF</label>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem' }}>
-                        {[1, 2, 3].map((ch) => (
-                          <div
-                            key={ch}
-                            onClick={() => !isGenerating && setQuickForm({ ...quickForm, canales: ch })}
-                            style={{
-                              padding: '0.6rem',
-                              textAlign: 'center',
-                              borderRadius: 'var(--radius-sm)',
-                              border: quickForm.canales === ch ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
-                              background: quickForm.canales === ch ? 'rgba(99,102,241,0.1)' : 'rgba(0,0,0,0.2)',
-                              color: quickForm.canales === ch ? 'var(--accent-primary)' : 'var(--text-muted)',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              transition: 'var(--transition)'
-                            }}
-                          >
-                            {ch} Canal{ch > 1 ? 'es' : ''} {ch > 1 ? '📡' : '📻'}
-                          </div>
-                        ))}
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
+                      <div className="input-group" style={{ margin: 0 }}>
+                        <label className="input-label" style={{ marginBottom: '0.4rem' }}>Ambientes / Canales UHF</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem' }}>
+                          {[1, 2, 3].map((ch) => (
+                            <div
+                              key={ch}
+                              onClick={() => !isGenerating && setQuickForm({ ...quickForm, canales: ch })}
+                              style={{
+                                padding: '0.6rem',
+                                textAlign: 'center',
+                                borderRadius: 'var(--radius-sm)',
+                                border: quickForm.canales === ch ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                                background: quickForm.canales === ch ? 'rgba(99,102,241,0.1)' : 'rgba(0,0,0,0.2)',
+                                color: quickForm.canales === ch ? 'var(--accent-primary)' : 'var(--text-muted)',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                transition: 'var(--transition)',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              {ch} Canal{ch > 1 ? 'es' : ''} {ch > 1 ? '📡' : '📻'}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="input-group" style={{ margin: 0 }}>
+                        <label className="input-label" style={{ marginBottom: '0.4rem' }}>Precio Transmisor ($)</label>
+                        <input
+                          required
+                          type="number"
+                          min="0"
+                          className="input-control"
+                          value={quickForm.precioTransmisor}
+                          onChange={(e) => setQuickForm({ ...quickForm, precioTransmisor: e.target.value })}
+                          disabled={isGenerating}
+                        />
                       </div>
                     </div>
 
@@ -1332,7 +1341,7 @@ const CotizacionesView = () => {
                           />
                           <div style={{ fontSize: '0.85rem' }}>
                             <strong>Staff Técnico</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ $80.000 (Operador en Terreno)</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(staffPrice)} (Operador en Terreno)</div>
                           </div>
                         </label>
                         
@@ -1346,7 +1355,7 @@ const CotizacionesView = () => {
                           />
                           <div style={{ fontSize: '0.85rem' }}>
                             <strong>Transmisor Extra</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ $25.000 (Arriendo Adicional)</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(txPrice)} (Arriendo Adicional)</div>
                           </div>
                         </label>
                         
@@ -1360,7 +1369,7 @@ const CotizacionesView = () => {
                           />
                           <div style={{ fontSize: '0.85rem' }}>
                             <strong>Iluminación LED</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ $30.000 (Ambiental perimetral)</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(lightsPrice)} (Ambiental perimetral)</div>
                           </div>
                         </label>
 
@@ -1374,7 +1383,7 @@ const CotizacionesView = () => {
                           />
                           <div style={{ fontSize: '0.85rem' }}>
                             <strong>DJ / Cine al aire libre</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ $100.000 (Servicio Completo)</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+ {formatCurrency(djPrice)} (Servicio Completo)</div>
                           </div>
                         </label>
                       </div>
