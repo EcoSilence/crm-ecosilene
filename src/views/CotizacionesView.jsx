@@ -579,6 +579,7 @@ const CotizacionesView = () => {
       const parts = quickForm.encargado.trim().split(/\s+/);
       const nombre = parts[0] || 'Cliente';
       const apellido = parts.slice(1).join(' ') || '';
+      const clienteDisplayName = quickForm.empresa || `${nombre} ${apellido}`;
 
       const clientePayload = {
         nombre,
@@ -605,7 +606,7 @@ const CotizacionesView = () => {
         clientId = newClient.id;
       }
 
-      // 2. Crear el Servicio
+      // 2. Crear el Servicio (se omite la sincro inicial vacía a Google Calendar para hacer una sincro única al final con los ítems)
       const fechaInicio = `${quickForm.fechaEvento}T${quickForm.horaInicio || '18:00'}`;
       const fechaFin = `${quickForm.fechaEvento}T${quickForm.horaFin || '23:59'}`;
 
@@ -616,7 +617,7 @@ const CotizacionesView = () => {
         fechaFin,
       };
 
-      const newService = await addServicio(servicioPayload);
+      const newService = await addServicio(servicioPayload, clienteDisplayName, true);
       if (!newService || !newService.idServicio) {
         throw new Error('No se pudo obtener el ID del servicio generado.');
       }
@@ -755,7 +756,7 @@ const CotizacionesView = () => {
         subtotal: item.cantidad * item.dias * item.precio_unitario
       }));
 
-      await handleCalendarSync(freshService, mappedCotsForCalendar);
+      await handleCalendarSync(freshService, mappedCotsForCalendar, clienteDisplayName);
 
       addToast('¡Cotización e ID de servicio creados con éxito! Stock reservado.', 'success');
 

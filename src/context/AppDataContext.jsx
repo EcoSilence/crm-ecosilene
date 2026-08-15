@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
-import { initGoogleScripts, authenticateGoogle, syncServiceToCalendar, deleteCalendarEvent, listDriveContent, syncMarketingPostToCalendar, isGapiInitialized, isGsisInitialized } from '../services/GoogleCalendarService';
+import { initGoogleScripts, authenticateGoogle, restoreGoogleToken, syncServiceToCalendar, deleteCalendarEvent, listDriveContent, syncMarketingPostToCalendar, isGapiInitialized, isGsisInitialized } from '../services/GoogleCalendarService';
 import { useToast } from './ToastContext';
 
 const AppDataContext = createContext();
@@ -258,8 +258,12 @@ export const AppDataProvider = ({ children }) => {
     initGoogleScripts().then(() => {
       setGoogleApiInited(isGapiInitialized());
       setGoogleGisInited(isGsisInitialized());
-      // Si estaba vinculado antes, intentar reconectar silenciosamente
-      if (localStorage.getItem('google_calendar_linked') === 'true') {
+      // Intentar restaurar el token activo guardado previamente
+      const restored = restoreGoogleToken();
+      if (restored) {
+        setIsGoogleLinked(true);
+      } else if (localStorage.getItem('google_calendar_linked') === 'true') {
+        // Si no hay token guardado pero estaba marcado como vinculado, intentar reconectar silenciosamente
         authenticateGoogle(true).then(() => {
           setIsGoogleLinked(true);
         }).catch(err => {
@@ -392,10 +396,10 @@ export const AppDataProvider = ({ children }) => {
     return equipo.stockTotal - totalUsado;
   };
 
-  const handleCalendarSync = async (servicioObj, itemsArr = []) => {
-    if (!isGoogleLinked || !servicioObj.fechaInicio) return;
+  const handleCalendarSync = async (servicioObj, itemsArr = [], customClienteName = null) => {
+    if (!isGoogleLinked || !servicioObj.fechaInicio) return true;
     const cliente = clientes.find(c => c.id === servicioObj.clienteId);
-    const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+    const clienteName = customClienteName || (cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente');
     
     try {
       const eventId = await syncServiceToCalendar(servicioObj, clienteName, itemsArr);
@@ -412,7 +416,8 @@ export const AppDataProvider = ({ children }) => {
       return false;
     } catch (err) {
       console.error('Error sincronizando con Google Calendar:', err);
-      addToast('Error al sincronizar con Google Calendar: ' + (err.message || err.error || 'Verifica tu conexión y permisos.'), 'error');
+      const errMsg = err.result?.error?.message || err.message || err.error || 'Verifica tu conexión y permisos.';
+      addToast('Error al sincronizar con Google Calendar: ' + errMsg, 'error');
       return false;
     }
   };
@@ -525,21 +530,22 @@ export const AppDataProvider = ({ children }) => {
     return t ? `${day}/${m}/${y} ${t.substring(0,5)}` : `${day}/${m}/${y}`;
   };
 
-  const addServicio = async (servicioData) => {
+  const addServicio = async (servicioData, customClienteName = null, skipCalendarSync = false) => {
     const idServicio = generateCorrelativeId();
     let newS = { ...servicioData, idServicio, etapa: 'Cotizado', descuento: 0, moneda: 'CLP' };
     let googleEventId = null;
 
     try {
-      if (isGoogleLinked) {
+      if (isGoogleLinked && !skipCalendarSync) {
         try {
           const cliente = clientes.find(c => c.id === servicioData.clienteId);
-          const clienteName = cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente';
+          const clienteName = customClienteName || (cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente');
           googleEventId = await syncServiceToCalendar(newS, clienteName);
           newS.googleEventId = googleEventId;
         } catch (calErr) {
           console.error('Error sincronizando nuevo servicio al calendario:', calErr);
-          addToast('El servicio se creó localmente, pero falló la sincronización con Google Calendar: ' + (calErr.message || 'Verifica permisos.'), 'warning');
+          const errMsg = calErr.result?.error?.message || calErr.message || 'Verifica permisos.';
+          addToast('El servicio se creó localmente, pero falló la sincronización con Google Calendar: ' + errMsg, 'warning');
         }
       }
 
@@ -556,7 +562,7 @@ export const AppDataProvider = ({ children }) => {
       });
       
       if (error) throw error;
-      setServicios([...servicios, newS]);
+      setServicios(prev => [...prev, newS]);
       addToast('Servicio creado con éxito.', 'success');
       return newS;
     } catch (err) { 

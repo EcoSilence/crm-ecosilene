@@ -106,6 +106,25 @@ function gisLoaded() {
   gsisInited = true;
 }
 
+export const restoreGoogleToken = () => {
+  try {
+    const saved = localStorage.getItem('google_access_token');
+    if (!saved) return false;
+    const tokenData = JSON.parse(saved);
+    if (tokenData.expires_at && Date.now() < tokenData.expires_at) {
+      if (window.gapi && window.gapi.client) {
+        window.gapi.client.setToken(tokenData);
+        return true;
+      }
+    } else {
+      localStorage.removeItem('google_access_token');
+    }
+  } catch (e) {
+    console.warn('Error restoring Google token:', e);
+  }
+  return false;
+};
+
 export const authenticateGoogle = (silent = false) => {
   return new Promise((resolve, reject) => {
     if (!tokenClient) {
@@ -120,6 +139,16 @@ export const authenticateGoogle = (silent = false) => {
       }
       if (window.gapi && window.gapi.client) {
         window.gapi.client.setToken(resp);
+        try {
+          const tokenData = {
+            ...resp,
+            expires_at: Date.now() + ((resp.expires_in || 3600) - 60) * 1000
+          };
+          localStorage.setItem('google_access_token', JSON.stringify(tokenData));
+          localStorage.setItem('google_calendar_linked', 'true');
+        } catch (e) {
+          console.warn('Could not save token to localStorage:', e);
+        }
       }
       resolve(resp);
     };
@@ -172,47 +201,61 @@ export const syncServiceToCalendar = async (servicio, clienteName, items = []) =
 
   const prefijoAudifonos = totalAudifonos > 0 ? `${totalAudifonos} - ` : '';
 
-  // Determinar si es un evento de todo el día (si no tiene 'T' o tiene 'T00:00')
-  const isAllDay = !servicio.fechaInicio.includes('T') || servicio.fechaInicio.endsWith('T00:00');
-  
-  // Limpiar la cadena para obtener YYYY-MM-DD
-  const pureDateStart = servicio.fechaInicio.split('T')[0];
-  
-  const startObj = isAllDay ? 
-    { 'date': pureDateStart } : 
-    { 'dateTime': new Date(servicio.fechaInicio).toISOString(), 'timeZone': 'America/Santiago' };
-
-  let endObj;
-  if (servicio.fechaFin) {
-    const isEndAllDay = !servicio.fechaFin.includes('T') || servicio.fechaFin.endsWith('T23:59');
-    if (isEndAllDay) {
-      // Para eventos de todo el día, Google requiere que el 'end' sea el día SIGUIENTE al último día del evento
-      const [y, m, d] = servicio.fechaFin.split('T')[0].split('-').map(Number);
-      const endD = new Date(y, m - 1, d); // Crear fecha local
-      endD.setDate(endD.getDate() + 1);
-      
-      const resY = endD.getFullYear();
-      const resM = String(endD.getMonth() + 1).padStart(2, '0');
-      const resD = String(endD.getDate()).padStart(2, '0');
-      
-      endObj = { 'date': `${resY}-${resM}-${resD}` };
-    } else {
-      endObj = { 'dateTime': new Date(servicio.fechaFin).toISOString(), 'timeZone': 'America/Santiago' };
+  // Helper para convertir strings de fecha/hora a objetos Date seguros
+  const safeDate = (dateStr) => {
+    if (!dateStr) return null;
+    let formatted = String(dateStr);
+    if (formatted.includes('T')) {
+      const parts = formatted.split('T');
+      if (parts[1] && parts[1].length === 5) {
+        formatted = `${parts[0]}T${parts[1]}:00`;
+      }
     }
+    const d = new Date(formatted);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const startHasTime = servicio.fechaInicio.includes('T') && !servicio.fechaInicio.endsWith('T00:00');
+  
+  let startObj, endObj;
+
+  if (!startHasTime) {
+    // Evento de todo el día (All Day) - tanto start como end deben usar la propiedad 'date'
+    const pureDateStart = servicio.fechaInicio.split('T')[0];
+    startObj = { 'date': pureDateStart };
+
+    let pureDateEnd = pureDateStart;
+    if (servicio.fechaFin) {
+      pureDateEnd = servicio.fechaFin.split('T')[0];
+    }
+    // Google Calendar requiere que para eventos 'all-day', 'end.date' sea exclusivo (día siguiente)
+    const [y, m, d] = pureDateEnd.split('-').map(Number);
+    const endD = new Date(y, m - 1, d);
+    endD.setDate(endD.getDate() + 1);
+
+    const resY = endD.getFullYear();
+    const resM = String(endD.getMonth() + 1).padStart(2, '0');
+    const resD = String(endD.getDate()).padStart(2, '0');
+
+    endObj = { 'date': `${resY}-${resM}-${resD}` };
   } else {
-    // Si no hay fecha de fin, durará 1 día (si es all-day) o 1 hora
-    if (isAllDay) {
-      const [y, m, d] = pureDateStart.split('-').map(Number);
-      const endD = new Date(y, m - 1, d);
-      endD.setDate(endD.getDate() + 1);
-      const resY = endD.getFullYear();
-      const resM = String(endD.getMonth() + 1).padStart(2, '0');
-      const resD = String(endD.getDate()).padStart(2, '0');
-      endObj = { 'date': `${resY}-${resM}-${resD}` };
+    // Evento con horario específico (Timed) - tanto start como end deben usar la propiedad 'dateTime'
+    const startDate = safeDate(servicio.fechaInicio);
+    if (!startDate) {
+      console.error('Fecha de inicio inválida para Google Calendar:', servicio.fechaInicio);
+      return null;
+    }
+    startObj = { 'dateTime': startDate.toISOString(), 'timeZone': 'America/Santiago' };
+
+    if (servicio.fechaFin) {
+      let endDate = safeDate(servicio.fechaFin);
+      if (!endDate || endDate <= startDate) {
+        endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+      }
+      endObj = { 'dateTime': endDate.toISOString(), 'timeZone': 'America/Santiago' };
     } else {
-      const endD = new Date(servicio.fechaInicio);
-      endD.setHours(endD.getHours() + 1);
-      endObj = { 'dateTime': endD.toISOString(), 'timeZone': 'America/Santiago' };
+      const fallbackEnd = new Date(startDate.getTime() + 60 * 60 * 1000);
+      endObj = { 'dateTime': fallbackEnd.toISOString(), 'timeZone': 'America/Santiago' };
     }
   }
 
@@ -252,16 +295,19 @@ export const syncServiceToCalendar = async (servicio, clienteName, items = []) =
       err.code === 401 || 
       (err.result && err.result.error && (err.result.error.code === 401 || err.result.error.status === 'UNAUTHENTICATED'));
     
-    if (isUnauthenticated) {
-       console.log('Token de Google vencido o no válido, iniciando autenticación interactiva...');
+     if (isUnauthenticated) {
+       console.log('Token de Google vencido o no válido, intentando restaurar o re-autenticar...');
+       if (restoreGoogleToken()) {
+         return syncServiceToCalendar(servicio, clienteName, items);
+       }
        try {
          await authenticateGoogle(false);
          return syncServiceToCalendar(servicio, clienteName, items);
        } catch (authErr) {
          console.error('Error de autenticación interactiva:', authErr);
-         throw authErr;
+         throw new Error('Tu sesión de Google Calendar ha caducado o el navegador bloqueó la ventana emergente. Por favor, haz clic en el botón "Vincular Google Calendar" arriba para autorizar.');
        }
-    }
+     }
     
     const isNotFound = 
       err.status === 404 || 
