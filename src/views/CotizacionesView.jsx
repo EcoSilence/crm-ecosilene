@@ -44,8 +44,8 @@ const CotizacionesView = () => {
     direccionComercial: '',
     direccionEvento: '',
     fechaEvento: '',
-    horaInicio: '18:00',
-    horaFin: '23:59',
+    horaInicio: '',
+    horaFin: '',
     cantidadAudifonos: 50,
     canales: 3,
     extras: {
@@ -412,7 +412,7 @@ const CotizacionesView = () => {
       if (dateVal) result.fechaEvento = dateVal;
     }
 
-    if (!result.horaInicio || result.horaInicio === '18:00') {
+    if (!result.horaInicio) {
       const hoursMatch = text.match(/(\d{1,2})[\s:]*(\d{2})?\s*(?:a|hasta|-)\s*(\d{1,2})[\s:]*(\d{2})?/i);
       if (hoursMatch) {
         const h1 = hoursMatch[1].padStart(2, '0');
@@ -606,9 +606,9 @@ const CotizacionesView = () => {
         clientId = newClient.id;
       }
 
-      // 2. Crear el Servicio (se omite la sincro inicial vacía a Google Calendar para hacer una sincro única al final con los ítems)
-      const fechaInicio = `${quickForm.fechaEvento}T${quickForm.horaInicio || '18:00'}`;
-      const fechaFin = `${quickForm.fechaEvento}T${quickForm.horaFin || '23:59'}`;
+      // 2. Crear el Servicio (por defecto evento de todo el día si no hay hora especificada)
+      const fechaInicio = quickForm.horaInicio ? `${quickForm.fechaEvento}T${quickForm.horaInicio}` : quickForm.fechaEvento;
+      const fechaFin = quickForm.horaFin ? `${quickForm.fechaEvento}T${quickForm.horaFin}` : (quickForm.horaInicio ? `${quickForm.fechaEvento}T${quickForm.horaInicio}` : quickForm.fechaEvento);
 
       const servicioPayload = {
         clienteId: clientId,
@@ -765,7 +765,7 @@ const CotizacionesView = () => {
       setQuickForm({
         empresa: '', rut: '', encargado: '', telefono: '', correo: '',
         direccionComercial: '', direccionEvento: '', fechaEvento: '',
-        horaInicio: '18:00', horaFin: '23:59', cantidadAudifonos: 50,
+        horaInicio: '', horaFin: '', cantidadAudifonos: 50,
         canales: 3, extras: { audifonos: true, transmisor: true, mesa: false, micMano: false, micSolapa: false, staff: false, diaPrueba: false },
         descuento: 0, precioAudifono: 5000, precioTransmisor: 15000
       });
@@ -1313,9 +1313,8 @@ const CotizacionesView = () => {
                         />
                       </div>
                       <div className="input-group" style={{ margin: 0 }}>
-                        <label className="input-label">Hora Inicio</label>
+                        <label className="input-label">Hora Inicio (Opcional - Día Completo)</label>
                         <input
-                          required
                           type="time"
                           className="input-control"
                           value={quickForm.horaInicio}
@@ -1324,9 +1323,8 @@ const CotizacionesView = () => {
                         />
                       </div>
                       <div className="input-group" style={{ margin: 0 }}>
-                        <label className="input-label">Hora Término</label>
+                        <label className="input-label">Hora Término (Opcional)</label>
                         <input
-                          required
                           type="time"
                           className="input-control"
                           value={quickForm.horaFin}
