@@ -26,8 +26,62 @@ const CotizacionesView = () => {
   // Formulario de ítem (equipo) a añadir manualmente
   const [formData, setFormData] = useState({ equipoId: '', cantidad: 1, dias: 1, precioUnitario: 0, descripcion: '' });
 
-  // Modal de previsualización Voucher Print
+  // Modal de previsualización Voucher Print y Fechas del Documento
   const [showPreview, setShowPreview] = useState(false);
+
+  const getTodayIso = () => new Date().toISOString().split('T')[0];
+  const getFutureIso = (baseIso, days) => {
+    if (!baseIso) return '';
+    const [y, m, d] = baseIso.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setDate(dateObj.getDate() + Number(days));
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [docFechaEmision, setDocFechaEmision] = useState(getTodayIso);
+  const [docDiasValidez, setDocDiasValidez] = useState(15);
+  const [docFechaVencimiento, setDocFechaVencimiento] = useState(() => getFutureIso(getTodayIso(), 15));
+
+  const handleEmisionChange = (newDateStr) => {
+    setDocFechaEmision(newDateStr);
+    if (newDateStr && docDiasValidez) {
+      setDocFechaVencimiento(getFutureIso(newDateStr, docDiasValidez));
+    }
+  };
+
+  const handleDiasValidezChange = (days) => {
+    const numDays = Number(days);
+    setDocDiasValidez(numDays);
+    if (docFechaEmision) {
+      setDocFechaVencimiento(getFutureIso(docFechaEmision, numDays));
+    }
+  };
+
+  const handleVencimientoChange = (newDateStr) => {
+    setDocFechaVencimiento(newDateStr);
+    if (docFechaEmision && newDateStr) {
+      const [y1, m1, d1] = docFechaEmision.split('-').map(Number);
+      const [y2, m2, d2] = newDateStr.split('-').map(Number);
+      const date1 = new Date(y1, m1 - 1, d1);
+      const date2 = new Date(y2, m2 - 1, d2);
+      const diffDays = Math.round((date2 - date1) / (1000 * 60 * 60 * 24));
+      if (diffDays >= 0) {
+        setDocDiasValidez(diffDays);
+      }
+    }
+  };
+
+  const formatDisplayDateStr = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateStr;
+  };
 
   // --- ESTADOS PARA CAPTURA RÁPIDA & IA ---
   const [whatsappText, setWhatsappText] = useState('');
@@ -784,6 +838,7 @@ const CotizacionesView = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', paddingBottom: '2rem' }}>
       {/* ESTILOS CRÍTICOS PARA IMPRESIÓN */}
       <style>{`
+        .only-print-block { display: none; }
         @media print {
           body * { visibility: hidden !important; }
           .print-voucher-container, .print-voucher-container * { visibility: visible !important; }
@@ -797,6 +852,7 @@ const CotizacionesView = () => {
             background: white !important;
           }
           .no-print { display: none !important; }
+          .only-print-block { display: block !important; }
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -1589,18 +1645,23 @@ const CotizacionesView = () => {
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
           <div className="modal-content print-voucher-container" style={{ width: '800px', maxWidth: '95vw', background: 'white', color: 'black', borderRadius: '4px', padding: 0 }}>
             {/* Header / Botones que NO se imprimen */}
-            <div className="no-print" style={{ padding: '1rem 2rem', background: 'var(--bg-dark)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)' }}>
-              <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Previsualización Voucher Documento</h3>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button className="btn btn-ghost" onClick={() => {
-                  const hour = new Date().getHours();
-                  let greeting = "días";
-                  if (hour >= 12 && hour < 20) greeting = "tardes";
-                  if (hour >= 20 || hour < 5) greeting = "noches";
-                  const subject = encodeURIComponent(`Cotización EcoSilence - ${servicio.idServicio}`);
-                  const body = encodeURIComponent(`Hola ${cliente.nombre}, ¡buenos ${greeting}!, Espero que estés muy bien.
+            <div className="no-print" style={{ padding: '1rem 2rem', background: 'var(--bg-dark)', display: 'flex', flexDirection: 'column', gap: '1rem', borderBottom: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={20} style={{ color: 'var(--accent-primary)' }} /> Previsualización Voucher Documento
+                </h3>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button className="btn btn-ghost" onClick={() => {
+                    const hour = new Date().getHours();
+                    let greeting = "días";
+                    if (hour >= 12 && hour < 20) greeting = "tardes";
+                    if (hour >= 20 || hour < 5) greeting = "noches";
+                    const subject = encodeURIComponent(`Cotización EcoSilence - ${servicio.idServicio}`);
+                    const body = encodeURIComponent(`Hola ${cliente.nombre}, ¡buenos ${greeting}!, Espero que estés muy bien.
 Te contacto de parte de EcoSilence para darte las gracias por tu interés en los eventos silenciosos. ¡Nos alegra mucho que quieras ser parte de esto!
 Para que puedas ver todos los detalles, te adjuntamos la cotización que nos pediste.
+
+Cotización válida hasta: ${formatDisplayDateStr(docFechaVencimiento)}
 
 _________________________________________________________________________________________
 Terminos y condiciones para realizar la reserva de nuestro servicios:
@@ -1620,16 +1681,65 @@ Pintor Laureano Guevara 60, La Reina.
 
 https://www.ecosilence.cl/
 https://www.youtube.com/watch?v=M5Hv5z5rWaA`);
-                  window.location.href = `mailto:${cliente.correo}?cc=info@ecosilence.cl&subject=${subject}&body=${body}`;
-                }}>
-                  <Mail size={18} /> Enviar por Correo
-                </button>
-                <button className="btn btn-primary" onClick={() => window.print()}>
-                  <Printer size={18} /> Imprimir / Guardar PDF
-                </button>
-                <button className="btn btn-ghost" onClick={() => setShowPreview(false)} style={{ border: 'none', padding: '0.4rem' }}>
-                  <X size={20} />
-                </button>
+                    window.location.href = `mailto:${cliente.correo}?cc=info@ecosilence.cl&subject=${subject}&body=${body}`;
+                  }}>
+                    <Mail size={18} /> Enviar por Correo
+                  </button>
+                  <button className="btn btn-primary" onClick={() => window.print()}>
+                    <Printer size={18} /> Imprimir / Guardar PDF
+                  </button>
+                  <button className="btn btn-ghost" onClick={() => setShowPreview(false)} style={{ border: 'none', padding: '0.4rem' }}>
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Barra de Ajuste de Fechas y Validez */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.2rem', alignItems: 'center', background: 'rgba(255,255,255,0.04)', padding: '0.6rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Emisión:</span>
+                  <input
+                    type="date"
+                    className="input-control"
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem', width: '135px' }}
+                    value={docFechaEmision}
+                    onChange={(e) => handleEmisionChange(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Plazo:</span>
+                  {[15, 30, 45, 60, 90].map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      className="btn"
+                      style={{
+                        padding: '0.2rem 0.5rem',
+                        fontSize: '0.78rem',
+                        borderRadius: '4px',
+                        background: docDiasValidez === d ? 'var(--accent-primary)' : 'rgba(255,255,255,0.08)',
+                        color: docDiasValidez === d ? 'white' : 'var(--text-main)',
+                        border: 'none',
+                        fontWeight: docDiasValidez === d ? 700 : 400
+                      }}
+                      onClick={() => handleDiasValidezChange(d)}
+                    >
+                      {d}d
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Fecha Vencimiento:</span>
+                  <input
+                    type="date"
+                    className="input-control"
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem', width: '135px', borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)', fontWeight: 700 }}
+                    value={docFechaVencimiento}
+                    onChange={(e) => handleVencimientoChange(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
             {/* CUERPO DE LA COTIZACIÓN (Lo que se verá en el PDF) */}
@@ -1652,8 +1762,55 @@ https://www.youtube.com/watch?v=M5Hv5z5rWaA`);
                   <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documento Cotización</span>
                   <h3 style={{ fontSize: '1.5rem', margin: '0.1rem 0', color: '#4f46e5', fontWeight: 800 }}>#{servicio.idServicio}</h3>
                   <div style={{ height: '1px', background: '#e2e8f0', margin: '0.5rem 0' }}></div>
-                  <p style={{ margin: 0, fontSize: '0.8rem' }}><strong>Fecha:</strong> {new Date().toLocaleDateString('es-CL')}</p>
-                  <p style={{ margin: 0, fontSize: '0.8rem' }}><strong>Vence:</strong> {new Date(new Date().getTime() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('es-CL')}</p>
+                  
+                  {/* Vista interactiva en pantalla */}
+                  <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'flex-end', marginTop: '0.3rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
+                      <strong style={{ color: '#334155' }}>Fecha:</strong>
+                      <input
+                        type="date"
+                        value={docFechaEmision}
+                        onChange={(e) => handleEmisionChange(e.target.value)}
+                        style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '0.15rem 0.35rem', fontSize: '0.8rem', background: 'white', color: '#1e293b' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
+                      <strong style={{ color: '#4f46e5' }}>Vence:</strong>
+                      <input
+                        type="date"
+                        value={docFechaVencimiento}
+                        onChange={(e) => handleVencimientoChange(e.target.value)}
+                        style={{ border: '1px solid #6366f1', borderRadius: '4px', padding: '0.15rem 0.35rem', fontSize: '0.8rem', background: '#eef2ff', color: '#4338ca', fontWeight: 700 }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.2rem', marginTop: '0.2rem' }}>
+                      {[15, 30, 45, 60].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => handleDiasValidezChange(d)}
+                          style={{
+                            padding: '0.1rem 0.4rem',
+                            fontSize: '0.7rem',
+                            borderRadius: '3px',
+                            border: '1px solid #cbd5e1',
+                            background: docDiasValidez === d ? '#4f46e5' : '#ffffff',
+                            color: docDiasValidez === d ? '#ffffff' : '#475569',
+                            cursor: 'pointer',
+                            fontWeight: docDiasValidez === d ? 700 : 400
+                          }}
+                        >
+                          +{d}d
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Vista limpia al imprimir / PDF */}
+                  <div className="only-print-block">
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#0f172a' }}><strong>Fecha:</strong> {formatDisplayDateStr(docFechaEmision)}</p>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#0f172a' }}><strong>Vence:</strong> {formatDisplayDateStr(docFechaVencimiento)}</p>
+                  </div>
                 </div>
               </div>
 
