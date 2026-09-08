@@ -177,6 +177,7 @@ export const AppDataProvider = ({ children }) => {
       if (e1) throw e1;
       if (clis) setClientes(clis.map(c => ({
         ...c,
+        rut: c.rut || '',
         direccionEmpresa: c.direccion_empresa,
         tipoEvento: c.tipo_evento
       })));
@@ -604,7 +605,7 @@ export const AppDataProvider = ({ children }) => {
 
   const addCliente = async (clienteData) => {
     const id = generateId('C');
-    const newC = { ...clienteData, id };
+    const newC = { ...clienteData, id, rut: clienteData.rut || '' };
     try {
       const { error } = await supabase.from('clientes').insert({
         id,
@@ -617,7 +618,8 @@ export const AppDataProvider = ({ children }) => {
         pais: clienteData.pais,
         empresa: clienteData.empresa,
         cargo: clienteData.cargo,
-        tipo_evento: clienteData.tipoEvento
+        tipo_evento: clienteData.tipoEvento,
+        rut: clienteData.rut || null
       });
       if (error) throw error;
       setClientes([...clientes, newC]);
@@ -641,7 +643,8 @@ export const AppDataProvider = ({ children }) => {
       pais: updatedData.pais,
       empresa: updatedData.empresa,
       cargo: updatedData.cargo,
-      tipo_evento: updatedData.tipoEvento
+      tipo_evento: updatedData.tipoEvento,
+      rut: updatedData.rut || null
     }).eq('id', id);
   };
 

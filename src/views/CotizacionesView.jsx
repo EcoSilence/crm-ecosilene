@@ -967,6 +967,9 @@ const CotizacionesView = () => {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <p style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.2rem' }}>{cliente.empresa || `${cliente.nombre} ${cliente.apellido}`}</p>
+                        {cliente.rut && String(cliente.rut).trim() !== '' && (
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>RUT: {cliente.rut}</p>
+                        )}
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{cliente.correo || 'Sin correo'}</p>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{cliente.direccionEmpresa || 'Sin dirección comercial'}</p>
                       </div>
@@ -1819,6 +1822,9 @@ https://www.youtube.com/watch?v=M5Hv5z5rWaA`);
                 <div style={{ padding: '1.2rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f8fafc', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
                   <h4 style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.8rem', letterSpacing: '0.05em' }}>Cliente / Empresa</h4>
                   <p style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.3rem 0', color: '#0f172a' }}>{cliente.empresa || `${cliente.nombre} ${cliente.apellido}`}</p>
+                  {cliente.rut && String(cliente.rut).trim() !== '' && (
+                    <p style={{ fontSize: '0.9rem', margin: '0 0 0.2rem 0', color: '#334155', fontWeight: 600 }}>RUT: {cliente.rut}</p>
+                  )}
                   <p style={{ fontSize: '0.9rem', margin: 0, color: '#334155' }}>{cliente.nombre} {cliente.apellido}</p>
                   <p style={{ fontSize: '0.9rem', margin: 0, color: '#334155' }}>{cliente.correo}</p>
                   <p style={{ fontSize: '0.9rem', margin: 0, color: '#334155' }}>{cliente.telefono}</p>

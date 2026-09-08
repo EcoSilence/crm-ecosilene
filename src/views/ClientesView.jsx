@@ -14,8 +14,26 @@ const ClientesView = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
-    id: '', nombre: '', apellido: '', correo: '', telefono: '', direccionEmpresa: '', comuna: '', pais: 'Chile', empresa: '', cargo: '', tipoEvento: 'Conferencia'
+    id: '', nombre: '', apellido: '', correo: '', telefono: '', direccionEmpresa: '', comuna: '', pais: 'Chile', empresa: '', cargo: '', tipoEvento: 'Conferencia', rut: ''
   });
+
+  const formatChileanRut = (val) => {
+    if (!val) return '';
+    const clean = val.replace(/[^0-9kK]/g, '');
+    if (clean.length < 2) return val;
+    const body = clean.slice(0, -1);
+    const dv = clean.slice(-1).toUpperCase();
+    return body.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv;
+  };
+
+  const handleRutBlur = () => {
+    if (formData.rut && formData.rut.trim() !== '') {
+      const formatted = formatChileanRut(formData.rut);
+      if (formatted) {
+        setFormData(prev => ({ ...prev, rut: formatted }));
+      }
+    }
+  };
 
   // Import State
   const [importData, setImportData] = useState({ headers: [], rows: [] });
@@ -27,6 +45,7 @@ const ClientesView = () => {
     { key: 'apellido', label: 'Apellido' },
     { key: 'correo', label: 'Correo Electrónico' },
     { key: 'telefono', label: 'Teléfono' },
+    { key: 'rut', label: 'RUT' },
     { key: 'empresa', label: 'Empresa' },
     { key: 'cargo', label: 'Cargo' },
     { key: 'tipoEvento', label: 'Tipo Evento' },
@@ -35,13 +54,13 @@ const ClientesView = () => {
 
   const openNewModal = () => {
     setEditMode(false);
-    setFormData({ id: '', nombre: '', apellido: '', correo: '', telefono: '', direccionEmpresa: '', comuna: '', pais: 'Chile', empresa: '', cargo: '', tipoEvento: 'Conferencia' });
+    setFormData({ id: '', nombre: '', apellido: '', correo: '', telefono: '', direccionEmpresa: '', comuna: '', pais: 'Chile', empresa: '', cargo: '', tipoEvento: 'Conferencia', rut: '' });
     setIsModalOpen(true);
   };
 
   const openEditModal = (cliente) => {
     setEditMode(true);
-    setFormData({ ...cliente });
+    setFormData({ rut: '', ...cliente });
     setIsModalOpen(true);
   };
 
@@ -68,6 +87,7 @@ const ClientesView = () => {
       ID: c.id,
       Nombre: c.nombre,
       Apellido: c.apellido,
+      RUT: c.rut || '',
       Correo: c.correo,
       Teléfono: c.telefono,
       Empresa: c.empresa,
@@ -209,7 +229,9 @@ const ClientesView = () => {
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
                         <Building size={14} color="var(--accent-primary)" /> {c.empresa || 'Sin empresa'}
                       </span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{c.cargo} • {c.tipoEvento}</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {c.rut ? `RUT: ${c.rut} • ` : ''}{c.cargo} • {c.tipoEvento}
+                      </span>
                     </div>
                   </td>
                   <td style={{ padding: '1rem' }}>
@@ -279,14 +301,25 @@ const ClientesView = () => {
                  </div>
 
                  <div style={{ display: 'flex', gap: '1rem' }}>
-                   <div className="input-group" style={{ flex: 2, margin: 0 }}>
-                     <label className="input-label">Empresa</label>
-                     <input type="text" className="input-control" value={formData.empresa} onChange={e => setFormData({...formData, empresa: e.target.value})} />
-                   </div>
-                   <div className="input-group" style={{ flex: 1, margin: 0 }}>
-                     <label className="input-label">Cargo</label>
-                     <input type="text" className="input-control" value={formData.cargo} onChange={e => setFormData({...formData, cargo: e.target.value})} />
-                   </div>
+                    <div className="input-group" style={{ flex: 1, margin: 0 }}>
+                      <label className="input-label">Empresa</label>
+                      <input type="text" className="input-control" value={formData.empresa} onChange={e => setFormData({...formData, empresa: e.target.value})} />
+                    </div>
+                    <div className="input-group" style={{ flex: 1, margin: 0 }}>
+                      <label className="input-label">RUT Empresa / RUT Persona</label>
+                      <input 
+                        type="text" 
+                        className="input-control" 
+                        placeholder="Ej: 76.xxx.xxx-k o 12.xxx.xxx-x" 
+                        value={formData.rut || ''} 
+                        onChange={e => setFormData({...formData, rut: e.target.value})} 
+                        onBlur={handleRutBlur}
+                      />
+                    </div>
+                    <div className="input-group" style={{ flex: 1, margin: 0 }}>
+                      <label className="input-label">Cargo</label>
+                      <input type="text" className="input-control" value={formData.cargo} onChange={e => setFormData({...formData, cargo: e.target.value})} />
+                    </div>
                  </div>
 
                  <div className="input-group" style={{ margin: 0 }}>
