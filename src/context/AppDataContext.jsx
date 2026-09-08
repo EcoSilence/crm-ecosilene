@@ -607,22 +607,32 @@ export const AppDataProvider = ({ children }) => {
     const id = generateId('C');
     const newC = { ...clienteData, id, rut: clienteData.rut || '' };
     try {
-      const { error } = await supabase.from('clientes').insert({
+      const payload = {
         id,
-        nombre: clienteData.nombre,
-        apellido: clienteData.apellido,
-        correo: clienteData.correo,
-        telefono: clienteData.telefono,
-        direccion_empresa: clienteData.direccionEmpresa,
-        comuna: clienteData.comuna,
-        pais: clienteData.pais,
-        empresa: clienteData.empresa,
-        cargo: clienteData.cargo,
-        tipo_evento: clienteData.tipoEvento,
+        nombre: clienteData.nombre || '',
+        apellido: clienteData.apellido || '',
+        correo: clienteData.correo || '',
+        telefono: clienteData.telefono || '',
+        direccion_empresa: clienteData.direccionEmpresa || '',
+        comuna: clienteData.comuna || '',
+        pais: clienteData.pais || 'Chile',
+        empresa: clienteData.empresa || '',
+        cargo: clienteData.cargo || '',
+        tipo_evento: clienteData.tipoEvento || '',
         rut: clienteData.rut || null
-      });
+      };
+
+      let { error } = await supabase.from('clientes').insert(payload);
+
+      // Si la columna 'rut' no existe en la BD de Supabase, reintentamos sin el campo 'rut'
+      if (error && (error.message?.includes('rut') || error.code === 'PGRST204' || error.message?.includes('schema cache'))) {
+        delete payload.rut;
+        const retry = await supabase.from('clientes').insert(payload);
+        error = retry.error;
+      }
+
       if (error) throw error;
-      setClientes([...clientes, newC]);
+      setClientes(prev => [...prev, newC]);
       addToast('Cliente registrado con éxito.', 'success');
       return newC;
     } catch (err) { 
@@ -632,20 +642,32 @@ export const AppDataProvider = ({ children }) => {
   };
 
   const editCliente = async (id, updatedData) => {
-    setClientes(clientes.map(c => (c.id === id ? { ...c, ...updatedData } : c)));
-    await supabase.from('clientes').update({
-      nombre: updatedData.nombre,
-      apellido: updatedData.apellido,
-      correo: updatedData.correo,
-      telefono: updatedData.telefono,
-      direccion_empresa: updatedData.direccionEmpresa,
-      comuna: updatedData.comuna,
-      pais: updatedData.pais,
-      empresa: updatedData.empresa,
-      cargo: updatedData.cargo,
-      tipo_evento: updatedData.tipoEvento,
-      rut: updatedData.rut || null
-    }).eq('id', id);
+    setClientes(prev => prev.map(c => (c.id === id ? { ...c, ...updatedData } : c)));
+    try {
+      const payload = {
+        nombre: updatedData.nombre,
+        apellido: updatedData.apellido,
+        correo: updatedData.correo,
+        telefono: updatedData.telefono,
+        direccion_empresa: updatedData.direccionEmpresa,
+        comuna: updatedData.comuna,
+        pais: updatedData.pais,
+        empresa: updatedData.empresa,
+        cargo: updatedData.cargo,
+        tipo_evento: updatedData.tipoEvento,
+        rut: updatedData.rut || null
+      };
+
+      let { error } = await supabase.from('clientes').update(payload).eq('id', id);
+
+      // Si la columna 'rut' no existe en Supabase, reintentamos sin el campo 'rut'
+      if (error && (error.message?.includes('rut') || error.code === 'PGRST204' || error.message?.includes('schema cache'))) {
+        delete payload.rut;
+        await supabase.from('clientes').update(payload).eq('id', id);
+      }
+    } catch (err) {
+      console.error("Error al editar cliente en Supabase:", err);
+    }
   };
 
   const listDriveContentAction = async (parentId, type = 'media') => {
