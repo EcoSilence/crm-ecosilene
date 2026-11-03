@@ -20,7 +20,8 @@ import {
   Tag,
   DollarSign,
   Download,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 import {
   EXPENSE_DOC_TYPES,
@@ -97,10 +98,144 @@ const GastosView = () => {
     };
   }, []);
 
-  // Filtros
+  // Filtros de Auditoría y Búsqueda
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [selectedDocType, setSelectedDocType] = useState('Todos');
+  const [selectedPeriod, setSelectedPeriod] = useState('all');
+  const [customDateFrom, setCustomDateFrom] = useState('');
+  const [customDateTo, setCustomDateTo] = useState('');
+
+  // Nombres de meses en español para los periodos
+  const SPANISH_MONTH_NAMES = useMemo(
+    () => [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ],
+    []
+  );
+
+  const now = new Date();
+  const currentMonthIdx = now.getMonth();
+  const currentYearNum = now.getFullYear();
+  const currentMonthLabel = `${SPANISH_MONTH_NAMES[currentMonthIdx]} ${currentYearNum}`;
+
+  const prevMonthDate = new Date(currentYearNum, currentMonthIdx - 1, 1);
+  const prevMonthIdx = prevMonthDate.getMonth();
+  const prevMonthYearNum = prevMonthDate.getFullYear();
+  const prevMonthLabel = `${SPANISH_MONTH_NAMES[prevMonthIdx]} ${prevMonthYearNum}`;
+
+  // Años dinámicos presentes en los gastos registrados + año actual
+  const availableYears = useMemo(() => {
+    const yearsSet = new Set([currentYearNum]);
+    (gastos || []).forEach((g) => {
+      const match = String(g.fecha || '').match(/^(\d{4})/);
+      if (match) {
+        const y = parseInt(match[1], 10);
+        if (y >= 2020 && y <= 2035) {
+          yearsSet.add(y);
+        }
+      }
+    });
+    return Array.from(yearsSet).sort((a, b) => b - a);
+  }, [gastos, currentYearNum]);
+
+  // Cálculo del rango activo según el periodo seleccionado
+  const activeDateRange = useMemo(() => {
+    const pad = (n) => String(n).padStart(2, '0');
+
+    if (selectedPeriod === 'this_month') {
+      const firstDay = `${currentYearNum}-${pad(currentMonthIdx + 1)}-01`;
+      const lastDayNum = new Date(currentYearNum, currentMonthIdx + 1, 0).getDate();
+      const lastDay = `${currentYearNum}-${pad(currentMonthIdx + 1)}-${pad(lastDayNum)}`;
+      return {
+        from: firstDay,
+        to: lastDay,
+        label: `Este Mes (${currentMonthLabel})`,
+        fileSuffix: `${SPANISH_MONTH_NAMES[currentMonthIdx]}_${currentYearNum}`
+      };
+    }
+
+    if (selectedPeriod === 'last_month') {
+      const firstDay = `${prevMonthYearNum}-${pad(prevMonthIdx + 1)}-01`;
+      const lastDayNum = new Date(prevMonthYearNum, prevMonthIdx + 1, 0).getDate();
+      const lastDay = `${prevMonthYearNum}-${pad(prevMonthIdx + 1)}-${pad(lastDayNum)}`;
+      return {
+        from: firstDay,
+        to: lastDay,
+        label: `Mes Anterior (${prevMonthLabel})`,
+        fileSuffix: `${SPANISH_MONTH_NAMES[prevMonthIdx]}_${prevMonthYearNum}`
+      };
+    }
+
+    if (selectedPeriod.startsWith('year_')) {
+      const y = selectedPeriod.replace('year_', '');
+      return {
+        from: `${y}-01-01`,
+        to: `${y}-12-31`,
+        label: `Año ${y}`,
+        fileSuffix: `Ano_${y}`
+      };
+    }
+
+    if (selectedPeriod === 'custom') {
+      let label = 'Rango Personalizado';
+      if (customDateFrom && customDateTo) {
+        label = `${customDateFrom} al ${customDateTo}`;
+      } else if (customDateFrom) {
+        label = `Desde ${customDateFrom}`;
+      } else if (customDateTo) {
+        label = `Hasta ${customDateTo}`;
+      }
+      return {
+        from: customDateFrom || null,
+        to: customDateTo || null,
+        label,
+        fileSuffix:
+          customDateFrom && customDateTo
+            ? `${customDateFrom}_a_${customDateTo}`
+            : 'Rango_Personalizado'
+      };
+    }
+
+    return {
+      from: null,
+      to: null,
+      label: 'Todo el Historial',
+      fileSuffix: 'Todo_Historial'
+    };
+  }, [
+    selectedPeriod,
+    customDateFrom,
+    customDateTo,
+    currentYearNum,
+    currentMonthIdx,
+    currentMonthLabel,
+    prevMonthYearNum,
+    prevMonthIdx,
+    prevMonthLabel,
+    SPANISH_MONTH_NAMES
+  ]);
+
+  const isFilterActive = useMemo(() => {
+    return (
+      selectedPeriod !== 'all' ||
+      Boolean(customDateFrom) ||
+      Boolean(customDateTo) ||
+      selectedCategory !== 'Todas' ||
+      selectedDocType !== 'Todos' ||
+      searchTerm.trim().length > 0
+    );
+  }, [selectedPeriod, customDateFrom, customDateTo, selectedCategory, selectedDocType, searchTerm]);
+
+  const handleClearFilters = () => {
+    setSelectedPeriod('all');
+    setCustomDateFrom('');
+    setCustomDateTo('');
+    setSelectedCategory('Todas');
+    setSelectedDocType('Todos');
+    setSearchTerm('');
+  };
 
   // Estados del Modal "+ Registrar Nuevo Gasto"
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -137,7 +272,8 @@ const GastosView = () => {
   const availableDocTypes = useMemo(() => {
     const set = new Set(EXPENSE_DOC_TYPES);
     (gastos || []).forEach((g) => {
-      if (g.tipoDocumento) set.add(g.tipoDocumento);
+      const dt = g.tipoDocumento || g.tipo_doc;
+      if (dt) set.add(dt);
     });
     if (formData.tipoDocumento) set.add(formData.tipoDocumento);
     return Array.from(set);
@@ -146,21 +282,30 @@ const GastosView = () => {
   const filteredGastos = useMemo(() => {
     return (gastos || [])
       .filter((g) => {
+        // Filtro por Fecha (Desde / Hasta inclusivo)
+        if (activeDateRange.from && g.fecha && g.fecha < activeDateRange.from) return false;
+        if (activeDateRange.to && g.fecha && g.fecha > activeDateRange.to) return false;
+
+        // Filtro por Categoría
         if (selectedCategory !== 'Todas' && g.categoria !== selectedCategory) return false;
-        if (selectedDocType !== 'Todos' && g.tipoDocumento !== selectedDocType) return false;
+
+        // Filtro por Tipo de Documento
+        const dt = g.tipoDocumento || g.tipo_doc;
+        if (selectedDocType !== 'Todos' && dt !== selectedDocType) return false;
+
+        // Buscador reactivo por comercio, RUT o glosa
         if (searchTerm.trim()) {
           const q = searchTerm.toLowerCase();
-          return (
-            String(g.descripcion || '').toLowerCase().includes(q) ||
-            String(g.razonSocial || '').toLowerCase().includes(q) ||
-            String(g.rutEmisor || '').toLowerCase().includes(q) ||
-            String(g.categoria || '').toLowerCase().includes(q)
-          );
+          const desc = String(g.descripcion || '').toLowerCase();
+          const razon = String(g.razonSocial || g.proveedor || '').toLowerCase();
+          const rut = String(g.rutEmisor || g.rut || '').toLowerCase();
+          const cat = String(g.categoria || '').toLowerCase();
+          return desc.includes(q) || razon.includes(q) || rut.includes(q) || cat.includes(q);
         }
         return true;
       })
-      .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
-  }, [gastos, selectedCategory, selectedDocType, searchTerm]);
+      .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+  }, [gastos, selectedCategory, selectedDocType, searchTerm, activeDateRange]);
 
   const kpis = useMemo(() => {
     let totalBruto = 0;
@@ -170,13 +315,14 @@ const GastosView = () => {
     let facturasCount = 0;
 
     filteredGastos.forEach((g) => {
-      const t = Number(g.total) || 0;
+      const t = Number(g.total ?? g.total_bruto) || 0;
       const n = Number(g.neto) || 0;
       const i = Number(g.iva) || 0;
       totalBruto += t;
       totalNeto += n;
       totalIva += i;
-      if (g.tipoDocumento === 'Factura Electrónica') {
+      const dt = String(g.tipoDocumento || g.tipo_doc || '');
+      if (dt.toLowerCase().includes('factura')) {
         facturasCount++;
         ivaCreditoFiscal += i;
       }
@@ -403,23 +549,44 @@ const GastosView = () => {
     const rows = filteredGastos.map((g) => ({
       'ID Gasto': g.id,
       'Fecha Emisión': g.fecha,
-      'Tipo Documento': g.tipoDocumento,
-      'RUT Emisor': g.rutEmisor || 'S/I',
-      'Proveedor / Razón Social': g.razonSocial,
-      'Categoría Contable': g.categoria,
-      'Descripción / Glosa': g.descripcion,
+      'Tipo Documento': g.tipoDocumento || g.tipo_doc || 'Boleta Electrónica',
+      'RUT Emisor': g.rutEmisor || g.rut || 'S/I',
+      'Proveedor / Razón Social': g.razonSocial || g.proveedor || 'General',
+      'Categoría Contable': g.categoria || 'Otros Gastos',
+      'Descripción / Glosa': g.descripcion || '',
       'Monto Neto (CLP)': Number(g.neto) || 0,
       'IVA 19% (CLP)': Number(g.iva) || 0,
-      'Total Bruto (CLP)': Number(g.total) || 0,
-      'Comprobante Adjunto': g.comprobanteImg ? `Sí (${g.nombreArchivo || 'Imagen capturada'})` : 'Sin adjunto'
+      'Total Bruto (CLP)': Number(g.total ?? g.total_bruto) || 0,
+      'Comprobante Adjunto':
+        g.comprobanteImg || g.comprobante_url
+          ? `Sí (${g.nombreArchivo || 'Imagen capturada'})`
+          : 'Sin adjunto'
     }));
+
+    // Fila final destacada de totales para auditoría contable
+    rows.push({
+      'ID Gasto': '=== TOTALES DEL PERIODO ===',
+      'Fecha Emisión': activeDateRange.label,
+      'Tipo Documento': `${kpis.count} Documentos`,
+      'RUT Emisor': '',
+      'Proveedor / Razón Social': `${kpis.facturasCount} Facturas SII`,
+      'Categoría Contable': 'CIERRE CONTABLE',
+      'Descripción / Glosa': `Total Bruto: $${kpis.totalBruto.toLocaleString('es-CL')} (Neto + IVA)`,
+      'Monto Neto (CLP)': kpis.totalNeto,
+      'IVA 19% (CLP)': kpis.totalIva,
+      'Total Bruto (CLP)': kpis.totalBruto,
+      'Comprobante Adjunto': ''
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Rendicion_Gastos');
-    const fileDate = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(workbook, `EcoSilence_Gastos_Contables_${fileDate}.xlsx`);
-    addToast('Reporte contable exportado a Excel (.xlsx).', 'success');
+
+    const cleanSuffix = (activeDateRange.fileSuffix || 'Historial').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fileName = `Gastos_EcoSilence_${cleanSuffix}.xlsx`;
+
+    XLSX.writeFile(workbook, fileName);
+    addToast(`Reporte contable exportado: ${fileName}`, 'success');
   };
 
   const getCategoryBadgeStyle = (cat = '') => {
@@ -499,7 +666,7 @@ const GastosView = () => {
         </div>
       </div>
 
-      {/* KPIs Tributarios */}
+      {/* KPIs Tributarios Dinámicos según el filtro activo */}
       <div className="responsive-grid-cards">
         <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem' }}>
           <div style={{ background: 'var(--color-tomato-bg)', padding: '0.8rem', borderRadius: '50%', color: 'var(--color-tomato)' }}>
@@ -507,12 +674,31 @@ const GastosView = () => {
           </div>
           <div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>
-              Total Gastos ({kpis.count})
+              Total Gastos del Periodo ({kpis.count} {kpis.count === 1 ? 'doc filtrado' : 'docs filtrados'})
             </p>
-            <h2 style={{ fontSize: '1.4rem' }}>{formatCurrency(kpis.totalBruto)}</h2>
+            <h2 style={{ fontSize: '1.4rem', margin: 0 }}>{formatCurrency(kpis.totalBruto)}</h2>
             <p className="text-xs text-slate-400" style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
               Neto: {formatCurrency(kpis.totalNeto)} | IVA (19%): {formatCurrency(kpis.totalIva)}
             </p>
+            {selectedPeriod !== 'all' && (
+              <div style={{ marginTop: '0.4rem' }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    fontSize: '0.72rem',
+                    padding: '0.15rem 0.55rem',
+                    borderRadius: '6px',
+                    background: 'rgba(99, 102, 241, 0.18)',
+                    color: '#a5b4fc',
+                    fontWeight: 600
+                  }}
+                >
+                  <Calendar size={11} /> Periodo: {activeDateRange.label}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -522,11 +708,11 @@ const GastosView = () => {
           </div>
           <div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>
-              IVA Crédito Fiscal ({kpis.facturasCount} Facturas)
+              IVA Crédito Fiscal Recuperable ({kpis.facturasCount} {kpis.facturasCount === 1 ? 'Factura' : 'Facturas'})
             </p>
-            <h2 style={{ fontSize: '1.4rem' }}>{formatCurrency(kpis.ivaCreditoFiscal)}</h2>
+            <h2 style={{ fontSize: '1.4rem', margin: 0 }}>{formatCurrency(kpis.ivaCreditoFiscal)}</h2>
             <p className="text-xs text-slate-400" style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
-              Recuperable ante SII (19%)
+              Recuperable ante SII (19% Facturas del periodo)
             </p>
           </div>
         </div>
@@ -550,19 +736,20 @@ const GastosView = () => {
         </div>
       </div>
 
-      {/* Tabla y Filtros */}
+      {/* Tabla y Filtros de Auditoría */}
       <div className="glass-panel" style={{ padding: '1.5rem' }}>
         <div
           style={{
             display: 'flex',
-            gap: '1rem',
+            gap: '0.8rem',
             marginBottom: '1.5rem',
             flexWrap: 'wrap',
             alignItems: 'center',
             justifyContent: 'space-between'
           }}
         >
-          <div className="search-bar" style={{ width: '100%', maxWidth: '340px' }}>
+          {/* Buscador general */}
+          <div className="search-bar" style={{ width: '100%', maxWidth: '320px', minWidth: '220px' }}>
             <Search size={18} />
             <input
               type="text"
@@ -572,14 +759,108 @@ const GastosView = () => {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
+          {/* Barra de Filtros */}
+          <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Selector Rápido de Periodo */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
                 background: 'var(--bg-dark)',
-                padding: '0.45rem 0.9rem',
+                padding: '0.45rem 0.85rem',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-color)'
+              }}
+              title="Filtrar por Periodo o Año"
+            >
+              <Calendar size={15} color="var(--accent-primary)" />
+              <select
+                className="input-control"
+                style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.86rem', color: 'inherit' }}
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+              >
+                <option value="all">Todo el Historial</option>
+                <option value="this_month">Este Mes ({currentMonthLabel})</option>
+                <option value="last_month">Mes Anterior ({prevMonthLabel})</option>
+                {availableYears.map((yr) => (
+                  <option key={yr} value={`year_${yr}`}>
+                    Año {yr}
+                  </option>
+                ))}
+                <option value="custom">Rango Personalizado...</option>
+              </select>
+            </div>
+
+            {/* Inputs de Rango Personalizado (Desde / Hasta) */}
+            {selectedPeriod === 'custom' && (
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    background: 'var(--bg-dark)',
+                    padding: '0.42rem 0.75rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-color)'
+                  }}
+                >
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Desde:</span>
+                  <input
+                    type="date"
+                    className="input-control"
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      padding: 0,
+                      fontSize: '0.84rem',
+                      color: 'inherit',
+                      outline: 'none'
+                    }}
+                    value={customDateFrom}
+                    onChange={(e) => setCustomDateFrom(e.target.value)}
+                  />
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    background: 'var(--bg-dark)',
+                    padding: '0.42rem 0.75rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-color)'
+                  }}
+                >
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Hasta:</span>
+                  <input
+                    type="date"
+                    className="input-control"
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      padding: 0,
+                      fontSize: '0.84rem',
+                      color: 'inherit',
+                      outline: 'none'
+                    }}
+                    value={customDateTo}
+                    onChange={(e) => setCustomDateTo(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Filtro Categoría */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                background: 'var(--bg-dark)',
+                padding: '0.45rem 0.85rem',
                 borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--border-color)'
               }}
@@ -587,7 +868,7 @@ const GastosView = () => {
               <Filter size={15} color="var(--text-muted)" />
               <select
                 className="input-control"
-                style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.88rem' }}
+                style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.86rem', color: 'inherit' }}
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
@@ -600,13 +881,14 @@ const GastosView = () => {
               </select>
             </div>
 
+            {/* Filtro Tipo Doc */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
                 background: 'var(--bg-dark)',
-                padding: '0.45rem 0.9rem',
+                padding: '0.45rem 0.85rem',
                 borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--border-color)'
               }}
@@ -614,7 +896,7 @@ const GastosView = () => {
               <Receipt size={15} color="var(--text-muted)" />
               <select
                 className="input-control"
-                style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.88rem' }}
+                style={{ border: 'none', background: 'transparent', padding: 0, fontSize: '0.86rem', color: 'inherit' }}
                 value={selectedDocType}
                 onChange={(e) => setSelectedDocType(e.target.value)}
               >
@@ -626,6 +908,27 @@ const GastosView = () => {
                 ))}
               </select>
             </div>
+
+            {/* Botón Limpiar Filtros */}
+            {isFilterActive && (
+              <button
+                className="btn btn-ghost"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  fontSize: '0.8rem',
+                  padding: '0.45rem 0.8rem',
+                  color: '#f87171',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  borderRadius: 'var(--radius-sm)'
+                }}
+                onClick={handleClearFilters}
+                title="Restablecer todos los filtros"
+              >
+                <RotateCcw size={13} /> Limpiar Filtros
+              </button>
+            )}
           </div>
         </div>
 
@@ -744,8 +1047,29 @@ const GastosView = () => {
 
               {filteredGastos.length === 0 && (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
-                    No hay gastos registrados aún. Haz clic en "+ Registrar Nuevo Gasto" para escanear una boleta con IA.
+                  <td colSpan={10} style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
+                      <Receipt size={32} style={{ opacity: 0.35 }} />
+                      <p style={{ margin: 0, fontSize: '0.95rem' }}>
+                        No hay gastos registrados para este periodo o filtro aplicado.
+                      </p>
+                      {isFilterActive && (
+                        <button
+                          className="btn btn-ghost"
+                          style={{
+                            marginTop: '0.35rem',
+                            fontSize: '0.8rem',
+                            color: 'var(--accent-primary)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem'
+                          }}
+                          onClick={handleClearFilters}
+                        >
+                          <RotateCcw size={13} /> Restablecer filtros
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )}
