@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/expenses",
+      "destination": "/api/expenses/index"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

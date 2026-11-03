@@ -97,9 +97,12 @@ export const fetchCentralizedExpenses = async () => {
     console.warn('[expensesService] Tabla gastos no disponible en Supabase:', err.message);
   }
 
-  // 2. Intento vía API Route '/api/expenses' (Vercel Serverless)
+  // 2. Intento vía API Route ('/api/expenses' o '/api/expenses/index')
   try {
-    const resp = await fetch('/api/expenses');
+    let resp = await fetch('/api/expenses');
+    if (!resp.ok) {
+      resp = await fetch('/api/expenses/index');
+    }
     if (resp.ok) {
       const json = await resp.json();
       if (json.ok && Array.isArray(json.data)) {
@@ -180,14 +183,21 @@ export const saveCentralizedExpense = async (expenseData) => {
     console.warn('[expensesService] Error upsert en tabla gastos:', err.message);
   }
 
-  // 2. Sincronización vía API Route '/api/expenses' (Vercel Serverless + configuracion fallback)
+  // 2. Sincronización vía API Route ('/api/expenses' o '/api/expenses/index')
   if (!savedOk) {
     try {
-      const resp = await fetch('/api/expenses', {
+      let resp = await fetch('/api/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(normalized)
       });
+      if (!resp.ok) {
+        resp = await fetch('/api/expenses/index', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(normalized)
+        });
+      }
       if (resp.ok) {
         const json = await resp.json();
         if (json.ok) {
@@ -243,11 +253,16 @@ export const deleteCentralizedExpense = async (id) => {
     console.warn('[expensesService] Error delete en tabla gastos:', err.message);
   }
 
-  // 2. Vía API Route '/api/expenses'
+  // 2. Vía API Route ('/api/expenses' o '/api/expenses/index')
   try {
-    const resp = await fetch(`/api/expenses?id=${encodeURIComponent(id)}`, {
+    let resp = await fetch(`/api/expenses?id=${encodeURIComponent(id)}`, {
       method: 'DELETE'
     });
+    if (!resp.ok) {
+      resp = await fetch(`/api/expenses/index?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+    }
     if (resp.ok) deletedOk = true;
   } catch (err) {
     console.warn('[expensesService] Error delete en /api/expenses:', err.message);
