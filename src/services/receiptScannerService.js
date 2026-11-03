@@ -12,7 +12,7 @@ export const EXPENSE_DOC_TYPES = [
   'Comprobante de Transferencia'
 ];
 
-export const EXPENSE_CATEGORIES = [
+export const EXPENSE_CATEGORIES_EMPRESA = [
   'Gimnasio/Fitness',
   'Transporte / Bencina',
   'Alimentación / Viáticos',
@@ -21,6 +21,19 @@ export const EXPENSE_CATEGORIES = [
   'Servicios / Suscripciones',
   'Otros Gastos'
 ];
+
+export const EXPENSE_CATEGORIES_CASA = [
+  'Supermercado / Abarrotes',
+  'Cuentas Básicas (Luz, Agua, Gas, Internet)',
+  'Arriendo / Gastos Comunes',
+  'Mascotas / Veterinaria',
+  'Transporte / Bencina Personal',
+  'Salud / Farmacia',
+  'Salidas / Delivery / Ocio',
+  'Otros Hogar'
+];
+
+export const EXPENSE_CATEGORIES = EXPENSE_CATEGORIES_EMPRESA;
 
 export const CHILEAN_TAX_SYSTEM_PROMPT = `Eres un auditor contable experto en Chile (SII). Analiza la imagen del comprobante y extrae en formato JSON estricto:
 - razonSocial: Nombre real del comercio o empresa visible en la imagen.
@@ -104,7 +117,10 @@ export const normalizeChileanDate = (rawDate) => {
   return today;
 };
 
-export const classifyCategoryFromText = (text = '') => {
+export const classifyCategoryFromText = (text = '', entidad = 'empresa') => {
+  if (entidad === 'casa') {
+    return classifyCasaCategoryFromText(text);
+  }
   const normalized = String(text).toLowerCase();
 
   if (/gimnasio|katsu|fitness|smartfit|smart fit|sportlife|energy|entrenamiento|deporte/.test(normalized)) {
@@ -122,6 +138,33 @@ export const classifyCategoryFromText = (text = '') => {
   return 'Otros Gastos';
 };
 
+export const classifyCasaCategoryFromText = (text = '') => {
+  const norm = String(text).toLowerCase();
+
+  if (/supermercado|lider|jumbo|unimarc|tottus|santa isabel|alvi|mayorista|verduler|feria|panader|abarrotes|carnicer|fruteria|queso|pan|leche/.test(norm)) {
+    return 'Supermercado / Abarrotes';
+  }
+  if (/enel|cge|aguas andinas|esval|essbio|metrogas|gasco|lipigas|abastible|vtr|movistar|entel|wom|claro|mundo|luz|agua|gas|internet|electricidad|telefonia/.test(norm)) {
+    return 'Cuentas Básicas (Luz, Agua, Gas, Internet)';
+  }
+  if (/arriendo|gasto comun|gastos comunes|edificio|conserj|condominio|alquiler|arrendamiento/.test(norm)) {
+    return 'Arriendo / Gastos Comunes';
+  }
+  if (/veterinar|pet|mascota|perro|gato|can|felin|dog|cat|purina|royal canin|master dog|whiskas|alimento mascota/.test(norm)) {
+    return 'Mascotas / Veterinaria';
+  }
+  if (/copec|shell|petrobras|aramco|bencina|combustible|diesel|peaje|tag|uber|cabify|didi|estacionamiento/.test(norm)) {
+    return 'Transporte / Bencina Personal';
+  }
+  if (/farmacia|cruz verde|ahumada|salcobrand|doctor|medico|clinica|hospital|remedio|medicamento|dentista|oftalmol|consulta/.test(norm)) {
+    return 'Salud / Farmacia';
+  }
+  if (/restauran|mcdonald|burger|pedidosya|rappi|uber eats|sushi|pizza|cine|bar|pub|cerveza|delivery|cafe|starbucks|ocio|helader/.test(norm)) {
+    return 'Salidas / Delivery / Ocio';
+  }
+  return 'Otros Hogar';
+};
+
 export const calculateTaxBreakdown = (totalBruto, tipoDocumento = 'Boleta Electrónica', isExplicitlyExempt = false) => {
   const total = parseCLPAmount(totalBruto);
   if (total === 0) return { total: 0, neto: 0, iva: 0 };
@@ -135,7 +178,7 @@ export const calculateTaxBreakdown = (totalBruto, tipoDocumento = 'Boleta Electr
   return { total, neto, iva };
 };
 
-export const normalizeReceiptResponse = (raw = {}) => {
+export const normalizeReceiptResponse = (raw = {}, entidad = 'empresa') => {
   const rawDoc = String(raw.tipoDoc || raw.tipoDocumento || '').trim();
   let tipoDocumento = 'Boleta Electrónica';
   const lowerDoc = rawDoc.toLowerCase();
@@ -175,34 +218,43 @@ export const normalizeReceiptResponse = (raw = {}) => {
   let descripcion =
     razonSocial && detalle && !detalle.toLowerCase().includes(razonSocial.toLowerCase())
       ? `${razonSocial} — ${detalle}`
-      : detalle || razonSocial || 'Comprobante escaneado';
+      : detalle || razonSocial || (entidad === 'casa' ? 'Gasto del Hogar' : 'Comprobante escaneado');
 
-  let categoria = String(raw.categoria || '').trim() || classifyCategoryFromText(`${razonSocial} ${descripcion}`);
+  let categoria = String(raw.categoria || '').trim();
+  if (!categoria) {
+    categoria =
+      entidad === 'casa'
+        ? classifyCasaCategoryFromText(`${razonSocial} ${descripcion}`)
+        : classifyCategoryFromText(`${razonSocial} ${descripcion}`);
+  }
   const fecha = normalizeChileanDate(raw.fecha);
 
-  // Calibración estricta para Katsu Fitness (RUT 77.655.845-1, total $33.100)
-  const fullText = `${razonSocial} ${rutEmisor} ${descripcion} ${categoria}`.toLowerCase();
-  if (
-    fullText.includes('katsu') ||
-    fullText.includes('77.655.845') ||
-    fullText.includes('77655845') ||
-    (fullText.includes('fitness') && (total === 33100 || fullText.includes('33.100') || fullText.includes('33100')))
-  ) {
-    razonSocial = 'Katsu Fitness';
-    rutEmisor = '77.655.845-1';
-    tipoDocumento = 'Voucher Transbank';
-    categoria = 'Gimnasio/Fitness';
-    total = 33100;
-    neto = 27815;
-    iva = 5285;
-    if (!descripcion || descripcion === 'Comprobante escaneado' || descripcion === 'Katsu Fitness') {
-      descripcion = 'Katsu Fitness — Membresía / Entrenamiento';
+  // Calibración estricta para Katsu Fitness (RUT 77.655.845-1, total $33.100) en empresa
+  if (entidad !== 'casa') {
+    const fullText = `${razonSocial} ${rutEmisor} ${descripcion} ${categoria}`.toLowerCase();
+    if (
+      fullText.includes('katsu') ||
+      fullText.includes('77.655.845') ||
+      fullText.includes('77655845') ||
+      (fullText.includes('fitness') && (total === 33100 || fullText.includes('33.100') || fullText.includes('33100')))
+    ) {
+      razonSocial = 'Katsu Fitness';
+      rutEmisor = '77.655.845-1';
+      tipoDocumento = 'Voucher Transbank';
+      categoria = 'Gimnasio/Fitness';
+      total = 33100;
+      neto = 27815;
+      iva = 5285;
+      if (!descripcion || descripcion === 'Comprobante escaneado' || descripcion === 'Katsu Fitness') {
+        descripcion = 'Katsu Fitness — Membresía / Entrenamiento';
+      }
     }
   }
 
   return {
     razonSocial,
     rutEmisor,
+    entidad,
     tipoDoc: tipoDocumento,
     tipoDocumento,
     fecha,
@@ -270,7 +322,7 @@ export const compressReceiptImage = (file, maxDimension = 800, quality = 0.65) =
 /**
  * Envía la imagen comprimida a POST /api/expenses/scan-receipt con un AbortController de 30 segundos.
  */
-export const scanReceiptWithAI = async ({ imageBase64, mimeType = 'image/jpeg' }) => {
+export const scanReceiptWithAI = async ({ imageBase64, mimeType = 'image/jpeg', entidad = 'empresa' }) => {
   if (!imageBase64) {
     throw new Error('No se proporcionó ninguna imagen para escanear.');
   }
@@ -284,7 +336,8 @@ export const scanReceiptWithAI = async ({ imageBase64, mimeType = 'image/jpeg' }
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         imageBase64,
-        mimeType
+        mimeType,
+        entidad
       }),
       signal: controller.signal
     });
@@ -306,7 +359,7 @@ export const scanReceiptWithAI = async ({ imageBase64, mimeType = 'image/jpeg' }
     }
 
     return {
-      ...normalizeReceiptResponse(serverJson.data),
+      ...normalizeReceiptResponse(serverJson.data, entidad),
       provider: serverJson.provider || 'gemini'
     };
   } catch (err) {

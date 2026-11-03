@@ -1,6 +1,7 @@
 /**
  * Vercel Serverless API Route: /api/expenses
  * Soporta GET, POST, PUT, DELETE para sincronización centralizada de Gastos con Supabase.
+ * Permite discriminar por entidad: 'empresa' | 'casa'.
  */
 
 const SUPABASE_URL =
@@ -15,19 +16,22 @@ const headers = {
   'Content-Type': 'application/json'
 };
 
-function normalizeRow(item) {
+function normalizeRow(item, defaultEntidad = 'empresa') {
   if (!item) return null;
+  const entidad = item.entidad || item.tipo_entidad || item.scope || defaultEntidad;
   return {
     id: item.id || `gas-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     created_at: item.created_at || new Date().toISOString(),
     fecha: item.fecha || new Date().toISOString().split('T')[0],
+    entidad,
+    tipo_entidad: entidad,
     tipo_doc: item.tipo_doc || item.tipoDocumento || 'Boleta Electrónica',
     tipoDocumento: item.tipo_doc || item.tipoDocumento || 'Boleta Electrónica',
     proveedor: item.proveedor || item.razonSocial || 'Proveedor General',
     razonSocial: item.proveedor || item.razonSocial || 'Proveedor General',
     rut: item.rut || item.rutEmisor || '',
     rutEmisor: item.rut || item.rutEmisor || '',
-    categoria: item.categoria || 'Otros Gastos',
+    categoria: item.categoria || (entidad === 'casa' ? 'Otros Hogar' : 'Otros Gastos'),
     descripcion: item.descripcion || '',
     neto: Math.round(Number(item.neto) || 0),
     iva: Math.round(Number(item.iva) || 0),
@@ -39,42 +43,48 @@ function normalizeRow(item) {
   };
 }
 
-// 1. Intenta consultar tabla 'gastos' directamente; si no existe, usa 'configuracion'
-async function fetchExpensesFromSupabase() {
+function getConfigKeyForEntity(entidad) {
+  return entidad === 'casa' ? 'gastos_casa_registros' : 'gastos_registros';
+}
+
+// 1. Intenta consultar tabla 'gastos' directamente con filtro de entidad; si no existe, usa 'configuracion'
+async function fetchExpensesFromSupabase(entidad = 'empresa') {
   try {
     const tableResp = await fetch(
-      `${SUPABASE_URL}/rest/v1/gastos?select=*&order=fecha.desc,created_at.desc`,
+      `${SUPABASE_URL}/rest/v1/gastos?entidad=eq.${entidad}&select=*&order=fecha.desc,created_at.desc`,
       { headers }
     );
     if (tableResp.ok) {
       const rows = await tableResp.json();
-      return { source: 'table:gastos', data: rows.map(normalizeRow) };
+      return { source: 'table:gastos', entidad, data: rows.map((r) => normalizeRow(r, entidad)) };
     }
   } catch (err) {
     console.warn('[api/expenses] Error consultando tabla gastos:', err.message);
   }
 
-  // Fallback a tabla configuracion (clave = 'gastos_registros')
+  // Fallback a tabla configuracion según entidad
+  const configKey = getConfigKeyForEntity(entidad);
   try {
     const configResp = await fetch(
-      `${SUPABASE_URL}/rest/v1/configuracion?clave=eq.gastos_registros&select=valor`,
+      `${SUPABASE_URL}/rest/v1/configuracion?clave=eq.${configKey}&select=valor`,
       { headers }
     );
     if (configResp.ok) {
       const rows = await configResp.json();
       const list = Array.isArray(rows?.[0]?.valor) ? rows[0].valor : [];
-      return { source: 'configuracion:gastos_registros', data: list.map(normalizeRow) };
+      return { source: `configuracion:${configKey}`, entidad, data: list.map((r) => normalizeRow(r, entidad)) };
     }
   } catch (err) {
-    console.warn('[api/expenses] Error consultando configuracion:', err.message);
+    console.warn(`[api/expenses] Error consultando configuracion (${configKey}):`, err.message);
   }
 
-  return { source: 'empty', data: [] };
+  return { source: 'empty', entidad, data: [] };
 }
 
-// 2. Guarda un gasto en Supabase (en tabla 'gastos' o en 'configuracion')
+// 2. Guarda un gasto en Supabase según su entidad
 async function saveExpenseToSupabase(expense) {
-  const normalized = normalizeRow(expense);
+  const entidad = expense.entidad || expense.tipo_entidad || 'empresa';
+  const normalized = normalizeRow(expense, entidad);
 
   // Intentar guardar en tabla 'gastos'
   try {
@@ -82,6 +92,7 @@ async function saveExpenseToSupabase(expense) {
       id: normalized.id,
       created_at: normalized.created_at,
       fecha: normalized.fecha,
+      entidad: normalized.entidad,
       tipo_doc: normalized.tipo_doc,
       proveedor: normalized.proveedor,
       rut: normalized.rut,
@@ -104,14 +115,15 @@ async function saveExpenseToSupabase(expense) {
 
     if (tableResp.ok) {
       const inserted = await tableResp.json();
-      return { ok: true, source: 'table:gastos', data: normalizeRow(inserted?.[0] || normalized) };
+      return { ok: true, source: 'table:gastos', entidad, data: normalizeRow(inserted?.[0] || normalized, entidad) };
     }
   } catch (err) {
     console.warn('[api/expenses] Error insertando en tabla gastos:', err.message);
   }
 
-  // Fallback a configuracion (clave = 'gastos_registros')
-  const current = await fetchExpensesFromSupabase();
+  // Fallback a configuracion
+  const configKey = getConfigKeyForEntity(entidad);
+  const current = await fetchExpensesFromSupabase(entidad);
   const existingList = current.data || [];
   const existsIndex = existingList.findIndex((g) => g.id === normalized.id);
 
@@ -129,34 +141,35 @@ async function saveExpenseToSupabase(expense) {
       Prefer: 'resolution=merge-duplicates,return=representation'
     },
     body: JSON.stringify({
-      clave: 'gastos_registros',
+      clave: configKey,
       valor: updatedList
     })
   });
 
   if (upsertResp.ok) {
-    return { ok: true, source: 'configuracion:gastos_registros', data: normalized };
+    return { ok: true, source: `configuracion:${configKey}`, entidad, data: normalized };
   }
 
   const errText = await upsertResp.text();
   throw new Error(`Error en Supabase (${upsertResp.status}): ${errText}`);
 }
 
-// 3. Elimina un gasto
-async function deleteExpenseFromSupabase(id) {
+// 3. Elimina un gasto según su entidad
+async function deleteExpenseFromSupabase(id, entidad = 'empresa') {
   try {
-    const tableResp = await fetch(`${SUPABASE_URL}/rest/v1/gastos?id=eq.${id}`, {
+    const tableResp = await fetch(`${SUPABASE_URL}/rest/v1/gastos?id=eq.${id}&entidad=eq.${entidad}`, {
       method: 'DELETE',
       headers
     });
     if (tableResp.ok) {
-      return { ok: true, source: 'table:gastos' };
+      return { ok: true, source: 'table:gastos', entidad };
     }
   } catch (err) {
     console.warn('[api/expenses] Error eliminando en tabla gastos:', err.message);
   }
 
-  const current = await fetchExpensesFromSupabase();
+  const configKey = getConfigKeyForEntity(entidad);
+  const current = await fetchExpensesFromSupabase(entidad);
   const updatedList = (current.data || []).filter((g) => g.id !== id);
 
   await fetch(`${SUPABASE_URL}/rest/v1/configuracion`, {
@@ -166,12 +179,12 @@ async function deleteExpenseFromSupabase(id) {
       Prefer: 'resolution=merge-duplicates,return=representation'
     },
     body: JSON.stringify({
-      clave: 'gastos_registros',
+      clave: configKey,
       valor: updatedList
     })
   });
 
-  return { ok: true, source: 'configuracion:gastos_registros' };
+  return { ok: true, source: `configuracion:${configKey}`, entidad };
 }
 
 export default async function handler(req, res) {
@@ -184,9 +197,11 @@ export default async function handler(req, res) {
   }
 
   try {
+    const entidad = req.query?.entidad || req.body?.entidad || 'empresa';
+
     if (req.method === 'GET') {
-      const result = await fetchExpensesFromSupabase();
-      return res.status(200).json({ ok: true, source: result.source, data: result.data });
+      const result = await fetchExpensesFromSupabase(entidad);
+      return res.status(200).json({ ok: true, source: result.source, entidad: result.entidad, data: result.data });
     }
 
     if (req.method === 'POST') {
@@ -203,7 +218,7 @@ export default async function handler(req, res) {
       if (!id) {
         return res.status(400).json({ ok: false, error: 'Se requiere el ID para eliminar.' });
       }
-      const result = await deleteExpenseFromSupabase(id);
+      const result = await deleteExpenseFromSupabase(id, entidad);
       return res.status(200).json(result);
     }
 
@@ -213,4 +228,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: error.message || 'Error del servidor' });
   }
 }
-

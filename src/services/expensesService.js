@@ -1,10 +1,16 @@
 /**
  * Expenses Service (Sincronización Centralizada de Gastos con Supabase y Backend)
  * Conecta el módulo de Gastos con la base de datos centralizada de EcoSilence CRM.
+ * Soporta discriminación total entre 'empresa' y 'casa'.
  */
 import { supabase } from '../supabaseClient';
 
-export const EXPENSES_STORAGE_KEY = 'ecosilence_gastos_registros_v1';
+export const EXPENSES_STORAGE_KEY_EMPRESA = 'ecosilence_gastos_registros_v1';
+export const EXPENSES_STORAGE_KEY_CASA = 'ecosilence_gastos_casa_registros_v1';
+
+export const getStorageKey = (entidad = 'empresa') => {
+  return entidad === 'casa' ? EXPENSES_STORAGE_KEY_CASA : EXPENSES_STORAGE_KEY_EMPRESA;
+};
 
 /**
  * Genera un UUID estándar v4 compatible con columnas UUID de PostgreSQL
@@ -24,9 +30,10 @@ export const generateUUID = () => {
  * Normaliza un registro para ser consumido tanto por la UI (camelCase)
  * como por la tabla PostgreSQL (snake_case).
  */
-export const normalizeExpenseRecord = (raw) => {
+export const normalizeExpenseRecord = (raw, defaultEntidad = 'empresa') => {
   if (!raw) return null;
 
+  const entidad = raw.entidad || raw.tipo_entidad || raw.scope || defaultEntidad;
   const totalNum = Math.round(Number(raw.total_bruto ?? raw.total) || 0);
   const netoNum =
     raw.neto !== undefined && raw.neto !== '' && Number(raw.neto) > 0
@@ -44,9 +51,9 @@ export const normalizeExpenseRecord = (raw) => {
 
   const fecha = raw.fecha || new Date().toISOString().split('T')[0];
   const tipoDoc = raw.tipo_doc || raw.tipoDocumento || 'Boleta Electrónica';
-  const proveedor = raw.proveedor || raw.razonSocial || 'Proveedor General';
+  const proveedor = raw.proveedor || raw.razonSocial || (entidad === 'casa' ? 'Comercio General' : 'Proveedor General');
   const rut = raw.rut || raw.rutEmisor || '';
-  const categoria = raw.categoria || 'Otros Gastos';
+  const categoria = raw.categoria || (entidad === 'casa' ? 'Otros Hogar' : 'Otros Gastos');
   const descripcion = raw.descripcion || `${proveedor} — ${categoria}`;
   const comprobanteUrl = raw.comprobante_url || raw.comprobanteImg || '';
 
@@ -54,6 +61,8 @@ export const normalizeExpenseRecord = (raw) => {
     id,
     created_at: raw.created_at || new Date().toISOString(),
     fecha,
+    entidad,
+    tipo_entidad: entidad,
     tipo_doc: tipoDoc,
     tipoDocumento: tipoDoc,
     proveedor,
@@ -73,42 +82,44 @@ export const normalizeExpenseRecord = (raw) => {
 };
 
 /**
- * Carga todos los gastos desde la base de datos centralizada de Supabase.
- * Ordenados por fecha descendente.
+ * Carga todos los gastos desde la base de datos centralizada de Supabase según la entidad ('empresa' | 'casa').
  */
-export const fetchCentralizedExpenses = async () => {
-  // 1. Intento directo en la tabla 'gastos' de Supabase
+export const fetchCentralizedExpenses = async (entidad = 'empresa') => {
+  const storageKey = getStorageKey(entidad);
+
+  // 1. Intento directo en la tabla 'gastos' de Supabase con filtro de entidad
   try {
     const { data, error } = await supabase
       .from('gastos')
       .select('*')
+      .eq('entidad', entidad)
       .order('fecha', { ascending: false });
 
     if (!error && Array.isArray(data)) {
-      const normalized = data.map(normalizeExpenseRecord);
+      const normalized = data.map((d) => normalizeExpenseRecord(d, entidad));
       try {
-        localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(normalized));
+        localStorage.setItem(storageKey, JSON.stringify(normalized));
       } catch (e) {
         console.warn('Error cacheando en localStorage:', e);
       }
       return normalized;
     }
   } catch (err) {
-    console.warn('[expensesService] Tabla gastos no disponible en Supabase:', err.message);
+    console.warn(`[expensesService] Tabla gastos (${entidad}) no disponible en Supabase:`, err.message);
   }
 
-  // 2. Intento vía API Route ('/api/expenses' o '/api/expenses/index')
+  // 2. Intento vía API Route ('/api/expenses?entidad=' + entidad)
   try {
-    let resp = await fetch('/api/expenses');
+    let resp = await fetch(`/api/expenses?entidad=${encodeURIComponent(entidad)}`);
     if (!resp.ok) {
-      resp = await fetch('/api/expenses/index');
+      resp = await fetch(`/api/expenses/index?entidad=${encodeURIComponent(entidad)}`);
     }
     if (resp.ok) {
       const json = await resp.json();
       if (json.ok && Array.isArray(json.data)) {
-        const normalized = json.data.map(normalizeExpenseRecord);
+        const normalized = json.data.map((d) => normalizeExpenseRecord(d, entidad));
         try {
-          localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(normalized));
+          localStorage.setItem(storageKey, JSON.stringify(normalized));
         } catch (e) {
           console.warn('Error cacheando en localStorage:', e);
         }
@@ -116,50 +127,53 @@ export const fetchCentralizedExpenses = async () => {
       }
     }
   } catch (err) {
-    console.warn('[expensesService] Error en /api/expenses:', err.message);
+    console.warn(`[expensesService] Error en /api/expenses (${entidad}):`, err.message);
   }
 
-  // 3. Intento vía Supabase configuracion (clave = 'gastos_registros')
+  // 3. Intento vía Supabase configuracion (clave = 'gastos_casa_registros' o 'gastos_registros')
+  const configKey = entidad === 'casa' ? 'gastos_casa_registros' : 'gastos_registros';
   try {
     const { data: configRow, error: configErr } = await supabase
       .from('configuracion')
       .select('valor')
-      .eq('clave', 'gastos_registros')
+      .eq('clave', configKey)
       .single();
 
     if (!configErr && configRow?.valor && Array.isArray(configRow.valor)) {
-      const normalized = configRow.valor.map(normalizeExpenseRecord);
+      const normalized = configRow.valor.map((d) => normalizeExpenseRecord(d, entidad));
       try {
-        localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(normalized));
+        localStorage.setItem(storageKey, JSON.stringify(normalized));
       } catch (e) {
         console.warn('Error cacheando en localStorage:', e);
       }
       return normalized;
     }
   } catch (err) {
-    console.warn('[expensesService] Error consultando configuracion en Supabase:', err.message);
+    console.warn(`[expensesService] Error consultando configuracion (${configKey}):`, err.message);
   }
 
   // 4. Respaldo local de emergencia
   try {
-    const local = localStorage.getItem(EXPENSES_STORAGE_KEY);
-    return local ? JSON.parse(local).map(normalizeExpenseRecord) : [];
+    const local = localStorage.getItem(storageKey);
+    return local ? JSON.parse(local).map((d) => normalizeExpenseRecord(d, entidad)) : [];
   } catch {
     return [];
   }
 };
 
 /**
- * Guarda o actualiza un gasto en la base de datos centralizada de Supabase.
+ * Guarda o actualiza un gasto en la base de datos centralizada de Supabase según su entidad.
  */
-export const saveCentralizedExpense = async (expenseData) => {
-  const normalized = normalizeExpenseRecord(expenseData);
+export const saveCentralizedExpense = async (expenseData, entidad = 'empresa') => {
+  const targetEntity = expenseData.entidad || entidad || 'empresa';
+  const normalized = normalizeExpenseRecord({ ...expenseData, entidad: targetEntity }, targetEntity);
+  const storageKey = getStorageKey(targetEntity);
 
-  // Prepara el payload para PostgreSQL
   const dbPayload = {
     id: normalized.id,
     created_at: normalized.created_at,
     fecha: normalized.fecha,
+    entidad: targetEntity,
     tipo_doc: normalized.tipo_doc,
     proveedor: normalized.proveedor,
     rut: normalized.rut,
@@ -180,19 +194,19 @@ export const saveCentralizedExpense = async (expenseData) => {
       savedOk = true;
     }
   } catch (err) {
-    console.warn('[expensesService] Error upsert en tabla gastos:', err.message);
+    console.warn(`[expensesService] Error upsert en tabla gastos (${targetEntity}):`, err.message);
   }
 
-  // 2. Sincronización vía API Route ('/api/expenses' o '/api/expenses/index')
+  // 2. Sincronización vía API Route ('/api/expenses')
   if (!savedOk) {
     try {
-      let resp = await fetch('/api/expenses', {
+      let resp = await fetch(`/api/expenses?entidad=${encodeURIComponent(targetEntity)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(normalized)
       });
       if (!resp.ok) {
-        resp = await fetch('/api/expenses/index', {
+        resp = await fetch(`/api/expenses/index?entidad=${encodeURIComponent(targetEntity)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(normalized)
@@ -205,14 +219,15 @@ export const saveCentralizedExpense = async (expenseData) => {
         }
       }
     } catch (err) {
-      console.warn('[expensesService] Error en POST /api/expenses:', err.message);
+      console.warn(`[expensesService] Error en POST /api/expenses (${targetEntity}):`, err.message);
     }
   }
 
-  // 3. Fallback directo a configuracion en Supabase si API route no respondió
+  // 3. Fallback directo a configuracion en Supabase
   if (!savedOk) {
+    const configKey = targetEntity === 'casa' ? 'gastos_casa_registros' : 'gastos_registros';
     try {
-      const currentList = await fetchCentralizedExpenses();
+      const currentList = await fetchCentralizedExpenses(targetEntity);
       const existingIdx = currentList.findIndex((g) => g.id === normalized.id);
       let updatedList;
       if (existingIdx >= 0) {
@@ -222,67 +237,80 @@ export const saveCentralizedExpense = async (expenseData) => {
       }
       await supabase
         .from('configuracion')
-        .upsert({ clave: 'gastos_registros', valor: updatedList });
+        .upsert({ clave: configKey, valor: updatedList });
       savedOk = true;
     } catch (err) {
-      console.error('[expensesService] Error guardando en fallback de Supabase:', err);
+      console.error(`[expensesService] Error guardando en fallback Supabase (${configKey}):`, err);
     }
   }
 
   // Notificar a otras pestañas/componentes localmente
   try {
-    window.dispatchEvent(new CustomEvent('ecosilence:expenses_updated', { detail: normalized }));
+    window.dispatchEvent(
+      new CustomEvent('ecosilence:expenses_updated', {
+        detail: { ...normalized, entidad: targetEntity }
+      })
+    );
   } catch (e) {
-    // Ignore in non-browser env
+    // Ignore
   }
 
   return normalized;
 };
 
 /**
- * Elimina un gasto de la base de datos centralizada de Supabase.
+ * Elimina un gasto de la base de datos centralizada de Supabase según su entidad.
  */
-export const deleteCentralizedExpense = async (id) => {
+export const deleteCentralizedExpense = async (id, entidad = 'empresa') => {
   let deletedOk = false;
 
   // 1. Intento en tabla 'gastos'
   try {
-    const { error } = await supabase.from('gastos').delete().eq('id', id);
+    const { error } = await supabase
+      .from('gastos')
+      .delete()
+      .eq('id', id)
+      .eq('entidad', entidad);
     if (!error) deletedOk = true;
   } catch (err) {
-    console.warn('[expensesService] Error delete en tabla gastos:', err.message);
+    console.warn(`[expensesService] Error delete en tabla gastos (${entidad}):`, err.message);
   }
 
-  // 2. Vía API Route ('/api/expenses' o '/api/expenses/index')
+  // 2. Vía API Route
   try {
-    let resp = await fetch(`/api/expenses?id=${encodeURIComponent(id)}`, {
+    let resp = await fetch(`/api/expenses?id=${encodeURIComponent(id)}&entidad=${encodeURIComponent(entidad)}`, {
       method: 'DELETE'
     });
     if (!resp.ok) {
-      resp = await fetch(`/api/expenses/index?id=${encodeURIComponent(id)}`, {
+      resp = await fetch(`/api/expenses/index?id=${encodeURIComponent(id)}&entidad=${encodeURIComponent(entidad)}`, {
         method: 'DELETE'
       });
     }
     if (resp.ok) deletedOk = true;
   } catch (err) {
-    console.warn('[expensesService] Error delete en /api/expenses:', err.message);
+    console.warn(`[expensesService] Error delete en /api/expenses (${entidad}):`, err.message);
   }
 
   // 3. Fallback directo a configuracion
   if (!deletedOk) {
+    const configKey = entidad === 'casa' ? 'gastos_casa_registros' : 'gastos_registros';
     try {
-      const currentList = await fetchCentralizedExpenses();
+      const currentList = await fetchCentralizedExpenses(entidad);
       const updatedList = currentList.filter((g) => g.id !== id);
       await supabase
         .from('configuracion')
-        .upsert({ clave: 'gastos_registros', valor: updatedList });
+        .upsert({ clave: configKey, valor: updatedList });
     } catch (err) {
-      console.error('[expensesService] Error delete en fallback Supabase:', err);
+      console.error(`[expensesService] Error delete en fallback Supabase (${configKey}):`, err);
     }
   }
 
   try {
-    window.dispatchEvent(new CustomEvent('ecosilence:expenses_updated', { detail: { id, deleted: true } }));
+    window.dispatchEvent(
+      new CustomEvent('ecosilence:expenses_updated', {
+        detail: { id, entidad, deleted: true }
+      })
+    );
   } catch (e) {
     // Ignore
   }
@@ -294,12 +322,16 @@ export const deleteCentralizedExpense = async (id) => {
  * Suscripción en Tiempo Real con Supabase Realtime para sincronizar
  * instantáneamente entre el celular y el computador.
  */
-export const subscribeToExpensesRealtime = (onChangeCallback) => {
+export const subscribeToExpensesRealtime = (onChangeCallback, entidad = 'empresa') => {
+  const channelName = `expenses_realtime_${entidad}_feed`;
+  const configKey = entidad === 'casa' ? 'gastos_casa_registros' : 'gastos_registros';
+  const storageKey = getStorageKey(entidad);
+
   const channel = supabase
-    .channel('expenses_realtime_feed')
+    .channel(channelName)
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'gastos' },
+      { event: '*', schema: 'public', table: 'gastos', filter: `entidad=eq.${entidad}` },
       () => {
         onChangeCallback();
       }
@@ -310,7 +342,7 @@ export const subscribeToExpensesRealtime = (onChangeCallback) => {
         event: '*',
         schema: 'public',
         table: 'configuracion',
-        filter: 'clave=eq.gastos_registros'
+        filter: `clave=eq.${configKey}`
       },
       () => {
         onChangeCallback();
@@ -318,12 +350,14 @@ export const subscribeToExpensesRealtime = (onChangeCallback) => {
     )
     .subscribe();
 
-  const handleCustomEvent = () => {
-    onChangeCallback();
+  const handleCustomEvent = (e) => {
+    if (!e.detail?.entidad || e.detail.entidad === entidad) {
+      onChangeCallback();
+    }
   };
 
   const handleStorageEvent = (e) => {
-    if (e.key === EXPENSES_STORAGE_KEY) {
+    if (e.key === storageKey) {
       onChangeCallback();
     }
   };

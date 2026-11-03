@@ -23,8 +23,34 @@ Formato JSON obligatorio:
 Reglas tributarias estrictas para Chile:
 - Si es Boleta Electrónica o Voucher Transbank sin desglose de IVA:
   * montoNeto = Math.round(montoTotal / 1.19)
-  * iva = montoTotal - montoNeto
+  * iva = montoTotal - neto
 - Si el documento indica 'Katsu Fitness' o RUT 77.655.845-1, clasificar en categoría 'Gimnasio/Fitness', tipoDoc 'Voucher Transbank'.
+- Devuelve EXCLUSIVAMENTE el JSON.`;
+
+export const CHILEAN_CASA_SYSTEM_PROMPT = `Eres un asistente de finanzas personales y control de gastos del hogar en Chile.
+Analiza la imagen de la boleta o comprobante familiar y responde ÚNICAMENTE con un objeto JSON válido (sin markdown ni texto adicional).
+
+Formato JSON obligatorio:
+{
+  "razonSocial": "Nombre del comercio o tienda (ej. Lider, Jumbo, Enel, Farmacias Ahumada)",
+  "rutEmisor": "RUT del emisor si está visible (formato XX.XXX.XXX-X)",
+  "tipoDoc": "Boleta Electrónica | Factura Electrónica | Voucher Transbank | Transferencia",
+  "fecha": "Fecha en formato YYYY-MM-DD",
+  "montoTotal": 45000,
+  "montoNeto": 37815,
+  "iva": 7185,
+  "categoria": "Supermercado / Abarrotes | Cuentas Básicas (Luz, Agua, Gas, Internet) | Arriendo / Gastos Comunes | Mascotas / Veterinaria | Transporte / Bencina Personal | Salud / Farmacia | Salidas / Delivery / Ocio | Otros Hogar",
+  "descripcion": "Breve resumen de los productos o compras familiares"
+}
+
+Reglas de clasificación para el hogar:
+- Supermercados (Lider, Jumbo, Santa Isabel, Tottus, Unimarc, Alvi, panaderías, ferias) -> 'Supermercado / Abarrotes'
+- Servicios domiciliarios (Enel, CGE, Aguas Andinas, Metrogas, Gasco, VTR, Entel, Wom, Movistar) -> 'Cuentas Básicas (Luz, Agua, Gas, Internet)'
+- Farmacias o consultas médicas -> 'Salud / Farmacia'
+- Veterinarias o tiendas de mascotas -> 'Mascotas / Veterinaria'
+- Restaurantes, cafés, comida rápida o delivery (PedidosYa, Uber Eats) -> 'Salidas / Delivery / Ocio'
+- Bencina o peajes particulares -> 'Transporte / Bencina Personal'
+- Si solo aparece el Total, calcular neto = Math.round(montoTotal / 1.19) e iva = montoTotal - neto.
 - Devuelve EXCLUSIVAMENTE el JSON.`;
 
 const SPANISH_MONTHS = {
@@ -102,7 +128,10 @@ export function parseCLPAmount(val) {
   return 0;
 }
 
-export function classifyCategoryFromText(text = '') {
+export function classifyCategoryFromText(text = '', entidad = 'empresa') {
+  if (entidad === 'casa') {
+    return classifyCasaCategoryFromText(text);
+  }
   const normalized = String(text).toLowerCase();
 
   if (/gimnasio|katsu|fitness|smartfit|smart fit|sportlife|energy|entrenamiento|deporte/.test(normalized)) {
@@ -118,6 +147,33 @@ export function classifyCategoryFromText(text = '') {
     return 'Insumos Técnicos / Mantenimiento';
   }
   return 'Otros Gastos';
+}
+
+export function classifyCasaCategoryFromText(text = '') {
+  const norm = String(text).toLowerCase();
+
+  if (/supermercado|lider|jumbo|unimarc|tottus|santa isabel|alvi|mayorista|verduler|feria|panader|abarrotes|carnicer|fruteria|queso|pan|leche/.test(norm)) {
+    return 'Supermercado / Abarrotes';
+  }
+  if (/enel|cge|aguas andinas|esval|essbio|metrogas|gasco|lipigas|abastible|vtr|movistar|entel|wom|claro|mundo|luz|agua|gas|internet|electricidad|telefonia/.test(norm)) {
+    return 'Cuentas Básicas (Luz, Agua, Gas, Internet)';
+  }
+  if (/arriendo|gasto comun|gastos comunes|edificio|conserj|condominio|alquiler|arrendamiento/.test(norm)) {
+    return 'Arriendo / Gastos Comunes';
+  }
+  if (/veterinar|pet|mascota|perro|gato|can|felin|dog|cat|purina|royal canin|master dog|whiskas|alimento mascota/.test(norm)) {
+    return 'Mascotas / Veterinaria';
+  }
+  if (/copec|shell|petrobras|aramco|bencina|combustible|diesel|peaje|tag|uber|cabify|didi|estacionamiento/.test(norm)) {
+    return 'Transporte / Bencina Personal';
+  }
+  if (/farmacia|cruz verde|ahumada|salcobrand|doctor|medico|clinica|hospital|remedio|medicamento|dentista|oftalmol|consulta/.test(norm)) {
+    return 'Salud / Farmacia';
+  }
+  if (/restauran|mcdonald|burger|pedidosya|rappi|uber eats|sushi|pizza|cine|bar|pub|cerveza|delivery|cafe|starbucks|ocio|helader/.test(norm)) {
+    return 'Salidas / Delivery / Ocio';
+  }
+  return 'Otros Hogar';
 }
 
 export function normalizeChileanDate(rawDate) {
@@ -165,7 +221,7 @@ export function normalizeChileanDate(rawDate) {
   return today;
 }
 
-export function normalizeExtractedReceipt(raw = {}) {
+export function normalizeExtractedReceipt(raw = {}, entidad = 'empresa') {
   const rawDoc = String(raw.tipoDoc || raw.tipoDocumento || '').trim();
   let tipoDocumento = 'Boleta Electrónica';
   const lowerDoc = rawDoc.toLowerCase();
@@ -205,34 +261,43 @@ export function normalizeExtractedReceipt(raw = {}) {
   let descripcion =
     razonSocial && detalle && !detalle.toLowerCase().includes(razonSocial.toLowerCase())
       ? `${razonSocial} — ${detalle}`
-      : detalle || razonSocial || 'Comprobante escaneado';
+      : detalle || razonSocial || (entidad === 'casa' ? 'Gasto del Hogar' : 'Comprobante escaneado');
 
-  let categoria = String(raw.categoria || '').trim() || classifyCategoryFromText(`${razonSocial} ${descripcion}`);
+  let categoria = String(raw.categoria || '').trim();
+  if (!categoria) {
+    categoria =
+      entidad === 'casa'
+        ? classifyCasaCategoryFromText(`${razonSocial} ${descripcion}`)
+        : classifyCategoryFromText(`${razonSocial} ${descripcion}`);
+  }
   const fecha = normalizeChileanDate(raw.fecha);
 
-  // Calibración para ticket Transbank de Katsu Fitness (RUT 77.655.845-1, total $33.100)
-  const fullText = `${razonSocial} ${rutEmisor} ${descripcion} ${categoria}`.toLowerCase();
-  if (
-    fullText.includes('katsu') ||
-    fullText.includes('77.655.845') ||
-    fullText.includes('77655845') ||
-    (fullText.includes('fitness') && (total === 33100 || fullText.includes('33.100') || fullText.includes('33100')))
-  ) {
-    razonSocial = 'Katsu Fitness';
-    rutEmisor = '77.655.845-1';
-    tipoDocumento = 'Voucher Transbank';
-    categoria = 'Gimnasio/Fitness';
-    total = 33100;
-    neto = 27815;
-    iva = 5285;
-    if (!descripcion || descripcion === 'Comprobante escaneado' || descripcion === 'Katsu Fitness') {
-      descripcion = 'Katsu Fitness — Membresía / Entrenamiento';
+  // Calibración para ticket Transbank de Katsu Fitness (RUT 77.655.845-1, total $33.100) en empresa
+  if (entidad !== 'casa') {
+    const fullText = `${razonSocial} ${rutEmisor} ${descripcion} ${categoria}`.toLowerCase();
+    if (
+      fullText.includes('katsu') ||
+      fullText.includes('77.655.845') ||
+      fullText.includes('77655845') ||
+      (fullText.includes('fitness') && (total === 33100 || fullText.includes('33.100') || fullText.includes('33100')))
+    ) {
+      razonSocial = 'Katsu Fitness';
+      rutEmisor = '77.655.845-1';
+      tipoDocumento = 'Voucher Transbank';
+      categoria = 'Gimnasio/Fitness';
+      total = 33100;
+      neto = 27815;
+      iva = 5285;
+      if (!descripcion || descripcion === 'Comprobante escaneado' || descripcion === 'Katsu Fitness') {
+        descripcion = 'Katsu Fitness — Membresía / Entrenamiento';
+      }
     }
   }
 
   return {
     razonSocial,
     rutEmisor,
+    entidad,
     tipoDoc: tipoDocumento,
     tipoDocumento,
     fecha,
@@ -252,7 +317,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { imageBase64, mimeType = 'image/jpeg' } = req.body || {};
+    const { imageBase64, mimeType = 'image/jpeg', entidad = 'empresa' } = req.body || {};
 
     if (!imageBase64) {
       return res.status(400).json({
@@ -274,13 +339,14 @@ export default async function handler(req, res) {
     const detectedMime =
       imageBase64.match(/^data:([^;]+);base64,/)?.[1] || mimeType || 'image/jpeg';
     const todayISO = new Date().toISOString().split('T')[0];
+    const systemPrompt = entidad === 'casa' ? CHILEAN_CASA_SYSTEM_PROMPT : CHILEAN_TAX_SYSTEM_PROMPT;
 
     const payload = {
       contents: [
         {
           parts: [
             {
-              text: `${CHILEAN_TAX_SYSTEM_PROMPT}\nFecha actual del sistema (solo usar si la fecha es totalmente ilegible): ${todayISO}`
+              text: `${systemPrompt}\nFecha actual del sistema (solo usar si la fecha es totalmente ilegible): ${todayISO}`
             },
             {
               inlineData: {
@@ -292,6 +358,11 @@ export default async function handler(req, res) {
         }
       ],
       generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 500,
+        responseMimeType: 'application/json'
+      }
+    };
         temperature: 0.1,
         maxOutputTokens: 500,
         responseMimeType: 'application/json'

@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { useAppStore } from './context/AppDataContext'
 import { useToast } from './context/ToastContext'
-import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronLeft, ChevronDown, CalendarDays, Archive, Megaphone, Mail, Receipt } from 'lucide-react'
+import {
+  LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search,
+  Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronLeft, ChevronDown,
+  CalendarDays, Archive, Megaphone, Mail, Receipt, Building2, Home, Plus
+} from 'lucide-react'
 
 import Dashboard from './views/Dashboard'
 import KanbanBoard from './views/KanbanBoard'
@@ -18,7 +22,7 @@ import GastosView from './views/GastosView'
 
 function App() {
   const { 
-    currentView, navigate, menuNames, updateMenuName, 
+    currentView, viewParams, navigate, menuNames, updateMenuName, 
     kanbanGroupedData, kanbanExpandedYears, setKanbanExpandedYears, 
     selectedKanbanMonth, setSelectedKanbanMonth, logout, notifications,
     marketingAccounts, selectedMarketingAccount, setSelectedMarketingAccount, connectSocialAccount,
@@ -32,6 +36,60 @@ function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     return localStorage.getItem('sidebar_collapsed') === 'true';
   });
+
+  // Estado del Acordeón y Ramas de Gastos (Empresa vs Casa)
+  const [gastosMenuExpanded, setGastosMenuExpanded] = useState(true);
+  const [gastosEmpresaExpanded, setGastosEmpresaExpanded] = useState(true);
+  const [gastosCasaExpanded, setGastosCasaExpanded] = useState(true);
+  const [gastosEmpresaExpandedYears, setGastosEmpresaExpandedYears] = useState({ 2026: true });
+  const [gastosCasaExpandedYears, setGastosCasaExpandedYears] = useState({ 2026: true });
+
+  const [customYearsEmpresa, setCustomYearsEmpresa] = useState(() => {
+    try {
+      const s = localStorage.getItem('gastos_empresa_years');
+      return s ? JSON.parse(s) : [2026, 2027];
+    } catch {
+      return [2026, 2027];
+    }
+  });
+
+  const [customYearsCasa, setCustomYearsCasa] = useState(() => {
+    try {
+      const s = localStorage.getItem('gastos_casa_years');
+      return s ? JSON.parse(s) : [2026, 2027];
+    } catch {
+      return [2026, 2027];
+    }
+  });
+
+  const handleAddYear = (entidad, e) => {
+    if (e) e.stopPropagation();
+    const nextY = new Date().getFullYear();
+    const yearInput = window.prompt(
+      `Ingresa el nuevo año para Gastos ${entidad === 'casa' ? 'Casa' : 'Empresa'}:`,
+      String(nextY)
+    );
+    if (!yearInput) return;
+    const y = parseInt(yearInput.trim(), 10);
+    if (isNaN(y) || y < 2020 || y > 2040) {
+      alert('Por favor ingresa un año válido entre 2020 y 2040.');
+      return;
+    }
+
+    if (entidad === 'casa') {
+      const updated = Array.from(new Set([...customYearsCasa, y])).sort((a, b) => b - a);
+      setCustomYearsCasa(updated);
+      localStorage.setItem('gastos_casa_years', JSON.stringify(updated));
+      setGastosCasaExpandedYears((prev) => ({ ...prev, [y]: true }));
+      navigate('gastos_casa', { year: y, month: null });
+    } else {
+      const updated = Array.from(new Set([...customYearsEmpresa, y])).sort((a, b) => b - a);
+      setCustomYearsEmpresa(updated);
+      localStorage.setItem('gastos_empresa_years', JSON.stringify(updated));
+      setGastosEmpresaExpandedYears((prev) => ({ ...prev, [y]: true }));
+      navigate('gastos_empresa', { year: y, month: null });
+    }
+  };
 
   const toggleSidebar = () => {
     const newVal = !isSidebarCollapsed;
@@ -64,7 +122,11 @@ function App() {
       case 'clientes': return <ClientesView />
       case 'inventario': return <InventarioView />
       case 'cotizaciones': return <CotizacionesView />
-      case 'gastos': return <GastosView />
+      case 'gastos':
+      case 'gastos_empresa':
+        return <GastosView entidad="empresa" filterPeriod={viewParams} />
+      case 'gastos_casa':
+        return <GastosView entidad="casa" filterPeriod={viewParams} />
       case 'lista_servicios': return <ServiciosListView />
       case 'archivados': return <ServiciosListView type="archivados" />
       case 'nuevo-servicio': return <NuevoServicioView />
@@ -127,7 +189,12 @@ function App() {
             </p>
           )}
           {navigation.map((item) => {
-            const isActive = currentView === item.id;
+            const isGastosItem = item.id === 'gastos';
+            const isGastosActive =
+              currentView === 'gastos' ||
+              currentView === 'gastos_empresa' ||
+              currentView === 'gastos_casa';
+            const isActive = isGastosItem ? isGastosActive : currentView === item.id;
             const isEditing = editingMenu === item.id;
             
             return (
@@ -152,10 +219,17 @@ function App() {
                 ) : (
                   <button
                     onClick={() => {
-                      navigate(item.id);
-                      setIsMobileMenuOpen(false);
+                      if (isGastosItem) {
+                        setGastosMenuExpanded(prev => !prev);
+                        if (!isGastosActive) {
+                          navigate('gastos_empresa');
+                        }
+                      } else {
+                        navigate(item.id);
+                        setIsMobileMenuOpen(false);
+                      }
                     }}
-                    title={isSidebarCollapsed ? item.name : "Doble clic para renombrar"}
+                    title={isSidebarCollapsed ? item.name : isGastosItem ? "Click para desplegar Gastos Empresa y Casa" : "Doble clic para renombrar"}
                     onDoubleClick={() => {
                       if (!isSidebarCollapsed) {
                         setTempName(item.name);
@@ -173,7 +247,22 @@ function App() {
                   >
                     <item.icon size={20} color={isActive ? 'var(--accent-primary)' : 'currentColor'} style={{ flexShrink: 0 }} />
                     {!isSidebarCollapsed && <span style={{ flex: 1 }}>{item.name}</span>}
-                    {!isSidebarCollapsed && (
+                    {isGastosItem && !isSidebarCollapsed && (
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setGastosMenuExpanded(prev => !prev);
+                        }}
+                        style={{ padding: '2px', display: 'flex', alignItems: 'center' }}
+                      >
+                        {gastosMenuExpanded ? (
+                          <ChevronDown size={14} color="var(--text-muted)" />
+                        ) : (
+                          <ChevronRight size={14} color="var(--text-muted)" />
+                        )}
+                      </div>
+                    )}
+                    {!isSidebarCollapsed && !isGastosItem && (
                       <div 
                         onClick={(e) => {
                           e.stopPropagation();
@@ -239,6 +328,332 @@ function App() {
                         </div>
                       ))}
                    </div>
+                )}
+
+                {/* Gastos Submenu: Árbol desplegable de Gastos Empresa y Gastos Casa */}
+                {item.id === 'gastos' && !isSidebarCollapsed && gastosMenuExpanded && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.35rem',
+                      paddingLeft: '0.5rem',
+                      marginTop: '0.2rem',
+                      borderLeft: '2px solid rgba(255,255,255,0.06)',
+                      marginLeft: '1rem',
+                      marginBottom: '0.5rem'
+                    }}
+                  >
+                    {/* RAMA 1: 🏢 Gastos Empresa */}
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div
+                        onClick={() => {
+                          navigate('gastos_empresa', null);
+                          setGastosEmpresaExpanded(true);
+                        }}
+                        style={{
+                          padding: '0.4rem 0.7rem',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          background:
+                            currentView === 'gastos_empresa' || currentView === 'gastos'
+                              ? 'var(--bg-panel-hover)'
+                              : 'transparent',
+                          color:
+                            currentView === 'gastos_empresa' || currentView === 'gastos'
+                              ? 'var(--accent-primary)'
+                              : 'var(--text-main)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '0.84rem',
+                          fontWeight: 600
+                        }}
+                      >
+                        <span style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+                          <Building2 size={14} color="var(--accent-primary)" />
+                          Gastos Empresa
+                        </span>
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setGastosEmpresaExpanded((prev) => !prev);
+                          }}
+                          style={{ padding: '2px', display: 'flex', alignItems: 'center' }}
+                        >
+                          {gastosEmpresaExpanded ? (
+                            <ChevronDown size={13} color="var(--text-muted)" />
+                          ) : (
+                            <ChevronRight size={13} color="var(--text-muted)" />
+                          )}
+                        </div>
+                      </div>
+
+                      {gastosEmpresaExpanded && (
+                        <div style={{ display: 'flex', flexDirection: 'column', paddingLeft: '0.8rem', marginTop: '0.15rem', gap: '0.15rem' }}>
+                          {customYearsEmpresa.map((year) => {
+                            const isYearExpanded = Boolean(gastosEmpresaExpandedYears[year]);
+                            const isYearActive =
+                              (currentView === 'gastos_empresa' || currentView === 'gastos') &&
+                              Number(viewParams?.year) === Number(year) &&
+                              !viewParams?.month;
+
+                            return (
+                              <div key={`empresa-year-${year}`} style={{ display: 'flex', flexDirection: 'column' }}>
+                                <div
+                                  onClick={() => {
+                                    navigate('gastos_empresa', { year, month: null });
+                                  }}
+                                  style={{
+                                    padding: '0.35rem 0.6rem',
+                                    cursor: 'pointer',
+                                    borderRadius: '4px',
+                                    color: isYearActive ? 'var(--accent-primary)' : 'var(--text-main)',
+                                    background: isYearActive ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    fontSize: '0.82rem',
+                                    fontWeight: 500
+                                  }}
+                                >
+                                  <span style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+                                    {isYearExpanded ? (
+                                      <FolderOpen size={13} color="var(--accent-primary)" />
+                                    ) : (
+                                      <Folder size={13} color="var(--text-muted)" />
+                                    )}
+                                    {year}
+                                  </span>
+                                  <div
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setGastosEmpresaExpandedYears((prev) => ({ ...prev, [year]: !prev[year] }));
+                                    }}
+                                    style={{ padding: '2px', display: 'flex', alignItems: 'center' }}
+                                  >
+                                    {isYearExpanded ? (
+                                      <ChevronDown size={13} color="var(--text-muted)" />
+                                    ) : (
+                                      <ChevronRight size={13} color="var(--text-muted)" />
+                                    )}
+                                  </div>
+                                </div>
+
+                                {isYearExpanded && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', paddingLeft: '1rem', marginTop: '0.15rem', gap: '0.15rem' }}>
+                                    {['12', '11', '10', '09', '08', '07', '06', '05', '04', '03', '02', '01'].map((m) => {
+                                      const isMonthSelected =
+                                        (currentView === 'gastos_empresa' || currentView === 'gastos') &&
+                                        Number(viewParams?.year) === Number(year) &&
+                                        String(viewParams?.month).padStart(2, '0') === m;
+
+                                      return (
+                                        <div
+                                          key={`empresa-${year}-${m}`}
+                                          onClick={() => {
+                                            navigate('gastos_empresa', { year, month: m });
+                                            setIsMobileMenuOpen(false);
+                                          }}
+                                          style={{
+                                            padding: '0.3rem 0.6rem',
+                                            cursor: 'pointer',
+                                            borderRadius: '4px',
+                                            background: isMonthSelected ? 'var(--bg-panel-hover)' : 'transparent',
+                                            color: isMonthSelected ? 'var(--accent-primary)' : 'var(--text-muted)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.45rem',
+                                            fontSize: '0.78rem',
+                                            fontWeight: isMonthSelected ? 600 : 400
+                                          }}
+                                        >
+                                          <Folder size={12} color={isMonthSelected ? 'var(--accent-primary)' : 'currentColor'} />
+                                          {monthNames[m]}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          <div
+                            onClick={(e) => handleAddYear('empresa', e)}
+                            style={{
+                              padding: '0.3rem 0.6rem',
+                              cursor: 'pointer',
+                              border: '1px dashed var(--border-color)',
+                              borderRadius: '4px',
+                              color: 'var(--text-muted)',
+                              fontSize: '0.75rem',
+                              marginTop: '0.2rem',
+                              textAlign: 'center',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.3rem'
+                            }}
+                          >
+                            <Plus size={12} /> Agregar Año
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* RAMA 2: 🏠 Gastos Casa */}
+                    <div style={{ display: 'flex', flexDirection: 'column', marginTop: '0.15rem' }}>
+                      <div
+                        onClick={() => {
+                          navigate('gastos_casa', null);
+                          setGastosCasaExpanded(true);
+                        }}
+                        style={{
+                          padding: '0.4rem 0.7rem',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          background: currentView === 'gastos_casa' ? 'var(--bg-panel-hover)' : 'transparent',
+                          color: currentView === 'gastos_casa' ? '#fbbf24' : 'var(--text-main)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: '0.84rem',
+                          fontWeight: 600
+                        }}
+                      >
+                        <span style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+                          <Home size={14} color="#fbbf24" />
+                          Gastos Casa
+                        </span>
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setGastosCasaExpanded((prev) => !prev);
+                          }}
+                          style={{ padding: '2px', display: 'flex', alignItems: 'center' }}
+                        >
+                          {gastosCasaExpanded ? (
+                            <ChevronDown size={13} color="var(--text-muted)" />
+                          ) : (
+                            <ChevronRight size={13} color="var(--text-muted)" />
+                          )}
+                        </div>
+                      </div>
+
+                      {gastosCasaExpanded && (
+                        <div style={{ display: 'flex', flexDirection: 'column', paddingLeft: '0.8rem', marginTop: '0.15rem', gap: '0.15rem' }}>
+                          {customYearsCasa.map((year) => {
+                            const isYearExpanded = Boolean(gastosCasaExpandedYears[year]);
+                            const isYearActive =
+                              currentView === 'gastos_casa' &&
+                              Number(viewParams?.year) === Number(year) &&
+                              !viewParams?.month;
+
+                            return (
+                              <div key={`casa-year-${year}`} style={{ display: 'flex', flexDirection: 'column' }}>
+                                <div
+                                  onClick={() => {
+                                    navigate('gastos_casa', { year, month: null });
+                                  }}
+                                  style={{
+                                    padding: '0.35rem 0.6rem',
+                                    cursor: 'pointer',
+                                    borderRadius: '4px',
+                                    color: isYearActive ? '#fbbf24' : 'var(--text-main)',
+                                    background: isYearActive ? 'rgba(245, 158, 11, 0.12)' : 'transparent',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    fontSize: '0.82rem',
+                                    fontWeight: 500
+                                  }}
+                                >
+                                  <span style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+                                    {isYearExpanded ? (
+                                      <FolderOpen size={13} color="#fbbf24" />
+                                    ) : (
+                                      <Folder size={13} color="var(--text-muted)" />
+                                    )}
+                                    {year}
+                                  </span>
+                                  <div
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setGastosCasaExpandedYears((prev) => ({ ...prev, [year]: !prev[year] }));
+                                    }}
+                                    style={{ padding: '2px', display: 'flex', alignItems: 'center' }}
+                                  >
+                                    {isYearExpanded ? (
+                                      <ChevronDown size={13} color="var(--text-muted)" />
+                                    ) : (
+                                      <ChevronRight size={13} color="var(--text-muted)" />
+                                    )}
+                                  </div>
+                                </div>
+
+                                {isYearExpanded && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', paddingLeft: '1rem', marginTop: '0.15rem', gap: '0.15rem' }}>
+                                    {['12', '11', '10', '09', '08', '07', '06', '05', '04', '03', '02', '01'].map((m) => {
+                                      const isMonthSelected =
+                                        currentView === 'gastos_casa' &&
+                                        Number(viewParams?.year) === Number(year) &&
+                                        String(viewParams?.month).padStart(2, '0') === m;
+
+                                      return (
+                                        <div
+                                          key={`casa-${year}-${m}`}
+                                          onClick={() => {
+                                            navigate('gastos_casa', { year, month: m });
+                                            setIsMobileMenuOpen(false);
+                                          }}
+                                          style={{
+                                            padding: '0.3rem 0.6rem',
+                                            cursor: 'pointer',
+                                            borderRadius: '4px',
+                                            background: isMonthSelected ? 'var(--bg-panel-hover)' : 'transparent',
+                                            color: isMonthSelected ? '#fbbf24' : 'var(--text-muted)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.45rem',
+                                            fontSize: '0.78rem',
+                                            fontWeight: isMonthSelected ? 600 : 400
+                                          }}
+                                        >
+                                          <Folder size={12} color={isMonthSelected ? '#fbbf24' : 'currentColor'} />
+                                          {monthNames[m]}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          <div
+                            onClick={(e) => handleAddYear('casa', e)}
+                            style={{
+                              padding: '0.3rem 0.6rem',
+                              cursor: 'pointer',
+                              border: '1px dashed var(--border-color)',
+                              borderRadius: '4px',
+                              color: 'var(--text-muted)',
+                              fontSize: '0.75rem',
+                              marginTop: '0.2rem',
+                              textAlign: 'center',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.3rem'
+                            }}
+                          >
+                            <Plus size={12} /> Agregar Año
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
 
                 {/* Marketing Submenu */}

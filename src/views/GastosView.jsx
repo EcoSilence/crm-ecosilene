@@ -21,49 +21,52 @@ import {
   DollarSign,
   Download,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Home
 } from 'lucide-react';
 import {
   EXPENSE_DOC_TYPES,
-  EXPENSE_CATEGORIES,
+  EXPENSE_CATEGORIES_EMPRESA,
+  EXPENSE_CATEGORIES_CASA,
   scanReceiptWithAI,
   compressReceiptImage,
   calculateTaxBreakdown,
-  classifyCategoryFromText
+  classifyCategoryFromText,
+  classifyCasaCategoryFromText
 } from '../services/receiptScannerService';
 import {
   fetchCentralizedExpenses,
   saveCentralizedExpense,
   deleteCentralizedExpense,
   subscribeToExpensesRealtime,
-  EXPENSES_STORAGE_KEY
+  getStorageKey
 } from '../services/expensesService';
 
-const STORAGE_KEY = EXPENSES_STORAGE_KEY;
-
-const EMPTY_FORM = {
+const getEmptyForm = (entidad = 'empresa') => ({
   fecha: new Date().toISOString().split('T')[0],
   tipoDocumento: 'Boleta Electrónica',
   rutEmisor: '',
   razonSocial: '',
-  categoria: 'Otros Gastos',
+  categoria: entidad === 'casa' ? 'Supermercado / Abarrotes' : 'Otros Gastos',
   descripcion: '',
   total: '',
   neto: '',
   iva: '',
   comprobanteImg: '',
   nombreArchivo: ''
-};
+});
 
-const GastosView = () => {
+const GastosView = ({ entidad = 'empresa', filterPeriod = null }) => {
   const { addToast } = useToast();
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
+  const storageKey = getStorageKey(entidad);
+
   // Inicializa con cache local para render instantáneo, y luego sincroniza con Supabase
   const [gastos, setGastos] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(storageKey);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -76,27 +79,36 @@ const GastosView = () => {
   const loadExpenses = async (showLoading = false) => {
     if (showLoading) setIsLoadingGastos(true);
     try {
-      const remoteData = await fetchCentralizedExpenses();
+      const remoteData = await fetchCentralizedExpenses(entidad);
       setGastos(remoteData);
     } catch (err) {
-      console.error('Error sincronizando gastos con Supabase:', err);
+      console.error(`Error sincronizando gastos (${entidad}) con Supabase:`, err);
     } finally {
       if (showLoading) setIsLoadingGastos(false);
     }
   };
 
   useEffect(() => {
+    // Si cambia de entidad (empresa <-> casa), recargar cache y datos frescos
+    try {
+      const cached = localStorage.getItem(getStorageKey(entidad));
+      if (cached) setGastos(JSON.parse(cached));
+      else setGastos([]);
+    } catch {
+      setGastos([]);
+    }
+
     loadExpenses(true);
 
-    // Suscripción en Tiempo Real con Supabase Realtime
+    // Suscripción en Tiempo Real con Supabase Realtime para la entidad actual
     const unsubscribe = subscribeToExpensesRealtime(() => {
       loadExpenses(false);
-    });
+    }, entidad);
 
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [entidad]);
 
   // Filtros de Auditoría y Búsqueda
   const [searchTerm, setSearchTerm] = useState('');
@@ -105,6 +117,24 @@ const GastosView = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('all');
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
+
+  // Sincronizar filtro si se recibe desde el menú lateral (ej. { year: 2026, month: '05' })
+  useEffect(() => {
+    if (!filterPeriod) return;
+    if (filterPeriod.year && filterPeriod.month) {
+      const y = filterPeriod.year;
+      const m = String(filterPeriod.month).padStart(2, '0');
+      const lastDayNum = new Date(Number(y), parseInt(m, 10), 0).getDate();
+      const lastDay = String(lastDayNum).padStart(2, '0');
+      setCustomDateFrom(`${y}-${m}-01`);
+      setCustomDateTo(`${y}-${m}-${lastDay}`);
+      setSelectedPeriod('custom');
+    } else if (filterPeriod.year) {
+      setSelectedPeriod(`year_${filterPeriod.year}`);
+      setCustomDateFrom('');
+      setCustomDateTo('');
+    }
+  }, [filterPeriod]);
 
   // Nombres de meses en español para los periodos
   const SPANISH_MONTH_NAMES = useMemo(
@@ -240,7 +270,7 @@ const GastosView = () => {
   // Estados del Modal "+ Registrar Nuevo Gasto"
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [formData, setFormData] = useState(() => getEmptyForm(entidad));
   const [isScanning, setIsScanning] = useState(false);
   const [scanProviderBadge, setScanProviderBadge] = useState('');
   const [scanError, setScanError] = useState('');
@@ -260,14 +290,18 @@ const GastosView = () => {
     }
   };
 
+  const baseCategories = useMemo(() => {
+    return entidad === 'casa' ? EXPENSE_CATEGORIES_CASA : EXPENSE_CATEGORIES_EMPRESA;
+  }, [entidad]);
+
   const availableCategories = useMemo(() => {
-    const set = new Set(EXPENSE_CATEGORIES);
+    const set = new Set(baseCategories);
     (gastos || []).forEach((g) => {
       if (g.categoria) set.add(g.categoria);
     });
     if (formData.categoria) set.add(formData.categoria);
     return Array.from(set);
-  }, [gastos, formData.categoria]);
+  }, [gastos, formData.categoria, baseCategories]);
 
   const availableDocTypes = useMemo(() => {
     const set = new Set(EXPENSE_DOC_TYPES);
@@ -313,6 +347,7 @@ const GastosView = () => {
     let totalIva = 0;
     let ivaCreditoFiscal = 0;
     let facturasCount = 0;
+    const categoryTotals = {};
 
     filteredGastos.forEach((g) => {
       const t = Number(g.total ?? g.total_bruto) || 0;
@@ -321,6 +356,10 @@ const GastosView = () => {
       totalBruto += t;
       totalNeto += n;
       totalIva += i;
+
+      const cat = g.categoria || (entidad === 'casa' ? 'Otros Hogar' : 'Otros Gastos');
+      categoryTotals[cat] = (categoryTotals[cat] || 0) + t;
+
       const dt = String(g.tipoDocumento || g.tipo_doc || '');
       if (dt.toLowerCase().includes('factura')) {
         facturasCount++;
@@ -328,24 +367,38 @@ const GastosView = () => {
       }
     });
 
+    let topCategory = 'Sin gastos';
+    let topCategoryAmount = 0;
+    Object.entries(categoryTotals).forEach(([cat, amt]) => {
+      if (amt > topCategoryAmount) {
+        topCategoryAmount = amt;
+        topCategory = cat;
+      }
+    });
+
+    const topCategoryPercent = totalBruto > 0 ? Math.round((topCategoryAmount / totalBruto) * 100) : 0;
+    const promedioGasto = filteredGastos.length > 0 ? Math.round(totalBruto / filteredGastos.length) : 0;
+
     return {
       totalBruto,
       totalNeto,
       totalIva,
       ivaCreditoFiscal,
       facturasCount,
-      count: filteredGastos.length
+      count: filteredGastos.length,
+      topCategory,
+      topCategoryAmount,
+      topCategoryPercent,
+      promedioGasto,
+      categoryTotals
     };
-  }, [filteredGastos]);
+  }, [filteredGastos, entidad]);
 
   const openNewExpenseModal = () => {
     setEditingId(null);
     setScanProviderBadge('');
     setScanError('');
-    setFormData({
-      ...EMPTY_FORM,
-      fecha: new Date().toISOString().split('T')[0]
-    });
+    setFormData(getEmptyForm(entidad));
     setIsModalOpen(true);
   };
 
@@ -355,15 +408,15 @@ const GastosView = () => {
     setScanError('');
     setFormData({
       fecha: gasto.fecha || new Date().toISOString().split('T')[0],
-      tipoDocumento: gasto.tipoDocumento || 'Boleta Electrónica',
-      rutEmisor: gasto.rutEmisor || '',
-      razonSocial: gasto.razonSocial || '',
-      categoria: gasto.categoria || 'Otros Gastos',
+      tipoDocumento: gasto.tipoDocumento || gasto.tipo_doc || 'Boleta Electrónica',
+      rutEmisor: gasto.rutEmisor || gasto.rut || '',
+      razonSocial: gasto.razonSocial || gasto.proveedor || '',
+      categoria: gasto.categoria || (entidad === 'casa' ? 'Supermercado / Abarrotes' : 'Otros Gastos'),
       descripcion: gasto.descripcion || '',
-      total: gasto.total ?? '',
+      total: gasto.total ?? gasto.total_bruto ?? '',
       neto: gasto.neto ?? '',
       iva: gasto.iva ?? '',
-      comprobanteImg: gasto.comprobanteImg || '',
+      comprobanteImg: gasto.comprobanteImg || gasto.comprobante_url || '',
       nombreArchivo: gasto.nombreArchivo || ''
     });
     setIsModalOpen(true);
@@ -394,7 +447,8 @@ const GastosView = () => {
 
       const extracted = await scanReceiptWithAI({
         imageBase64: compressedBase64,
-        mimeType
+        mimeType,
+        entidad
       });
 
       setFormData((prev) => ({
@@ -449,11 +503,15 @@ const GastosView = () => {
   };
 
   const handleRazonSocialChange = (val) => {
-    const suggestedCat = classifyCategoryFromText(`${val} ${formData.descripcion}`);
+    const suggestedCat =
+      entidad === 'casa'
+        ? classifyCasaCategoryFromText(`${val} ${formData.descripcion}`)
+        : classifyCategoryFromText(`${val} ${formData.descripcion}`);
+    const defaultCat = entidad === 'casa' ? 'Otros Hogar' : 'Otros Gastos';
     setFormData((prev) => ({
       ...prev,
       razonSocial: val,
-      categoria: suggestedCat !== 'Otros Gastos' ? suggestedCat : prev.categoria
+      categoria: suggestedCat !== defaultCat ? suggestedCat : prev.categoria
     }));
   };
 
@@ -474,15 +532,19 @@ const GastosView = () => {
         ? Math.round(Number(formData.iva))
         : totalNum - netoNum;
 
+    const defaultMerchant = entidad === 'casa' ? 'Comercio General' : 'Proveedor General';
+
     const record = {
       id: editingId || undefined,
+      entidad,
+      scope: entidad,
       fecha: formData.fecha || new Date().toISOString().split('T')[0],
       tipoDocumento: formData.tipoDocumento,
       tipo_doc: formData.tipoDocumento,
       rutEmisor: formData.rutEmisor.trim(),
       rut: formData.rutEmisor.trim(),
-      razonSocial: formData.razonSocial.trim() || 'Proveedor General',
-      proveedor: formData.razonSocial.trim() || 'Proveedor General',
+      razonSocial: formData.razonSocial.trim() || defaultMerchant,
+      proveedor: formData.razonSocial.trim() || defaultMerchant,
       categoria: formData.categoria,
       descripcion:
         formData.descripcion.trim() ||
@@ -506,7 +568,7 @@ const GastosView = () => {
       }
 
       // Persistencia centralizada en la base de datos (Supabase / Backend)
-      const saved = await saveCentralizedExpense(record);
+      const saved = await saveCentralizedExpense(record, entidad);
 
       setGastos((prev) =>
         prev.map((g) => (g.id === editingId || g.id === record.id ? saved : g))
@@ -520,7 +582,7 @@ const GastosView = () => {
       // Revalida el estado completo
       loadExpenses(false);
     } catch (err) {
-      console.error('Error guardando gasto en Supabase:', err);
+      console.error(`Error guardando gasto (${entidad}) en Supabase:`, err);
       addToast('Error al sincronizar con la base de datos: ' + err.message, 'error');
     } finally {
       setIsSaving(false);
@@ -528,14 +590,14 @@ const GastosView = () => {
   };
 
   const handleDeleteExpense = async (id) => {
-    if (!window.confirm('¿Eliminar este registro de gasto de la base de datos central?')) return;
+    if (!window.confirm(`¿Eliminar este registro de gasto de ${entidad === 'casa' ? 'Casa' : 'Empresa'} de la base de datos central?`)) return;
     try {
       setGastos((prev) => prev.filter((g) => g.id !== id));
-      await deleteCentralizedExpense(id);
+      await deleteCentralizedExpense(id, entidad);
       addToast('Registro de gasto eliminado de la base de datos.', 'info');
       loadExpenses(false);
     } catch (err) {
-      console.error('Error eliminando gasto:', err);
+      console.error(`Error eliminando gasto (${entidad}):`, err);
       addToast('Error al eliminar de la base de datos: ' + err.message, 'error');
     }
   };
@@ -551,8 +613,10 @@ const GastosView = () => {
       'Fecha Emisión': g.fecha,
       'Tipo Documento': g.tipoDocumento || g.tipo_doc || 'Boleta Electrónica',
       'RUT Emisor': g.rutEmisor || g.rut || 'S/I',
-      'Proveedor / Razón Social': g.razonSocial || g.proveedor || 'General',
-      'Categoría Contable': g.categoria || 'Otros Gastos',
+      [entidad === 'casa' ? 'Comercio / Tienda' : 'Proveedor / Razón Social']:
+        g.razonSocial || g.proveedor || 'General',
+      [entidad === 'casa' ? 'Categoría Hogar' : 'Categoría Contable']:
+        g.categoria || (entidad === 'casa' ? 'Otros Hogar' : 'Otros Gastos'),
       'Descripción / Glosa': g.descripcion || '',
       'Monto Neto (CLP)': Number(g.neto) || 0,
       'IVA 19% (CLP)': Number(g.iva) || 0,
@@ -563,15 +627,17 @@ const GastosView = () => {
           : 'Sin adjunto'
     }));
 
-    // Fila final destacada de totales para auditoría contable
+    // Fila final destacada de totales para auditoría contable o familiar
     rows.push({
       'ID Gasto': '=== TOTALES DEL PERIODO ===',
       'Fecha Emisión': activeDateRange.label,
       'Tipo Documento': `${kpis.count} Documentos`,
       'RUT Emisor': '',
-      'Proveedor / Razón Social': `${kpis.facturasCount} Facturas SII`,
-      'Categoría Contable': 'CIERRE CONTABLE',
-      'Descripción / Glosa': `Total Bruto: $${kpis.totalBruto.toLocaleString('es-CL')} (Neto + IVA)`,
+      [entidad === 'casa' ? 'Comercio / Tienda' : 'Proveedor / Razón Social']:
+        entidad === 'casa' ? 'Hogar & Familia' : `${kpis.facturasCount} Facturas SII`,
+      [entidad === 'casa' ? 'Categoría Hogar' : 'Categoría Contable']:
+        entidad === 'casa' ? 'CIERRE MENSUAL FAMILIAR' : 'CIERRE CONTABLE',
+      'Descripción / Glosa': `Total Bruto: $${kpis.totalBruto.toLocaleString('es-CL')}`,
       'Monto Neto (CLP)': kpis.totalNeto,
       'IVA 19% (CLP)': kpis.totalIva,
       'Total Bruto (CLP)': kpis.totalBruto,
@@ -580,26 +646,58 @@ const GastosView = () => {
 
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Rendicion_Gastos');
+    const sheetName = entidad === 'casa' ? 'Gastos_Casa' : 'Rendicion_Gastos';
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     const cleanSuffix = (activeDateRange.fileSuffix || 'Historial').replace(/[^a-zA-Z0-9_-]/g, '_');
-    const fileName = `Gastos_EcoSilence_${cleanSuffix}.xlsx`;
+    const fileName =
+      entidad === 'casa'
+        ? `Gastos_Casa_EcoSilence_${cleanSuffix}.xlsx`
+        : `Gastos_Empresa_EcoSilence_${cleanSuffix}.xlsx`;
 
     XLSX.writeFile(workbook, fileName);
-    addToast(`Reporte contable exportado: ${fileName}`, 'success');
+    addToast(`Reporte descargado: ${fileName}`, 'success');
   };
 
   const getCategoryBadgeStyle = (cat = '') => {
     const lower = String(cat).toLowerCase();
+    // Transporte / Bencina
     if (lower.includes('transporte') || lower.includes('bencina')) {
       return { background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' };
     }
+    // Casa: Supermercado
+    if (lower.includes('supermercado') || lower.includes('abarrote')) {
+      return { background: 'rgba(16, 185, 129, 0.18)', color: '#34d399' };
+    }
+    // Casa: Cuentas Básicas (Luz, Agua, Gas, Internet)
+    if (lower.includes('cuenta') || lower.includes('básica') || lower.includes('luz') || lower.includes('agua') || lower.includes('gas') || lower.includes('internet')) {
+      return { background: 'rgba(14, 165, 233, 0.18)', color: '#38bdf8' };
+    }
+    // Casa: Arriendo / Gastos Comunes
+    if (lower.includes('arriendo') || lower.includes('comun') || lower.includes('común')) {
+      return { background: 'rgba(245, 158, 11, 0.18)', color: '#fbbf24' };
+    }
+    // Casa: Mascotas / Veterinaria
+    if (lower.includes('mascota') || lower.includes('veterinaria')) {
+      return { background: 'rgba(249, 115, 22, 0.18)', color: '#fb923c' };
+    }
+    // Casa: Salud / Farmacia
+    if (lower.includes('salud') || lower.includes('farmacia') || lower.includes('médic') || lower.includes('medic')) {
+      return { background: 'rgba(239, 68, 68, 0.18)', color: '#f87171' };
+    }
+    // Casa: Salidas / Delivery / Ocio
+    if (lower.includes('salida') || lower.includes('delivery') || lower.includes('ocio') || lower.includes('restaurant')) {
+      return { background: 'rgba(236, 72, 153, 0.18)', color: '#f472b6' };
+    }
+    // Empresa: Alimentación / Viáticos
     if (lower.includes('alimenta') || lower.includes('viático') || lower.includes('viatico')) {
       return { background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24' };
     }
-    if (lower.includes('insumo') || lower.includes('herramienta') || lower.includes('manten')) {
+    // Empresa: Insumos / Herramientas
+    if (lower.includes('insumo') || lower.includes('herramienta') || lower.includes('manten') || lower.includes('ferreter')) {
       return { background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
     }
+    // Empresa: Gimnasio
     if (lower.includes('gimnasio') || lower.includes('fitness')) {
       return { background: 'rgba(168, 85, 247, 0.18)', color: '#c084fc' };
     }
@@ -619,8 +717,48 @@ const GastosView = () => {
         }}
       >
         <div>
-          <h1 style={{ marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            Control de Gastos y Rendiciones
+          <h1 style={{ marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            {entidad === 'casa' ? (
+              <>
+                <Home size={28} color="#f59e0b" />
+                <span>Gastos Casa (Hogar & Familia)</span>
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '999px',
+                    background: 'rgba(245, 158, 11, 0.18)',
+                    color: '#fbbf24',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}
+                >
+                  <Home size={12} /> Ámbito Personal
+                </span>
+              </>
+            ) : (
+              <>
+                <Building2 size={28} color="var(--accent-primary)" />
+                <span>Control de Gastos y Rendiciones</span>
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '999px',
+                    background: 'rgba(99, 102, 241, 0.18)',
+                    color: '#818cf8',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}
+                >
+                  <Building2 size={12} /> Empresa EcoSilence
+                </span>
+              </>
+            )}
             <span
               style={{
                 fontSize: '0.75rem',
@@ -628,10 +766,13 @@ const GastosView = () => {
                 borderRadius: '999px',
                 background: 'rgba(99, 102, 241, 0.18)',
                 color: '#818cf8',
-                fontWeight: 600
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem'
               }}
             >
-              OCR Vision AI
+              <Sparkles size={12} /> OCR Vision AI
             </span>
             <span
               style={{
@@ -651,7 +792,9 @@ const GastosView = () => {
             </span>
           </h1>
           <p style={{ color: 'var(--text-muted)' }}>
-            Escaneo inteligente de boletas, facturas electrónicas SII y vouchers con extracción tributaria en vivo.
+            {entidad === 'casa'
+              ? 'Control financiero personal y del hogar con escaneo inteligente de boletas de supermercado, cuentas básicas, salud y ocio.'
+              : 'Escaneo inteligente de boletas, facturas electrónicas SII y vouchers con extracción tributaria en vivo.'}
           </p>
         </div>
 
@@ -661,24 +804,29 @@ const GastosView = () => {
           </button>
 
           <button className="btn btn-primary" onClick={openNewExpenseModal}>
-            <Plus size={18} /> Registrar Nuevo Gasto
+            <Plus size={18} /> {entidad === 'casa' ? 'Registrar Gasto Casa' : 'Registrar Nuevo Gasto'}
           </button>
         </div>
       </div>
 
-      {/* KPIs Tributarios Dinámicos según el filtro activo */}
+      {/* KPIs Dinámicos según la entidad */}
       <div className="responsive-grid-cards">
+        {/* Card 1: Total Gastos del Periodo */}
         <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem' }}>
           <div style={{ background: 'var(--color-tomato-bg)', padding: '0.8rem', borderRadius: '50%', color: 'var(--color-tomato)' }}>
             <DollarSign size={24} />
           </div>
           <div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>
-              Total Gastos del Periodo ({kpis.count} {kpis.count === 1 ? 'doc filtrado' : 'docs filtrados'})
+              {entidad === 'casa' ? 'Total Gastos del Hogar' : 'Total Gastos del Periodo'} ({kpis.count} {kpis.count === 1 ? 'doc' : 'docs'})
             </p>
             <h2 style={{ fontSize: '1.4rem', margin: 0 }}>{formatCurrency(kpis.totalBruto)}</h2>
             <p className="text-xs text-slate-400" style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
-              Neto: {formatCurrency(kpis.totalNeto)} | IVA (19%): {formatCurrency(kpis.totalIva)}
+              {entidad === 'casa' ? (
+                `Ref. Neto: ${formatCurrency(kpis.totalNeto)} | IVA incl: ${formatCurrency(kpis.totalIva)}`
+              ) : (
+                `Neto: ${formatCurrency(kpis.totalNeto)} | IVA (19%): ${formatCurrency(kpis.totalIva)}`
+              )}
             </p>
             {selectedPeriod !== 'all' && (
               <div style={{ marginTop: '0.4rem' }}>
@@ -702,38 +850,78 @@ const GastosView = () => {
           </div>
         </div>
 
-        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem' }}>
-          <div style={{ background: 'var(--color-basil-bg)', padding: '0.8rem', borderRadius: '50%', color: 'var(--color-basil)' }}>
-            <Receipt size={24} />
+        {/* Card 2: Para Empresa = IVA Crédito Fiscal SII | Para Casa = Comprobantes & Promedio */}
+        {entidad === 'casa' ? (
+          <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem' }}>
+            <div style={{ background: 'rgba(14, 165, 233, 0.18)', padding: '0.8rem', borderRadius: '50%', color: '#38bdf8' }}>
+              <Receipt size={24} />
+            </div>
+            <div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>
+                Gasto Promedio por Boleta
+              </p>
+              <h2 style={{ fontSize: '1.4rem', margin: 0 }}>
+                {kpis.count > 0 ? formatCurrency(kpis.promedioGasto) : '$0'}
+              </h2>
+              <p className="text-xs text-slate-400" style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                {kpis.count} compras registradas en el periodo
+              </p>
+            </div>
           </div>
-          <div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>
-              IVA Crédito Fiscal Recuperable ({kpis.facturasCount} {kpis.facturasCount === 1 ? 'Factura' : 'Facturas'})
-            </p>
-            <h2 style={{ fontSize: '1.4rem', margin: 0 }}>{formatCurrency(kpis.ivaCreditoFiscal)}</h2>
-            <p className="text-xs text-slate-400" style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
-              Recuperable ante SII (19% Facturas del periodo)
-            </p>
+        ) : (
+          <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem' }}>
+            <div style={{ background: 'var(--color-basil-bg)', padding: '0.8rem', borderRadius: '50%', color: 'var(--color-basil)' }}>
+              <Receipt size={24} />
+            </div>
+            <div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>
+                IVA Crédito Fiscal Recuperable ({kpis.facturasCount} {kpis.facturasCount === 1 ? 'Factura' : 'Facturas'})
+              </p>
+              <h2 style={{ fontSize: '1.4rem', margin: 0 }}>{formatCurrency(kpis.ivaCreditoFiscal)}</h2>
+              <p className="text-xs text-slate-400" style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                Recuperable ante SII (19% Facturas del periodo)
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem' }}>
-          <div style={{ background: 'var(--color-berry-bg)', padding: '0.8rem', borderRadius: '50%', color: 'var(--color-berry)' }}>
-            <ScanLine size={24} />
+        {/* Card 3: Para Empresa = Escaneo IA | Para Casa = Mayor Categoría de Gasto */}
+        {entidad === 'casa' ? (
+          <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem' }}>
+            <div style={{ background: 'rgba(245, 158, 11, 0.18)', padding: '0.8rem', borderRadius: '50%', color: '#fbbf24' }}>
+              <Tag size={24} />
+            </div>
+            <div style={{ overflow: 'hidden' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>
+                Mayor Categoría de Gasto
+              </p>
+              <h2 style={{ fontSize: '1.2rem', margin: 0, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                {kpis.topCategoryAmount > 0 ? formatCurrency(kpis.topCategoryAmount) : 'Sin gastos'}
+              </h2>
+              <p className="text-xs text-slate-400" style={{ fontSize: '0.75rem', color: '#fbbf24', marginTop: '0.25rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                {kpis.topCategory} ({kpis.topCategoryPercent}% del total)
+              </p>
+            </div>
           </div>
-          <div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>
-              Escaneo Rápido IA
-            </p>
-            <button
-              className="btn btn-primary"
-              style={{ padding: '0.45rem 0.9rem', fontSize: '0.82rem', marginTop: '0.2rem' }}
-              onClick={openNewExpenseModal}
-            >
-              <ScanLine size={15} /> Escanear Boleta con IA
-            </button>
+        ) : (
+          <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.2rem', padding: '1.2rem' }}>
+            <div style={{ background: 'var(--color-berry-bg)', padding: '0.8rem', borderRadius: '50%', color: 'var(--color-berry)' }}>
+              <ScanLine size={24} />
+            </div>
+            <div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>
+                Escaneo Rápido IA
+              </p>
+              <button
+                className="btn btn-primary"
+                style={{ padding: '0.45rem 0.9rem', fontSize: '0.82rem', marginTop: '0.2rem' }}
+                onClick={openNewExpenseModal}
+              >
+                <ScanLine size={15} /> Escanear Boleta con IA
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Tabla y Filtros de Auditoría */}
@@ -1096,11 +1284,19 @@ const GastosView = () => {
             >
               <div>
                 <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Receipt size={22} color="var(--accent-primary)" />
-                  {editingId ? 'Editar Registro de Gasto' : '+ Registrar Nuevo Gasto'}
+                  {entidad === 'casa' ? (
+                    <Home size={22} color="#f59e0b" />
+                  ) : (
+                    <Receipt size={22} color="var(--accent-primary)" />
+                  )}
+                  {editingId
+                    ? `Editar Gasto (${entidad === 'casa' ? 'Casa' : 'Empresa'})`
+                    : `+ Registrar Gasto ${entidad === 'casa' ? 'Casa' : 'Empresa'}`}
                 </h2>
                 <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                  Escanea una boleta o factura con IA para autocompletar los campos o edítalos manualmente.
+                  {entidad === 'casa'
+                    ? 'Escanea boletas de supermercado, farmacias o cuentas del hogar con Vision AI o edítalas manualmente.'
+                    : 'Escanea una boleta o factura con IA para autocompletar los campos o edítalos manualmente.'}
                 </p>
               </div>
               <button
@@ -1152,11 +1348,15 @@ const GastosView = () => {
                   </div>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      Lectura Tributaria Automática (SII Chile)
+                      {entidad === 'casa'
+                        ? 'Lectura Inteligente Hogar & Familia (Gemini AI)'
+                        : 'Lectura Tributaria Automática (SII Chile)'}
                       <Sparkles size={14} color="#fbbf24" />
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      Extrae comercio real, RUT, fecha y calcula Neto + IVA (19%) directamente de tu foto.
+                      {entidad === 'casa'
+                        ? 'Extrae comercio (Supermercados, Farmacias, Cuentas), fecha y montos de boletas familiares.'
+                        : 'Extrae comercio real, RUT, fecha y calcula Neto + IVA (19%) directamente de tu foto.'}
                     </div>
                   </div>
                 </div>
@@ -1353,12 +1553,17 @@ const GastosView = () => {
               <div className="responsive-grid-2" style={{ gap: '1rem' }}>
                 <div className="input-group" style={{ marginBottom: '0.8rem' }}>
                   <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Building2 size={14} /> Razón Social / Proveedor
+                    {entidad === 'casa' ? <Home size={14} /> : <Building2 size={14} />}
+                    {entidad === 'casa' ? 'Comercio / Tienda / Emisor' : 'Razón Social / Proveedor'}
                   </label>
                   <input
                     type="text"
                     className="input-control"
-                    placeholder="Nombre del comercio extraído de la boleta"
+                    placeholder={
+                      entidad === 'casa'
+                        ? 'Ej: Lider, Jumbo, Enel, Farmacias Ahumada...'
+                        : 'Nombre del comercio extraído de la boleta'
+                    }
                     value={formData.razonSocial}
                     onChange={(e) => handleRazonSocialChange(e.target.value)}
                   />
@@ -1378,13 +1583,20 @@ const GastosView = () => {
 
               <div className="input-group" style={{ marginBottom: '0.8rem' }}>
                 <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Tag size={14} /> Categoría Contable (Auto-clasificada por giro)
+                  <Tag size={14} />{' '}
+                  {entidad === 'casa'
+                    ? 'Categoría del Hogar (Auto-clasificada)'
+                    : 'Categoría Contable (Auto-clasificada por giro)'}
                 </label>
                 <input
                   type="text"
                   list="expense-categories-list"
                   className="input-control"
-                  placeholder="Ej: Gimnasio/Fitness, Transporte / Bencina, Alimentación..."
+                  placeholder={
+                    entidad === 'casa'
+                      ? 'Ej: Supermercado / Abarrotes, Cuentas Básicas...'
+                      : 'Ej: Gimnasio/Fitness, Transporte / Bencina...'
+                  }
                   value={formData.categoria}
                   onChange={(e) => setFormData((prev) => ({ ...prev, categoria: e.target.value }))}
                 />
