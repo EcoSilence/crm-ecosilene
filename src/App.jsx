@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAppStore } from './context/AppDataContext'
 import { useToast } from './context/ToastContext'
-import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronLeft, ChevronDown, CalendarDays, Archive, Megaphone, Mail } from 'lucide-react'
+import { LayoutDashboard, KanbanSquare, Users, Package, FileText, Settings, LogOut, Search, Bell, Edit2, Menu, X, Folder, FolderOpen, ChevronRight, ChevronLeft, ChevronDown, CalendarDays, Archive, Megaphone, Mail, Receipt } from 'lucide-react'
 
 import Dashboard from './views/Dashboard'
 import KanbanBoard from './views/KanbanBoard'
@@ -14,6 +14,7 @@ import MarketingView from './views/MarketingView'
 import SettingsView from './views/SettingsView'
 import MarketingSchedulerView from './views/MarketingSchedulerView'
 import MassEmailView from './views/MassEmailView'
+import GastosView from './views/GastosView'
 
 function App() {
   const { 
@@ -49,6 +50,7 @@ function App() {
     { id: 'clientes', name: menuNames.clientes || 'Clientes', icon: Users },
     { id: 'inventario', name: menuNames.inventario || 'Inventario', icon: Package },
     { id: 'cotizaciones', name: menuNames.cotizaciones || 'Cotizaciones', icon: FileText },
+    { id: 'gastos', name: menuNames.gastos || 'Gastos y Boletas IA', icon: Receipt },
     { id: 'marketing', name: menuNames.marketing || 'Marketing & Growth', icon: Megaphone },
     { id: 'planificador_marketing', name: menuNames.planificador_marketing || 'Planificador de Contenidos', icon: CalendarDays },
     { id: 'envio_masivo', name: menuNames.envio_masivo || 'Envío de Correos Masivo', icon: Mail },
@@ -62,6 +64,7 @@ function App() {
       case 'clientes': return <ClientesView />
       case 'inventario': return <InventarioView />
       case 'cotizaciones': return <CotizacionesView />
+      case 'gastos': return <GastosView />
       case 'lista_servicios': return <ServiciosListView />
       case 'archivados': return <ServiciosListView type="archivados" />
       case 'nuevo-servicio': return <NuevoServicioView />
