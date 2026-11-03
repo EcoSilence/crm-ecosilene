@@ -19,22 +19,107 @@ export const EXPENSE_CATEGORIES = [
 ];
 
 export const CHILEAN_TAX_SYSTEM_PROMPT = `Eres un contador auditor experto en tributación chilena (SII - Servicio de Impuestos Internos).
-Analiza la imagen de la boleta, factura, voucher Transbank o comprobante de transferencia y devuelve ÚNICAMENTE un objeto JSON válido con estos campos:
-- "tipoDocumento": Uno de ["Boleta Electrónica", "Factura Electrónica", "Voucher Transbank", "Comprobante de Transferencia"]
-- "fecha": Fecha de emisión en formato "AAAA-MM-DD"
-- "rutEmisor": RUT del emisor en formato chileno (ej. "76.123.456-7")
-- "razonSocial": Razón Social o nombre del comercio/proveedor
-- "resumenItems": Resumen breve de los ítems o concepto del gasto
-- "descripcion": "[Razón Social del comercio] — [breve resumen de ítems]"
-- "categoria": Clasifica según el comercio:
-  * Si es Copec/Shell/Petrobras/bencina/peaje -> "Transporte / Bencina"
-  * Si es restaurante/cafetería/supermercado -> "Alimentación / Viáticos"
-  * Si es audio, ferretería, cables o tecnología -> "Insumos Técnicos / Mantenimiento"
-  * Si no encaja -> "Otros Gastos"
-- "total": Monto Total Bruto en pesos chilenos (entero sin decimales)
-- "neto": Monto Neto (Total / 1.19 redondeado al entero, o monto neto explícito en facturas; igual al total si es exento o transferencia)
-- "iva": Monto IVA 19% (Total - Neto, o 0 si es exento / transferencia)
-- "exento": booleano (true si es exento de IVA o transferencia)`;
+Analiza la imagen de la boleta, factura, voucher Transbank / Redelcom o comprobante de pago y devuelve ÚNICAMENTE un objeto JSON válido con estas reglas estrictas:
+
+1. "tipoDocumento": Clasifica en uno de ["Boleta Electrónica", "Factura Electrónica", "Voucher Transbank", "Comprobante de Transferencia"].
+2. REGLA DE NORMALIZACIÓN DE FECHA ("fecha"):
+   - Si la fecha aparece como DD/MM/AAAA, DD-MM-AA, o en texto (ej. "03 de Noviembre 2026"), conviértela OBLIGATORIAMENTE al formato ISO "AAAA-MM-DD".
+   - Si la fecha es ilegible o no aparece, utiliza como fallback la fecha actual del sistema en formato "AAAA-MM-DD".
+3. "rutEmisor": RUT del emisor en formato chileno (ej. "76.123.456-7").
+4. "razonSocial": Razón Social o nombre del comercio/proveedor.
+5. "resumenItems": Resumen breve de los ítems o concepto del gasto.
+6. "descripcion": "[Razón Social del comercio] — [breve resumen de ítems]".
+7. "categoria": Clasifica según el comercio:
+   * Si es Copec/Shell/Petrobras/bencina/peaje -> "Transporte / Bencina"
+   * Si es restaurante/cafetería/supermercado -> "Alimentación / Viáticos"
+   * Si es audio, ferretería, cables o tecnología -> "Insumos Técnicos / Mantenimiento"
+   * Si no encaja -> "Otros Gastos"
+8. REGLA DE IVA PARA CHILE (SII) ("total", "neto", "iva", "exento"):
+   * Si el documento es "Factura Electrónica" y muestra explícitamente el desglose de IVA (19%), extrae ese valor exacto y el monto Neto indicado.
+   * Si el documento es "Boleta Electrónica", "Voucher Transbank" (Transbank / Redelcom) o ticket de consumo donde solo aparece el "TOTAL", DEBES asumir que el IVA del 19% ya está incluido y calcular matemáticamente:
+     - neto = Math.round(total / 1.19)
+     - iva = total - neto
+   * NUNCA devuelvas IVA en $0 o null a menos que el documento declare explícitamente ser "Exento de IVA".`;
+
+const SPANISH_MONTHS = {
+  enero: '01', ene: '01',
+  febrero: '02', feb: '02',
+  marzo: '03', mar: '03',
+  abril: '04', abr: '04',
+  mayo: '05', may: '05',
+  junio: '06', jun: '06',
+  julio: '07', jul: '07',
+  agosto: '08', ago: '08',
+  septiembre: '09', sept: '09', setiembre: '09', sep: '09', set: '09',
+  octubre: '10', oct: '10',
+  noviembre: '11', nov: '11',
+  diciembre: '12', dic: '12'
+};
+
+/**
+ * Convierte cualquier valor numérico o string formateado en CLP (ej. "$45.990", "45.990") a entero
+ */
+export const parseCLPAmount = (val) => {
+  if (typeof val === 'number' && !Number.isNaN(val)) {
+    return Math.max(0, Math.round(val));
+  }
+  if (typeof val === 'string') {
+    const cleaned = val.replace(/[^0-9]/g, '');
+    return cleaned ? Math.max(0, parseInt(cleaned, 10)) : 0;
+  }
+  return 0;
+};
+
+/**
+ * Normaliza fechas en formatos chilenos (DD/MM/AAAA, DD-MM-AA, texto en español) a ISO 'AAAA-MM-DD'
+ */
+export const normalizeChileanDate = (rawDate) => {
+  const today = new Date().toISOString().split('T')[0];
+  if (!rawDate) return today;
+
+  const str = String(rawDate).trim();
+
+  // 1. Formato ISO AAAA-MM-DD
+  const isoMatch = str.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+  if (isoMatch) {
+    const [, yyyy, mm, dd] = isoMatch;
+    const m = Number(mm);
+    const d = Number(dd);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return `${yyyy}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+  }
+
+  // 2. Formato DD/MM/AAAA o DD-MM-AA o DD.MM.AAAA
+  const dmyMatch = str.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/);
+  if (dmyMatch) {
+    let [, dd, mm, yy] = dmyMatch;
+    const yearNum = yy.length === 2 ? 2000 + parseInt(yy, 10) : parseInt(yy, 10);
+    const m = parseInt(mm, 10);
+    const d = parseInt(dd, 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && yearNum >= 2000 && yearNum <= 2100) {
+      return `${yearNum}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+  }
+
+  // 3. Fecha en texto español (ej. "03 de Noviembre 2026", "03 Nov 2026")
+  const textMatch = str
+    .toLowerCase()
+    .match(/(\d{1,2})\s*(?:de|-|\s)\s*([a-záéíóú]+)\s*(?:de|del|-|,|\s)?\s*(\d{2,4})/);
+  if (textMatch) {
+    const [, dd, monthWord, yy] = textMatch;
+    const monthCode = SPANISH_MONTHS[monthWord];
+    if (monthCode) {
+      const yearNum = yy.length === 2 ? 2000 + parseInt(yy, 10) : parseInt(yy, 10);
+      const d = parseInt(dd, 10);
+      if (d >= 1 && d <= 31) {
+        return `${yearNum}-${monthCode}-${String(d).padStart(2, '0')}`;
+      }
+    }
+  }
+
+  return today;
+};
 
 /**
  * Clasifica automáticamente la categoría contable según el comercio o glosa
@@ -70,13 +155,14 @@ export const classifyCategoryFromText = (text = '') => {
 };
 
 /**
- * Calcula el desglose Neto e IVA (19% Chile) a partir del Total Bruto
+ * Calcula el desglose Neto e IVA (19% Chile) a partir del Total Bruto.
+ * En Boleta Electrónica, Factura Electrónica y Voucher Transbank aplica siempre el 19% salvo exención explícita.
  */
-export const calculateTaxBreakdown = (totalBruto, tipoDocumento = 'Boleta Electrónica', isExempt = false) => {
-  const total = Math.max(0, Math.round(Number(totalBruto) || 0));
+export const calculateTaxBreakdown = (totalBruto, tipoDocumento = 'Boleta Electrónica', isExplicitlyExempt = false) => {
+  const total = parseCLPAmount(totalBruto);
   if (total === 0) return { total: 0, neto: 0, iva: 0 };
 
-  if (isExempt || tipoDocumento === 'Comprobante de Transferencia') {
+  if (isExplicitlyExempt) {
     return { total, neto: total, iva: 0 };
   }
 
@@ -86,28 +172,42 @@ export const calculateTaxBreakdown = (totalBruto, tipoDocumento = 'Boleta Electr
 };
 
 /**
- * Normaliza cualquier respuesta JSON de IA al esquema exacto del formulario
+ * Normaliza cualquier respuesta JSON de IA al esquema exacto del formulario,
+ * garantizando el fallback matemático de Neto e IVA (19%) y fecha ISO 'AAAA-MM-DD'.
  */
 export const normalizeReceiptResponse = (raw = {}) => {
-  const tipoDocumento = EXPENSE_DOC_TYPES.includes(raw.tipoDocumento)
-    ? raw.tipoDocumento
-    : 'Boleta Electrónica';
+  let tipoDocumento = raw.tipoDocumento;
+  if (!EXPENSE_DOC_TYPES.includes(tipoDocumento)) {
+    const rawDocLower = String(tipoDocumento || '').toLowerCase();
+    if (rawDocLower.includes('factura')) tipoDocumento = 'Factura Electrónica';
+    else if (rawDocLower.includes('transbank') || rawDocLower.includes('redelcom') || rawDocLower.includes('voucher'))
+      tipoDocumento = 'Voucher Transbank';
+    else if (rawDocLower.includes('transferencia')) tipoDocumento = 'Comprobante de Transferencia';
+    else tipoDocumento = 'Boleta Electrónica';
+  }
 
-  const total = Math.max(0, Math.round(Number(raw.total) || 0));
-  const isExempt = Boolean(raw.exento) || tipoDocumento === 'Comprobante de Transferencia';
+  const total = parseCLPAmount(raw.total);
+  let neto = parseCLPAmount(raw.neto);
+  let iva = parseCLPAmount(raw.iva);
 
-  let neto = Math.round(Number(raw.neto) || 0);
-  let iva = Math.round(Number(raw.iva) || 0);
+  const isExplicitlyExempt =
+    raw.exento === true &&
+    /exent[oa]|no afecta/i.test(
+      `${raw.tipoDocumento || ''} ${raw.descripcion || ''} ${raw.resumenItems || ''}`
+    );
 
+  // Fallback obligatorio si iva o neto llegan como 0 o undefined
   if (total > 0) {
-    if (isExempt) {
+    if (isExplicitlyExempt) {
       neto = total;
       iva = 0;
-    } else {
-      if (!neto || neto <= 0 || neto >= total) {
-        neto = Math.round(total / 1.19);
-      }
+    } else if (!neto || !iva || neto <= 0 || iva <= 0 || neto >= total) {
+      neto = Math.round(total / 1.19);
       iva = total - neto;
+    }
+  } else if (neto > 0) {
+    if (!iva || iva <= 0) {
+      iva = Math.round(neto * 0.19);
     }
   }
 
@@ -122,14 +222,7 @@ export const normalizeReceiptResponse = (raw = {}) => {
     ? raw.categoria
     : classifyCategoryFromText(`${razonSocial} ${resumenItems} ${descripcion}`);
 
-  const today = new Date().toISOString().split('T')[0];
-  let fecha = String(raw.fecha || '').trim();
-  if (/^\d{2}[/-]\d{2}[/-]\d{4}$/.test(fecha)) {
-    const [d, m, y] = fecha.split(/[/-]/);
-    fecha = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-  } else if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-    fecha = today;
-  }
+  const fecha = normalizeChileanDate(raw.fecha);
 
   return {
     tipoDocumento,
@@ -139,10 +232,10 @@ export const normalizeReceiptResponse = (raw = {}) => {
     resumenItems,
     descripcion,
     categoria,
-    total,
+    total: total || (neto + iva),
     neto,
     iva,
-    exento: isExempt
+    exento: isExplicitlyExempt
   };
 };
 
@@ -174,10 +267,9 @@ export const compressReceiptImage = (file, maxWidth = 1100, quality = 0.82) => {
 
 /**
  * Analizador heurístico local de respaldo cuando no hay API Key configurada en el entorno.
- * Detecta pistas en el nombre del archivo o genera una extracción tributaria realista chilena.
  */
 const simulateChileanReceiptOCR = async (fileName = '') => {
-  await new Promise((r) => setTimeout(r, 1600));
+  await new Promise((r) => setTimeout(r, 1500));
   const lower = String(fileName).toLowerCase();
   const today = new Date().toISOString().split('T')[0];
 
@@ -215,25 +307,16 @@ const simulateChileanReceiptOCR = async (fileName = '') => {
     });
   }
 
-  if (/transferencia|banco|comprobante|tef/.test(lower)) {
-    const total = 65000;
-    return normalizeReceiptResponse({
-      tipoDocumento: 'Comprobante de Transferencia',
-      fecha: today,
-      rutEmisor: '77.812.904-K',
-      razonSocial: 'Servicios Logísticos y Transporte Express',
-      resumenItems: 'Pago transferencia flete retorno equipos',
-      descripcion: 'Servicios Logísticos Express — Pago transferencia flete retorno equipos',
-      categoria: 'Transporte / Bencina',
-      total,
-      neto: total,
-      iva: 0,
-      exento: true
-    });
-  }
-
-  // Por defecto: Insumos Técnicos / Ferretería / Audio o rotación según longitud de nombre
   const presets = [
+    {
+      tipoDocumento: 'Boleta Electrónica',
+      rutEmisor: '81.201.000-K',
+      razonSocial: 'Casa Royal Electrónica S.A.',
+      resumenItems: 'Adaptadores plug 6.3mm, cables RCA-XLR y pilas alcalinas AA',
+      descripcion: 'Casa Royal S.A. — Adaptadores de audio 6.3mm, cables XLR y baterías AA',
+      categoria: 'Insumos Técnicos / Mantenimiento',
+      total: 34900
+    },
     {
       tipoDocumento: 'Factura Electrónica',
       rutEmisor: '96.792.430-K',
@@ -244,22 +327,13 @@ const simulateChileanReceiptOCR = async (fileName = '') => {
       total: 54990
     },
     {
-      tipoDocumento: 'Factura Electrónica',
+      tipoDocumento: 'Voucher Transbank',
       rutEmisor: '99.520.000-7',
       razonSocial: 'COPEC S.A. Estación Vitacura',
       resumenItems: 'Combustible Diésel / Gasolina 95 furgón producción',
       descripcion: 'COPEC S.A. — Combustible traslado equipos Silent Disco',
       categoria: 'Transporte / Bencina',
       total: 42800
-    },
-    {
-      tipoDocumento: 'Boleta Electrónica',
-      rutEmisor: '81.201.000-K',
-      razonSocial: 'Casa Royal Electrónica S.A.',
-      resumenItems: 'Adaptadores plug 6.3mm, cables RCA-XLR y pilas alcalinas AA',
-      descripcion: 'Casa Royal S.A. — Adaptadores de audio 6.3mm, cables XLR y baterías AA',
-      categoria: 'Insumos Técnicos / Mantenimiento',
-      total: 34900
     }
   ];
 
@@ -278,9 +352,11 @@ const simulateChileanReceiptOCR = async (fileName = '') => {
  * Ejecuta el escaneo del comprobante con IA Multimodal:
  * 1) Intenta la ruta backend `/api/expenses/scan-receipt`
  * 2) Si no está disponible o requiere API Key local, usa Gemini Flash / OpenAI Vision directo
- * 3) Si no hay API Key configurada, utiliza el motor OCR heurístico local para garantizar operatividad
+ * 3) Si no hay API Key configurada, utiliza el motor OCR heurístico local
  */
 export const scanReceiptWithAI = async ({ imageBase64, fileName = '', mimeType = 'image/jpeg' }) => {
+  const todayISO = new Date().toISOString().split('T')[0];
+
   // 1. Intentar el endpoint serverless '/api/expenses/scan-receipt'
   try {
     const resp = await fetch('/api/expenses/scan-receipt', {
@@ -299,8 +375,7 @@ export const scanReceiptWithAI = async ({ imageBase64, fileName = '', mimeType =
       }
     }
   } catch {
-    // En desarrollo local con Vite puro, '/api/expenses/scan-receipt' puede no estar montado;
-    // continuamos hacia cliente directo o simulación.
+    // Continuamos hacia cliente directo o simulación
   }
 
   // 2. Intentar llamada directa con API Key en variables de entorno VITE_ o configurada en el navegador
@@ -324,7 +399,9 @@ export const scanReceiptWithAI = async ({ imageBase64, fileName = '', mimeType =
           contents: [
             {
               parts: [
-                { text: CHILEAN_TAX_SYSTEM_PROMPT },
+                {
+                  text: `${CHILEAN_TAX_SYSTEM_PROMPT}\n\nFecha actual del sistema (fallback si la fecha es ilegible): ${todayISO}`
+                },
                 { inline_data: { mime_type: mimeType, data: cleanBase64 } }
               ]
             }
@@ -363,11 +440,17 @@ export const scanReceiptWithAI = async ({ imageBase64, fileName = '', mimeType =
           response_format: { type: 'json_object' },
           temperature: 0.1,
           messages: [
-            { role: 'system', content: CHILEAN_TAX_SYSTEM_PROMPT },
+            {
+              role: 'system',
+              content: `${CHILEAN_TAX_SYSTEM_PROMPT}\nFecha actual del sistema (fallback): ${todayISO}`
+            },
             {
               role: 'user',
               content: [
-                { type: 'text', text: 'Analiza esta boleta o factura chilena y devuelve el JSON.' },
+                {
+                  type: 'text',
+                  text: 'Analiza esta boleta o factura chilena y devuelve el JSON con Neto = Math.round(Total / 1.19) e IVA = Total - Neto.'
+                },
                 { type: 'image_url', image_url: { url: imageBase64 } }
               ]
             }
@@ -389,11 +472,10 @@ export const scanReceiptWithAI = async ({ imageBase64, fileName = '', mimeType =
     }
   }
 
-  // 3. Fallback inteligente local para pruebas inmediatas sin API Key externa
+  // 3. Fallback inteligente local
   const simulated = await simulateChileanReceiptOCR(fileName);
   return {
     ...simulated,
     provider: 'smart-local-ocr'
   };
 };
-
