@@ -233,7 +233,14 @@ export default async function handler(req, res) {
       }
     };
 
-    const modelsToTry = ['gemini-2.0-flash', 'gemini-3.8-flash', 'gemini-flash-latest'];
+    const modelsToTry = [
+      'gemini-2.0-flash',
+      'gemini-3.8-flash',
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-flash-latest'
+    ];
     let lastError = '';
     let lastStatus = 500;
 
@@ -271,7 +278,8 @@ export default async function handler(req, res) {
         } catch {
           lastError = (await geminiResp.text()) || `HTTP ${geminiResp.status}`;
         }
-        if (geminiResp.status !== 404) {
+        // Si es un error de autenticación (401/403), no seguir intentando otros modelos
+        if (geminiResp.status === 401 || geminiResp.status === 403) {
           break;
         }
       }
