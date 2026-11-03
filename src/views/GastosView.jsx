@@ -208,8 +208,8 @@ const GastosView = () => {
       setScanProviderBadge('');
       setScanError('');
 
-      // Comprime la imagen en cliente: máx 1200px (ancho/alto) y formato image/jpeg calidad 0.75 (< 400KB)
-      const compressedBase64 = await compressReceiptImage(file, 1200, 0.75);
+      // Comprime la imagen en cliente agresivamente: máx 800px (ancho/alto) y formato image/jpeg calidad 0.65 (~120KB)
+      const compressedBase64 = await compressReceiptImage(file, 800, 0.65);
       const mimeType = 'image/jpeg';
 
       setFormData((prev) => ({
