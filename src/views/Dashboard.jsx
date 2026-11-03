@@ -28,43 +28,65 @@ const Dashboard = () => {
   const kpis = useMemo(() => {
     let cotizadoCount = 0;
     let cotizadoMonto = 0;
+    let cotizadoNeto = 0;
+    let cotizadoIva = 0;
+
     let aprobadoCount = 0;
     let aprobadoMonto = 0;
+    let aprobadoNeto = 0;
+    let aprobadoIva = 0;
+
     let porCobrarCount = 0;
     let porCobrarMonto = 0;
+    let porCobrarNeto = 0;
+    let porCobrarIva = 0;
+
     let pagadoCount = 0;
     let pagadoMonto = 0;
+    let pagadoNeto = 0;
+    let pagadoIva = 0;
 
-    const getFinalTotal = (s) => {
+    const getServiceAmounts = (s) => {
        const subtotalBruto = (cotizaciones || []).filter(c => c.servicioId === s.idServicio).reduce((acc, curr) => acc + (curr.subtotal || 0), 0);
        const descuentoMonto = subtotalBruto * ((s.descuento || 0) / 100);
        const neto = subtotalBruto - descuentoMonto;
-       return neto * 1.19; // IVA
+       const iva = neto * 0.19;
+       const total = neto * 1.19; // Bruto (Total con IVA)
+       return { neto, iva, total };
     };
 
     filteredServicios.forEach(s => {
-      const finalTotal = getFinalTotal(s);
+      const { neto, iva, total } = getServiceAmounts(s);
       
       if (s.etapa === 'Cotizado') {
         cotizadoCount++;
-        cotizadoMonto += finalTotal;
+        cotizadoMonto += total;
+        cotizadoNeto += neto;
+        cotizadoIva += iva;
       } else if (s.etapa === 'Aprobado') {
         aprobadoCount++;
-        aprobadoMonto += finalTotal;
+        aprobadoMonto += total;
+        aprobadoNeto += neto;
+        aprobadoIva += iva;
       } else if (s.etapa === 'Por Cobrar') {
         porCobrarCount++;
-        porCobrarMonto += finalTotal;
+        const factor = s.pagoAdelanto ? 0.5 : 1;
+        porCobrarMonto += total * factor;
+        porCobrarNeto += neto * factor;
+        porCobrarIva += iva * factor;
       } else if (s.etapa === 'Pagado') {
         pagadoCount++;
-        pagadoMonto += finalTotal;
+        pagadoMonto += total;
+        pagadoNeto += neto;
+        pagadoIva += iva;
       }
     });
 
     return { 
-      cotizadoCount, cotizadoMonto, 
-      aprobadoCount, aprobadoMonto, 
-      porCobrarCount, porCobrarMonto, 
-      pagadoCount, pagadoMonto 
+      cotizadoCount, cotizadoMonto, cotizadoNeto, cotizadoIva,
+      aprobadoCount, aprobadoMonto, aprobadoNeto, aprobadoIva,
+      porCobrarCount, porCobrarMonto, porCobrarNeto, porCobrarIva,
+      pagadoCount, pagadoMonto, pagadoNeto, pagadoIva
     };
   }, [filteredServicios, cotizaciones]);
 
@@ -160,6 +182,9 @@ const Dashboard = () => {
           <div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>Cotizaciones Activas ({kpis.cotizadoCount})</p>
             <h2 style={{ fontSize: '1.4rem' }}>{formatCurrency(kpis.cotizadoMonto)}</h2>
+            <p className="text-xs text-slate-400" style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+              Neto: {formatCurrency(kpis.cotizadoNeto)} | IVA (19%): {formatCurrency(kpis.cotizadoIva)}
+            </p>
           </div>
         </div>
 
@@ -176,6 +201,9 @@ const Dashboard = () => {
           <div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>Trabajos Aprobados ({kpis.aprobadoCount})</p>
             <h2 style={{ fontSize: '1.4rem' }}>{formatCurrency(kpis.aprobadoMonto)}</h2>
+            <p className="text-xs text-slate-400" style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+              Neto: {formatCurrency(kpis.aprobadoNeto)} | IVA (19%): {formatCurrency(kpis.aprobadoIva)}
+            </p>
           </div>
         </div>
 
@@ -192,6 +220,9 @@ const Dashboard = () => {
           <div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>Trabajos Por Cobrar ({kpis.porCobrarCount})</p>
             <h2 style={{ fontSize: '1.4rem' }}>{formatCurrency(kpis.porCobrarMonto)}</h2>
+            <p className="text-xs text-slate-400" style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+              Neto: {formatCurrency(kpis.porCobrarNeto)} | IVA (19%): {formatCurrency(kpis.porCobrarIva)}
+            </p>
           </div>
         </div>
 
@@ -208,6 +239,9 @@ const Dashboard = () => {
           <div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '0.2rem' }}>Pagados Completados ({kpis.pagadoCount})</p>
             <h2 style={{ fontSize: '1.4rem' }}>{formatCurrency(kpis.pagadoMonto)}</h2>
+            <p className="text-xs text-slate-400" style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+              Neto: {formatCurrency(kpis.pagadoNeto)} | IVA (19%): {formatCurrency(kpis.pagadoIva)}
+            </p>
           </div>
         </div>
 
