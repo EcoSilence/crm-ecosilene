@@ -1,59 +1,19 @@
 /**
  * Vercel Serverless API Route: POST /api/expenses/scan-receipt
- * Escaneo inteligente de boletas, facturas y comprobantes chilenos (SII / Transbank / Redelcom)
- * usando IA Multimodal (Gemini Flash o OpenAI GPT-4o-mini con JSON estructurado).
+ * Escaneo real de boletas, facturas y comprobantes chilenos (SII) con Google Gemini 2.0 Flash Vision.
+ * Sin datos mock ni simulaciones locales.
  */
 
-export const CHILEAN_TAX_SYSTEM_PROMPT = `Eres un contador auditor experto en tributación chilena (SII - Servicio de Impuestos Internos).
-Tu tarea es analizar la imagen de un documento tributario o comprobante de pago chileno y extraer sus datos estructurados en formato JSON estricto.
-
-REGLAS ESTRICTAS DE EXTRACCIÓN TRIBUTARIA (CHILE - SII):
-
-1. "tipoDocumento": Clasifica obligatoriamente en uno de estos 4 valores exactos:
-   - "Boleta Electrónica"
-   - "Factura Electrónica"
-   - "Voucher Transbank" (incluye vouchers Transbank, Redelcom, Getnet, Compraquí o POS)
-   - "Comprobante de Transferencia"
-
-2. REGLA DE NORMALIZACIÓN DE FECHA ("fecha"):
-   - Busca la fecha de emisión o transacción en el documento.
-   - Si la fecha aparece como DD/MM/AAAA (ej. 03/11/2026), DD-MM-AA (ej. 03-11-26), DD/MM/AA, o en texto en español (ej. "03 de Noviembre de 2026", "03 NOV 2026"), conviértela OBLIGATORIAMENTE al formato ISO "AAAA-MM-DD" (ej. "2026-11-03").
-   - Si la fecha es ilegible o no aparece en la imagen, utiliza como fallback la fecha actual del sistema en formato "AAAA-MM-DD".
-
-3. "rutEmisor" y "razonSocial":
-   - Extrae el RUT del comercio/emisor en formato chileno (ej. "76.123.456-7"). Si no es visible, devuelve "".
-   - Extrae el nombre comercial o Razón Social del proveedor/comercio.
-
-4. REGLA DE IVA PARA CHILE (SII) ("total", "neto", "iva", "exento"):
-   - Todos los montos deben ser números enteros en Pesos Chilenos ($ CLP), sin puntos ni símbolos de moneda.
-   - Si el documento es "Factura Electrónica" y muestra explícitamente el desglose de IVA (19%), extrae ese valor exacto de IVA y el monto Neto indicado.
-   - Si el documento es "Boleta Electrónica", "Voucher Transbank" (Transbank / Redelcom / POS) o ticket de consumo donde solo aparece el "TOTAL", DEBES asumir que el IVA del 19% ya está incluido en el Total y calcular matemáticamente:
-     * neto = Math.round(total / 1.19)
-     * iva = total - neto
-   - NUNCA devuelvas "iva" en 0 o null a menos que el documento declare explícitamente en su texto ser "Exento de IVA" ("BOLETA NO AFECTA O EXENTA ELECTRÓNICA" / "FACTURA NO AFECTA O EXENTA").
-   - "exento": true ÚNICAMENTE si el documento declara explícitamente en el texto ser "Exento de IVA"; en cualquier otro caso devuelve false.
-
-5. "categoria": Auto-clasifica la categoría contable según el comercio:
-   - Si es Copec, Shell, Petrobras, Aramco, bencina, peaje o TAG -> "Transporte / Bencina"
-   - Si es restaurante, cafetería o supermercado -> "Alimentación / Viáticos"
-   - Si es audio, ferretería, cables o tecnología -> "Insumos Técnicos / Mantenimiento"
-   - Si no encaja en las anteriores -> "Otros Gastos"
-
-Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura exacta:
-{
-  "tipoDocumento": "Boleta Electrónica",
-  "fecha": "2026-11-03",
-  "rutEmisor": "76.543.210-K",
-  "razonSocial": "Nombre del Comercio",
-  "resumenItems": "Resumen corto de ítems",
-  "descripcion": "Nombre del Comercio — Resumen corto de ítems",
-  "categoria": "Insumos Técnicos / Mantenimiento",
-  "total": 119000,
-  "neto": 100000,
-  "iva": 19000,
-  "exento": false,
-  "confianza": 0.98
-}`;
+export const CHILEAN_TAX_SYSTEM_PROMPT = `Eres un auditor contable experto en Chile (SII). Analiza la imagen del comprobante y extrae en formato JSON estricto:
+- razonSocial: Nombre real del comercio o empresa visible en la imagen.
+- rutEmisor: RUT del emisor visible (formato XX.XXX.XXX-X).
+- tipoDoc: Clasificar entre 'Boleta Electrónica', 'Factura Electrónica', 'Voucher Transbank' o 'Transferencia'.
+- fecha: Fecha del comprobante en formato YYYY-MM-DD.
+- montoTotal: Número entero en CLP.
+- montoNeto: Si aparece en el ticket úsalo; si solo aparece el total, calcular Math.round(montoTotal / 1.19).
+- iva: Si aparece en el ticket úsalo; si no, calcular montoTotal - montoNeto.
+- categoria: Clasificar según el giro (Gimnasio/Fitness, Bencina/Transporte, Alimentación, Herramientas, etc.).
+- descripcion: Breve resumen real de los ítems o concepto visible en el comprobante.`;
 
 const SPANISH_MONTHS = {
   enero: '01', ene: '01',
@@ -70,9 +30,6 @@ const SPANISH_MONTHS = {
   diciembre: '12', dic: '12'
 };
 
-/**
- * Convierte cualquier valor numérico o string formateado en CLP (ej. "$45.990", "45.990", 45990) a entero
- */
 export function parseCLPAmount(val) {
   if (typeof val === 'number' && !Number.isNaN(val)) {
     return Math.max(0, Math.round(val));
@@ -84,16 +41,12 @@ export function parseCLPAmount(val) {
   return 0;
 }
 
-/**
- * Normaliza fechas en formatos chilenos (DD/MM/AAAA, DD-MM-AA, texto en español) a ISO 'AAAA-MM-DD'
- */
 export function normalizeChileanDate(rawDate) {
   const today = new Date().toISOString().split('T')[0];
   if (!rawDate) return today;
 
   const str = String(rawDate).trim();
 
-  // 1. Ya está en formato ISO AAAA-MM-DD (o con timestamp)
   const isoMatch = str.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
   if (isoMatch) {
     const [, yyyy, mm, dd] = isoMatch;
@@ -104,10 +57,9 @@ export function normalizeChileanDate(rawDate) {
     }
   }
 
-  // 2. Formato DD/MM/AAAA o DD-MM-AA o DD.MM.AAAA
   const dmyMatch = str.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/);
   if (dmyMatch) {
-    let [, dd, mm, yy] = dmyMatch;
+    const [, dd, mm, yy] = dmyMatch;
     const yearNum = yy.length === 2 ? 2000 + parseInt(yy, 10) : parseInt(yy, 10);
     const m = parseInt(mm, 10);
     const d = parseInt(dd, 10);
@@ -116,7 +68,6 @@ export function normalizeChileanDate(rawDate) {
     }
   }
 
-  // 3. Fecha en texto español (ej. "03 de Noviembre 2026", "3 nov 26", "03-nov-2026")
   const textMatch = str
     .toLowerCase()
     .match(/(\d{1,2})\s*(?:de|-|\s)\s*([a-záéíóú]+)\s*(?:de|del|-|,|\s)?\s*(\d{2,4})/);
@@ -135,49 +86,28 @@ export function normalizeChileanDate(rawDate) {
   return today;
 }
 
-/**
- * Normaliza y valida los montos e información devuelta por el modelo de visión
- * aplicando el cálculo de respaldo obligatorio de Neto e IVA (19% Chile).
- */
 export function normalizeExtractedReceipt(raw = {}) {
-  const validDocTypes = [
-    'Boleta Electrónica',
-    'Factura Electrónica',
-    'Voucher Transbank',
-    'Comprobante de Transferencia'
-  ];
-
-  const validCategories = [
-    'Transporte / Bencina',
-    'Alimentación / Viáticos',
-    'Insumos Técnicos / Mantenimiento',
-    'Otros Gastos'
-  ];
-
-  let tipoDocumento = raw.tipoDocumento;
-  if (!validDocTypes.includes(tipoDocumento)) {
-    const rawDocLower = String(tipoDocumento || '').toLowerCase();
-    if (rawDocLower.includes('factura')) tipoDocumento = 'Factura Electrónica';
-    else if (rawDocLower.includes('transbank') || rawDocLower.includes('redelcom') || rawDocLower.includes('voucher'))
-      tipoDocumento = 'Voucher Transbank';
-    else if (rawDocLower.includes('transferencia')) tipoDocumento = 'Comprobante de Transferencia';
-    else tipoDocumento = 'Boleta Electrónica';
+  const rawDoc = String(raw.tipoDoc || raw.tipoDocumento || '').trim();
+  let tipoDocumento = 'Boleta Electrónica';
+  const lowerDoc = rawDoc.toLowerCase();
+  if (lowerDoc.includes('factura')) {
+    tipoDocumento = 'Factura Electrónica';
+  } else if (lowerDoc.includes('transbank') || lowerDoc.includes('redelcom') || lowerDoc.includes('voucher')) {
+    tipoDocumento = 'Voucher Transbank';
+  } else if (lowerDoc.includes('transferencia')) {
+    tipoDocumento = 'Transferencia';
+  } else if (rawDoc) {
+    tipoDocumento = rawDoc;
   }
 
-  const total = parseCLPAmount(raw.total);
-  let neto = parseCLPAmount(raw.neto);
+  const total = parseCLPAmount(raw.montoTotal ?? raw.total);
+  let neto = parseCLPAmount(raw.montoNeto ?? raw.neto);
   let iva = parseCLPAmount(raw.iva);
 
-  // Solo se considera exento si el documento declara explícitamente ser Exento de IVA
   const isExplicitlyExempt =
     raw.exento === true &&
-    /exent[oa]|no afecta/i.test(
-      `${raw.tipoDocumento || ''} ${raw.descripcion || ''} ${raw.resumenItems || ''}`
-    );
+    /exent[oa]|no afecta/i.test(`${rawDoc} ${raw.descripcion || ''}`);
 
-  // Verificación y fallback obligatorio en el backend:
-  // Si total tiene valor pero iva o neto llegan como 0 o undefined (o inconsistentes),
-  // aplica el cálculo matemático chileno: neto = Math.round(total / 1.19), iva = total - neto
   if (total > 0) {
     if (isExplicitlyExempt) {
       neto = total;
@@ -186,181 +116,137 @@ export function normalizeExtractedReceipt(raw = {}) {
       neto = Math.round(total / 1.19);
       iva = total - neto;
     }
-  } else if (neto > 0) {
-    // Si solo llegó neto y no total
-    if (!iva || iva <= 0) {
-      iva = Math.round(neto * 0.19);
-    }
+  } else if (neto > 0 && (!iva || iva <= 0)) {
+    iva = Math.round(neto * 0.19);
   }
 
-  const razonSocial = String(raw.razonSocial || 'Comercio').trim();
-  const resumenItems = String(raw.resumenItems || 'Compra según comprobante').trim();
+  const razonSocial = String(raw.razonSocial || '').trim();
+  const detalle = String(raw.descripcion || raw.resumenItems || '').trim();
   const descripcion =
-    raw.descripcion && String(raw.descripcion).trim().length > 0
-      ? String(raw.descripcion).trim()
-      : `${razonSocial} — ${resumenItems}`;
+    razonSocial && detalle && !detalle.toLowerCase().includes(razonSocial.toLowerCase())
+      ? `${razonSocial} — ${detalle}`
+      : detalle || razonSocial || 'Comprobante escaneado';
 
-  let categoria = raw.categoria;
-  if (!validCategories.includes(categoria)) {
-    const lowerText = `${razonSocial} ${resumenItems} ${descripcion}`.toLowerCase();
-    if (/copec|shell|petrobras|aramco|bencina|combustible|peaje|tag|uber|cabify/.test(lowerText)) {
-      categoria = 'Transporte / Bencina';
-    } else if (/restauran|cafe|cafeter|starbucks|supermercado|lider|jumbo|unimarc|colacion|almuerzo|comida/.test(lowerText)) {
-      categoria = 'Alimentación / Viáticos';
-    } else if (/audio|cable|ferreter|sodimac|easy|casa royal|audiomusica|pcfactory|tecnolog|bateria|pila|transmisor|antena/.test(lowerText)) {
-      categoria = 'Insumos Técnicos / Mantenimiento';
-    } else {
-      categoria = 'Otros Gastos';
-    }
-  }
-
+  const categoria = String(raw.categoria || 'Otros Gastos').trim();
   const fecha = normalizeChileanDate(raw.fecha);
 
   return {
+    razonSocial,
+    rutEmisor: String(raw.rutEmisor || '').trim(),
+    tipoDoc: tipoDocumento,
     tipoDocumento,
     fecha,
-    rutEmisor: String(raw.rutEmisor || '').trim(),
-    razonSocial,
-    resumenItems,
-    descripcion,
-    categoria,
+    montoTotal: total || (neto + iva),
+    montoNeto: neto,
     total: total || (neto + iva),
     neto,
     iva,
-    exento: isExplicitlyExempt,
-    confianza: Number(raw.confianza) || 0.96
+    categoria,
+    descripcion
   };
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed. Use POST.' });
+    return res.status(405).json({ ok: false, error: 'Method Not Allowed. Use POST.' });
   }
 
   try {
-    const { imageBase64, imageUrl, mimeType = 'image/jpeg' } = req.body || {};
+    const { imageBase64, mimeType = 'image/jpeg', apiKey = '' } = req.body || {};
 
-    if (!imageBase64 && !imageUrl) {
+    if (!imageBase64) {
       return res.status(400).json({
-        error: 'Se requiere imageBase64 o imageUrl para analizar el documento.'
+        ok: false,
+        error: 'No se recibió la imagen del comprobante (imageBase64).'
       });
     }
 
-    const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY;
+    const geminiKey = (
+      apiKey ||
+      process.env.GEMINI_API_KEY ||
+      process.env.VITE_GEMINI_API_KEY ||
+      ''
+    ).trim();
+
+    if (!geminiKey) {
+      return res.status(401).json({
+        ok: false,
+        reason: 'missing_api_key',
+        error:
+          'Error de autenticación con la API: No se encontró GEMINI_API_KEY en el servidor ni en la configuración local. Haz clic en "Motor IA" para ingresar tu API Key de Google Gemini.'
+      });
+    }
+
+    const cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
+    const detectedMime =
+      imageBase64.match(/^data:([^;]+);base64,/)?.[1] || mimeType || 'image/jpeg';
     const todayISO = new Date().toISOString().split('T')[0];
 
-    // 1. Proveedor Primario: Google Gemini Flash (Multimodal JSON)
-    if (geminiKey) {
-      const cleanBase64 = imageBase64
-        ? imageBase64.replace(/^data:[^;]+;base64,/, '')
-        : null;
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
 
-      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
-
-      const parts = [
-        {
-          text: `${CHILEAN_TAX_SYSTEM_PROMPT}\n\nFecha actual del sistema (fallback si la fecha es ilegible): ${todayISO}`
-        }
-      ];
-      if (cleanBase64) {
-        parts.push({
-          inline_data: {
-            mime_type: mimeType,
-            data: cleanBase64
+    const geminiResp = await fetch(geminiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `${CHILEAN_TAX_SYSTEM_PROMPT}\nFecha actual del sistema (solo usar si la fecha es totalmente ilegible): ${todayISO}`
+              },
+              {
+                inline_data: {
+                  mime_type: detectedMime,
+                  data: cleanBase64
+                }
+              }
+            ]
           }
-        });
-      } else if (imageUrl) {
-        parts.push({ text: `Analiza la imagen del documento en esta URL: ${imageUrl}` });
-      }
-
-      const geminiResp = await fetch(geminiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts }],
-          generationConfig: {
-            temperature: 0.1,
-            responseMimeType: 'application/json'
-          }
-        })
-      });
-
-      if (!geminiResp.ok) {
-        const errText = await geminiResp.text();
-        throw new Error(`Error en Gemini Vision API (${geminiResp.status}): ${errText}`);
-      }
-
-      const geminiJson = await geminiResp.json();
-      const rawText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-      const parsed = JSON.parse(rawText);
-      return res.status(200).json({
-        ok: true,
-        provider: 'gemini-2.0-flash',
-        data: normalizeExtractedReceipt(parsed)
-      });
-    }
-
-    // 2. Proveedor Secundario: OpenAI GPT-4o-mini Vision con response_format: json_object
-    if (openaiKey) {
-      const imageContentUrl = imageBase64
-        ? (imageBase64.startsWith('data:') ? imageBase64 : `data:${mimeType};base64,${imageBase64}`)
-        : imageUrl;
-
-      const openaiResp = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${openaiKey}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          response_format: { type: 'json_object' },
+        ],
+        generationConfig: {
           temperature: 0.1,
-          messages: [
-            {
-              role: 'system',
-              content: `${CHILEAN_TAX_SYSTEM_PROMPT}\nFecha actual del sistema (fallback): ${todayISO}`
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: 'Extrae todos los campos tributarios de este documento chileno en JSON. Recuerda calcular Neto = Math.round(Total / 1.19) e IVA = Total - Neto si solo aparece el Total.'
-                },
-                { type: 'image_url', image_url: { url: imageContentUrl } }
-              ]
-            }
-          ]
-        })
-      });
+          responseMimeType: 'application/json'
+        }
+      })
+    });
 
-      if (!openaiResp.ok) {
-        const errText = await openaiResp.text();
-        throw new Error(`Error en OpenAI Vision API (${openaiResp.status}): ${errText}`);
+    if (!geminiResp.ok) {
+      let errMsg = `HTTP ${geminiResp.status}`;
+      try {
+        const errJson = await geminiResp.json();
+        errMsg = errJson?.error?.message || errMsg;
+      } catch {
+        errMsg = (await geminiResp.text()) || errMsg;
       }
-
-      const openaiJson = await openaiResp.json();
-      const rawText = openaiJson?.choices?.[0]?.message?.content || '{}';
-      const parsed = JSON.parse(rawText);
-      return res.status(200).json({
-        ok: true,
-        provider: 'gpt-4o-mini',
-        data: normalizeExtractedReceipt(parsed)
+      return res.status(geminiResp.status).json({
+        ok: false,
+        error: `No se pudo conectar con Gemini (${geminiResp.status}): ${errMsg}`
       });
     }
 
-    return res.status(503).json({
-      ok: false,
-      reason: 'missing_api_key',
-      error: 'Configura GEMINI_API_KEY o OPENAI_API_KEY en las variables de entorno del servidor.'
+    const geminiJson = await geminiResp.json();
+    const rawText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!rawText) {
+      return res.status(502).json({
+        ok: false,
+        error: 'Gemini no devolvió contenido legible para esta imagen.'
+      });
+    }
+
+    const cleanJsonText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+    const parsed = JSON.parse(cleanJsonText);
+
+    return res.status(200).json({
+      ok: true,
+      provider: 'gemini-2.0-flash',
+      data: normalizeExtractedReceipt(parsed)
     });
   } catch (error) {
     console.error('[scan-receipt] Error:', error);
     return res.status(500).json({
       ok: false,
-      error: error.message || 'Error interno al procesar la boleta/factura con IA.'
+      error: `Error al procesar la boleta con Gemini: ${error.message || 'Error desconocido'}`
     });
   }
 }

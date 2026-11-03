@@ -20,7 +20,8 @@ import {
   Tag,
   DollarSign,
   KeyRound,
-  Download
+  Download,
+  AlertTriangle
 } from 'lucide-react';
 import {
   EXPENSE_DOC_TYPES,
@@ -33,43 +34,12 @@ import {
 
 const STORAGE_KEY = 'ecosilence_gastos_registros_v1';
 
-const INITIAL_SAMPLE_EXPENSES = [
-  {
-    id: 'GAS-1001',
-    fecha: '2026-11-01',
-    tipoDocumento: 'Factura Electrónica',
-    rutEmisor: '99.520.000-7',
-    razonSocial: 'COPEC S.A.',
-    categoria: 'Transporte / Bencina',
-    descripcion: 'COPEC S.A. — Carga combustible traslado equipos evento Vitacura',
-    total: 45000,
-    neto: 37815,
-    iva: 7185,
-    comprobanteImg: '',
-    nombreArchivo: 'factura_copec_vitacura.jpg'
-  },
-  {
-    id: 'GAS-1002',
-    fecha: '2026-11-02',
-    tipoDocumento: 'Factura Electrónica',
-    rutEmisor: '96.792.430-K',
-    razonSocial: 'Sodimac Homecenter S.A.',
-    categoria: 'Insumos Técnicos / Mantenimiento',
-    descripcion: 'Sodimac Homecenter S.A. — Extensiones eléctricas, adaptadores y cinta gaffer',
-    total: 54990,
-    neto: 46210,
-    iva: 8780,
-    comprobanteImg: '',
-    nombreArchivo: 'factura_sodimac_insumos.jpg'
-  }
-];
-
 const EMPTY_FORM = {
   fecha: new Date().toISOString().split('T')[0],
   tipoDocumento: 'Boleta Electrónica',
   rutEmisor: '',
   razonSocial: '',
-  categoria: 'Insumos Técnicos / Mantenimiento',
+  categoria: 'Otros Gastos',
   descripcion: '',
   total: '',
   neto: '',
@@ -86,9 +56,9 @@ const GastosView = () => {
   const [gastos, setGastos] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : INITIAL_SAMPLE_EXPENSES;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return INITIAL_SAMPLE_EXPENSES;
+      return [];
     }
   });
 
@@ -111,17 +81,15 @@ const GastosView = () => {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProviderBadge, setScanProviderBadge] = useState('');
+  const [scanError, setScanError] = useState('');
 
   // Modal de previsualización de comprobante
   const [previewExpense, setPreviewExpense] = useState(null);
 
-  // Modal opcional para configurar API Key de Gemini / OpenAI
+  // Modal para configurar API Key de Gemini 2.0 Flash
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [geminiApiKey, setGeminiApiKey] = useState(
     () => localStorage.getItem('ecosilence_gemini_api_key') || ''
-  );
-  const [openaiApiKey, setOpenaiApiKey] = useState(
-    () => localStorage.getItem('ecosilence_openai_api_key') || ''
   );
 
   const formatCurrency = (val) => {
@@ -135,6 +103,24 @@ const GastosView = () => {
       return '$0';
     }
   };
+
+  const availableCategories = useMemo(() => {
+    const set = new Set(EXPENSE_CATEGORIES);
+    (gastos || []).forEach((g) => {
+      if (g.categoria) set.add(g.categoria);
+    });
+    if (formData.categoria) set.add(formData.categoria);
+    return Array.from(set);
+  }, [gastos, formData.categoria]);
+
+  const availableDocTypes = useMemo(() => {
+    const set = new Set(EXPENSE_DOC_TYPES);
+    (gastos || []).forEach((g) => {
+      if (g.tipoDocumento) set.add(g.tipoDocumento);
+    });
+    if (formData.tipoDocumento) set.add(formData.tipoDocumento);
+    return Array.from(set);
+  }, [gastos, formData.tipoDocumento]);
 
   const filteredGastos = useMemo(() => {
     return (gastos || [])
@@ -188,6 +174,7 @@ const GastosView = () => {
   const openNewExpenseModal = () => {
     setEditingId(null);
     setScanProviderBadge('');
+    setScanError('');
     setFormData({
       ...EMPTY_FORM,
       fecha: new Date().toISOString().split('T')[0]
@@ -198,6 +185,7 @@ const GastosView = () => {
   const openEditExpenseModal = (gasto) => {
     setEditingId(gasto.id);
     setScanProviderBadge('');
+    setScanError('');
     setFormData({
       fecha: gasto.fecha || new Date().toISOString().split('T')[0],
       tipoDocumento: gasto.tipoDocumento || 'Boleta Electrónica',
@@ -215,8 +203,8 @@ const GastosView = () => {
   };
 
   /**
-   * Procesa la imagen seleccionada o capturada por cámara, ejecuta el OCR con IA Multimodal
-   * y auto-rellena de forma reactiva todos los campos del formulario.
+   * Procesa la imagen real seleccionada o capturada y la envía a Google Gemini 2.0 Flash.
+   * Si ocurre un error de API o falta la clave, muestra el error real sin rellenar datos ficticios.
    */
   const handleReceiptFileSelected = async (e) => {
     const file = e.target.files?.[0];
@@ -225,48 +213,51 @@ const GastosView = () => {
     try {
       setIsScanning(true);
       setScanProviderBadge('');
+      setScanError('');
 
-      // 1. Comprimir y obtener Base64 para adjuntar al registro y enviar a Vision AI
+      // 1. Comprimir y obtener Base64 para adjuntar al registro y enviar a Gemini 2.0 Flash
       const compressedBase64 = await compressReceiptImage(file);
+      const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
 
-      // Mostrar de inmediato la previsualización del comprobante mientras la IA analiza
+      // Asociar la imagen original capturada al registro
       setFormData((prev) => ({
         ...prev,
         comprobanteImg: compressedBase64,
         nombreArchivo: file.name
       }));
 
-      // 2. Llamar al servicio Vision AI (/api/expenses/scan-receipt o proveedor multimodal)
+      // 2. Llamar a Google Gemini 2.0 Flash Vision
       const extracted = await scanReceiptWithAI({
         imageBase64: compressedBase64,
-        fileName: file.name,
-        mimeType: 'image/jpeg'
+        mimeType
       });
 
-      // 3. Auto-rellenado reactivo instantáneo del formulario
+      // 3. Auto-rellenado reactivo instantáneo con los datos reales de la imagen
       setFormData((prev) => ({
         ...prev,
         fecha: extracted.fecha || prev.fecha,
-        tipoDocumento: extracted.tipoDocumento || prev.tipoDocumento,
-        rutEmisor: extracted.rutEmisor || prev.rutEmisor,
+        tipoDocumento: extracted.tipoDoc || extracted.tipoDocumento || prev.tipoDocumento,
+        rutEmisor: extracted.rutEmisor ?? prev.rutEmisor,
         razonSocial: extracted.razonSocial || prev.razonSocial,
         categoria: extracted.categoria || prev.categoria,
         descripcion: extracted.descripcion || prev.descripcion,
-        total: extracted.total,
-        neto: extracted.neto,
+        total: extracted.montoTotal ?? extracted.total,
+        neto: extracted.montoNeto ?? extracted.neto,
         iva: extracted.iva,
         comprobanteImg: compressedBase64,
         nombreArchivo: file.name
       }));
 
-      setScanProviderBadge(extracted.provider || 'vision-ai');
+      setScanProviderBadge(extracted.provider || 'gemini-2.0-flash');
       addToast(
-        `Comprobante analizado con éxito (${extracted.tipoDocumento} • ${formatCurrency(extracted.total)})`,
+        `Comprobante analizado con Gemini 2.0 Flash (${extracted.razonSocial || extracted.tipoDocumento} • ${formatCurrency(extracted.total)})`,
         'success'
       );
     } catch (error) {
-      console.error('Error escaneando boleta con IA:', error);
-      addToast('No se pudo analizar automáticamente el documento. Puedes completar los campos manualmente.', 'warning');
+      console.error('Error escaneando boleta con Gemini:', error);
+      const msg = error?.message || 'No se pudo conectar con Gemini para analizar la imagen.';
+      setScanError(msg);
+      addToast(msg, 'error');
     } finally {
       setIsScanning(false);
       if (e.target) e.target.value = '';
@@ -314,13 +305,13 @@ const GastosView = () => {
     }
 
     const netoNum =
-      formData.neto !== ''
-        ? Math.round(Number(formData.neto) || 0)
-        : calculateTaxBreakdown(totalNum, formData.tipoDocumento).neto;
+      formData.neto !== '' && Number(formData.neto) > 0
+        ? Math.round(Number(formData.neto))
+        : Math.round(totalNum / 1.19);
     const ivaNum =
-      formData.iva !== ''
-        ? Math.round(Number(formData.iva) || 0)
-        : calculateTaxBreakdown(totalNum, formData.tipoDocumento).iva;
+      formData.iva !== '' && Number(formData.iva) > 0
+        ? Math.round(Number(formData.iva))
+        : totalNum - netoNum;
 
     const record = {
       id: editingId || `GAS-${Date.now().toString().slice(-5)}`,
@@ -356,9 +347,6 @@ const GastosView = () => {
     addToast('Registro de gasto eliminado.', 'info');
   };
 
-  /**
-   * Exporta los gastos filtrados a un archivo Excel (.xlsx) incluyendo estado y referencia del comprobante
-   */
   const handleExportExcel = () => {
     if (filteredGastos.length === 0) {
       addToast('No hay gastos para exportar en el filtro actual.', 'warning');
@@ -391,29 +379,30 @@ const GastosView = () => {
     e.preventDefault();
     if (geminiApiKey.trim()) {
       localStorage.setItem('ecosilence_gemini_api_key', geminiApiKey.trim());
+      setScanError('');
+      addToast('API Key de Google Gemini 2.0 Flash guardada correctamente.', 'success');
     } else {
       localStorage.removeItem('ecosilence_gemini_api_key');
-    }
-    if (openaiApiKey.trim()) {
-      localStorage.setItem('ecosilence_openai_api_key', openaiApiKey.trim());
-    } else {
-      localStorage.removeItem('ecosilence_openai_api_key');
+      addToast('API Key local eliminada (se usará GEMINI_API_KEY del servidor si existe).', 'info');
     }
     setIsApiKeyModalOpen(false);
-    addToast('Credenciales de Vision AI guardadas correctamente.', 'success');
   };
 
-  const getCategoryBadgeStyle = (cat) => {
-    switch (cat) {
-      case 'Transporte / Bencina':
-        return { background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' };
-      case 'Alimentación / Viáticos':
-        return { background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24' };
-      case 'Insumos Técnicos / Mantenimiento':
-        return { background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
-      default:
-        return { background: 'rgba(148, 163, 184, 0.15)', color: '#cbd5e1' };
+  const getCategoryBadgeStyle = (cat = '') => {
+    const lower = String(cat).toLowerCase();
+    if (lower.includes('transporte') || lower.includes('bencina')) {
+      return { background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' };
     }
+    if (lower.includes('alimenta') || lower.includes('viático') || lower.includes('viatico')) {
+      return { background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24' };
+    }
+    if (lower.includes('insumo') || lower.includes('herramienta') || lower.includes('manten')) {
+      return { background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
+    }
+    if (lower.includes('gimnasio') || lower.includes('fitness')) {
+      return { background: 'rgba(168, 85, 247, 0.18)', color: '#c084fc' };
+    }
+    return { background: 'rgba(148, 163, 184, 0.15)', color: '#cbd5e1' };
   };
 
   return (
@@ -441,11 +430,11 @@ const GastosView = () => {
                 fontWeight: 600
               }}
             >
-              OCR Vision AI
+              Gemini 2.0 Flash OCR
             </span>
           </h1>
           <p style={{ color: 'var(--text-muted)' }}>
-            Escaneo inteligente de boletas, facturas electrónicas SII y vouchers con extracción tributaria automática.
+            Escaneo inteligente de boletas, facturas electrónicas SII y vouchers con extracción tributaria en vivo.
           </p>
         </div>
 
@@ -453,9 +442,9 @@ const GastosView = () => {
           <button
             className="btn btn-ghost"
             onClick={() => setIsApiKeyModalOpen(true)}
-            title="Configurar API Key de Gemini Flash o GPT-4o-mini"
+            title="Configurar API Key de Google Gemini 2.0 Flash"
           >
-            <KeyRound size={17} /> Motor IA
+            <KeyRound size={17} /> Motor IA (Gemini Key)
           </button>
 
           <button className="btn btn-ghost" onClick={handleExportExcel}>
@@ -561,7 +550,7 @@ const GastosView = () => {
                 onChange={(e) => setSelectedCategory(e.target.value)}
               >
                 <option value="Todas">Todas las Categorías</option>
-                {EXPENSE_CATEGORIES.map((c) => (
+                {availableCategories.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -588,7 +577,7 @@ const GastosView = () => {
                 onChange={(e) => setSelectedDocType(e.target.value)}
               >
                 <option value="Todos">Todos los Documentos</option>
-                {EXPENSE_DOC_TYPES.map((d) => (
+                {availableDocTypes.map((d) => (
                   <option key={d} value={d}>
                     {d}
                   </option>
@@ -714,7 +703,7 @@ const GastosView = () => {
               {filteredGastos.length === 0 && (
                 <tr>
                   <td colSpan={10} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
-                    No se encontraron registros de gastos para los filtros seleccionados.
+                    No hay gastos registrados aún. Haz clic en "+ Registrar Nuevo Gasto" para escanear una boleta con IA.
                   </td>
                 </tr>
               )}
@@ -723,7 +712,7 @@ const GastosView = () => {
         </div>
       </div>
 
-      {/* MODAL: + Registrar Nuevo Gasto con Auto-Escaneo IA */}
+      {/* MODAL: + Registrar Nuevo Gasto con Auto-Escaneo IA (Google Gemini 2.0 Flash) */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => !isScanning && setIsModalOpen(false)}>
           <div
@@ -745,7 +734,7 @@ const GastosView = () => {
                   {editingId ? 'Editar Registro de Gasto' : '+ Registrar Nuevo Gasto'}
                 </h2>
                 <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                  Escanea una boleta o factura con IA para autocompletar los campos o edítalos manualmente.
+                  Escanea una boleta o factura real con Gemini 2.0 Flash para autocompletar los campos.
                 </p>
               </div>
               <button
@@ -797,25 +786,23 @@ const GastosView = () => {
                   </div>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      Lectura Tributaria Automática (SII Chile)
+                      Google Gemini 2.0 Flash Vision (SII Chile)
                       <Sparkles size={14} color="#fbbf24" />
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      Detecta Boleta, Factura, Transbank o Transferencia y desglosa Neto + IVA (19%).
+                      Extrae comercio real, RUT, fecha y calcula Neto + IVA (19%) directamente de tu foto.
                     </div>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-                  {/* Input oculto para subir archivo / galería */}
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/*"
                     style={{ display: 'none' }}
                     onChange={handleReceiptFileSelected}
                   />
-                  {/* Input oculto para tomar foto directa desde cámara del celular */}
                   <input
                     ref={cameraInputRef}
                     type="file"
@@ -850,7 +837,7 @@ const GastosView = () => {
                 </div>
               </div>
 
-              {/* Estado de carga visual requerido */}
+              {/* Estado de carga visual */}
               {isScanning && (
                 <div
                   style={{
@@ -877,6 +864,43 @@ const GastosView = () => {
                   <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#e2e8f0' }}>
                     Analizando documento y extrayendo montos...
                   </span>
+                </div>
+              )}
+
+              {/* Alerta de error real de conexión / API Key */}
+              {scanError && !isScanning && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '0.8rem',
+                    padding: '0.85rem 1rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(239, 68, 68, 0.14)',
+                    border: '1px solid var(--color-tomato)',
+                    color: '#fca5a5',
+                    fontSize: '0.83rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1 }}>
+                    <AlertTriangle size={18} color="var(--color-tomato)" style={{ flexShrink: 0 }} />
+                    <span>{scanError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{
+                      padding: '0.35rem 0.75rem',
+                      fontSize: '0.78rem',
+                      borderColor: 'rgba(239, 68, 68, 0.4)',
+                      color: '#fff'
+                    }}
+                    onClick={() => setIsApiKeyModalOpen(true)}
+                  >
+                    <KeyRound size={14} /> Configurar API Key
+                  </button>
                 </div>
               )}
 
@@ -968,7 +992,7 @@ const GastosView = () => {
                     value={formData.tipoDocumento}
                     onChange={(e) => handleDocTypeChange(e.target.value)}
                   >
-                    {EXPENSE_DOC_TYPES.map((docType) => (
+                    {availableDocTypes.map((docType) => (
                       <option key={docType} value={docType}>
                         {docType}
                       </option>
@@ -985,7 +1009,7 @@ const GastosView = () => {
                   <input
                     type="text"
                     className="input-control"
-                    placeholder="Ej: COPEC S.A., Sodimac, Casa Royal..."
+                    placeholder="Nombre del comercio extraído de la boleta"
                     value={formData.razonSocial}
                     onChange={(e) => handleRazonSocialChange(e.target.value)}
                   />
@@ -996,7 +1020,7 @@ const GastosView = () => {
                   <input
                     type="text"
                     className="input-control"
-                    placeholder="Ej: 76.123.456-7"
+                    placeholder="XX.XXX.XXX-X"
                     value={formData.rutEmisor}
                     onChange={(e) => setFormData((prev) => ({ ...prev, rutEmisor: e.target.value }))}
                   />
@@ -1005,19 +1029,21 @@ const GastosView = () => {
 
               <div className="input-group" style={{ marginBottom: '0.8rem' }}>
                 <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Tag size={14} /> Categoría Contable (Auto-clasificada)
+                  <Tag size={14} /> Categoría Contable (Auto-clasificada por giro)
                 </label>
-                <select
+                <input
+                  type="text"
+                  list="expense-categories-list"
                   className="input-control"
+                  placeholder="Ej: Gimnasio/Fitness, Transporte / Bencina, Alimentación..."
                   value={formData.categoria}
                   onChange={(e) => setFormData((prev) => ({ ...prev, categoria: e.target.value }))}
-                >
-                  {EXPENSE_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
+                />
+                <datalist id="expense-categories-list">
+                  {availableCategories.map((cat) => (
+                    <option key={cat} value={cat} />
                   ))}
-                </select>
+                </datalist>
               </div>
 
               <div className="input-group" style={{ marginBottom: '1rem' }}>
@@ -1026,7 +1052,7 @@ const GastosView = () => {
                   type="text"
                   className="input-control"
                   required
-                  placeholder="Ej: Sodimac Homecenter S.A. — Cables eléctricos y cinta gaffer"
+                  placeholder="Resumen real del gasto extraído de la boleta"
                   value={formData.descripcion}
                   onChange={(e) => setFormData((prev) => ({ ...prev, descripcion: e.target.value }))}
                 />
@@ -1158,7 +1184,7 @@ const GastosView = () => {
         </div>
       )}
 
-      {/* MODAL OPCIONAL: Configurar API Key de Vision AI */}
+      {/* MODAL: Configurar API Key de Google Gemini 2.0 Flash */}
       {isApiKeyModalOpen && (
         <div className="modal-overlay" onClick={() => setIsApiKeyModalOpen(false)}>
           <div
@@ -1168,20 +1194,19 @@ const GastosView = () => {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <KeyRound size={20} color="var(--accent-primary)" /> Configurar Motor Vision AI
+                <KeyRound size={20} color="var(--accent-primary)" /> Configurar Google Gemini 2.0 Flash
               </h3>
               <button className="btn btn-ghost" style={{ padding: '0.4rem' }} onClick={() => setIsApiKeyModalOpen(false)}>
                 <X size={18} />
               </button>
             </div>
             <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginBottom: '1.2rem' }}>
-              El endpoint <code>/api/expenses/scan-receipt</code> utiliza las variables de entorno del servidor (
-              <code>GEMINI_API_KEY</code> o <code>OPENAI_API_KEY</code>). También puedes ingresar una clave aquí para uso
-              directo desde tu navegador:
+              El escáner utiliza <code>gemini-2.0-flash</code> leyendo <code>process.env.GEMINI_API_KEY</code> en el
+              servidor o la clave que guardes aquí en tu navegador:
             </p>
             <form onSubmit={handleSaveApiKeys}>
               <div className="input-group">
-                <label className="input-label">Google Gemini API Key (Gemini 2.0 Flash)</label>
+                <label className="input-label">Google Gemini API Key (GEMINI_API_KEY)</label>
                 <input
                   type="password"
                   className="input-control"
@@ -1190,22 +1215,12 @@ const GastosView = () => {
                   onChange={(e) => setGeminiApiKey(e.target.value)}
                 />
               </div>
-              <div className="input-group">
-                <label className="input-label">OpenAI API Key (GPT-4o-mini JSON Vision)</label>
-                <input
-                  type="password"
-                  className="input-control"
-                  placeholder="sk-..."
-                  value={openaiApiKey}
-                  onChange={(e) => setOpenaiApiKey(e.target.value)}
-                />
-              </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.2rem' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setIsApiKeyModalOpen(false)}>
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Guardar Claves
+                  Guardar API Key
                 </button>
               </div>
             </form>
@@ -1217,4 +1232,3 @@ const GastosView = () => {
 };
 
 export default GastosView;
-
