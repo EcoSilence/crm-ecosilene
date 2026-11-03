@@ -1,7 +1,6 @@
 /**
  * Vercel Serverless API Route: POST /api/expenses/scan-receipt
- * Escaneo real de boletas, facturas y comprobantes chilenos (SII) con Google Gemini 2.0 Flash Vision.
- * Sin datos mock ni simulaciones locales.
+ * Escaneo real de boletas, facturas y comprobantes chilenos (SII) con Google Gemini Vision.
  */
 
 export const CHILEAN_TAX_SYSTEM_PROMPT = `Eres un auditor contable experto en Chile (SII). Analiza la imagen del comprobante y extrae en formato JSON estricto:
@@ -29,6 +28,43 @@ const SPANISH_MONTHS = {
   noviembre: '11', nov: '11',
   diciembre: '12', dic: '12'
 };
+
+let cachedServerKey = '';
+
+async function resolveServerGeminiKey() {
+  if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY.trim();
+  if (process.env.VITE_GEMINI_API_KEY) return process.env.VITE_GEMINI_API_KEY.trim();
+  if (cachedServerKey) return cachedServerKey;
+
+  const supabaseUrl =
+    process.env.VITE_SUPABASE_URL || 'https://aopxqymvcgaklfwqhjjv.supabase.co';
+  const supabaseAnonKey =
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcHhxeW12Y2dha2xmd3Foamp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NzI3MzQsImV4cCI6MjA5MjU0ODczNH0.BgKxvitxbIn_ZHqu9fZw_1d0IFmSlKuRqOle3n8Ngoc';
+
+  try {
+    const resp = await fetch(
+      `${supabaseUrl}/rest/v1/configuracion?clave=eq.gemini_api_key&select=valor`,
+      {
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`
+        }
+      }
+    );
+    if (resp.ok) {
+      const rows = await resp.json();
+      const val = rows?.[0]?.valor;
+      if (val && typeof val === 'string') {
+        cachedServerKey = val.trim();
+        return cachedServerKey;
+      }
+    }
+  } catch (err) {
+    console.warn('[scan-receipt] Error consultando configuracion en Supabase:', err);
+  }
+  return '';
+}
 
 export function parseCLPAmount(val) {
   if (typeof val === 'number' && !Number.isNaN(val)) {
@@ -152,7 +188,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { imageBase64, mimeType = 'image/jpeg', apiKey = '' } = req.body || {};
+    const { imageBase64, mimeType = 'image/jpeg' } = req.body || {};
 
     if (!imageBase64) {
       return res.status(400).json({
@@ -161,19 +197,12 @@ export default async function handler(req, res) {
       });
     }
 
-    const geminiKey = (
-      apiKey ||
-      process.env.GEMINI_API_KEY ||
-      process.env.VITE_GEMINI_API_KEY ||
-      ''
-    ).trim();
+    const API_KEY = await resolveServerGeminiKey();
 
-    if (!geminiKey) {
+    if (!API_KEY) {
       return res.status(401).json({
         ok: false,
-        reason: 'missing_api_key',
-        error:
-          'Error de autenticación con la API: No se encontró GEMINI_API_KEY en el servidor ni en la configuración local. Haz clic en "Motor IA" para ingresar tu API Key de Google Gemini.'
+        error: 'No se encontró GEMINI_API_KEY en el servidor.'
       });
     }
 
@@ -182,65 +211,75 @@ export default async function handler(req, res) {
       imageBase64.match(/^data:([^;]+);base64,/)?.[1] || mimeType || 'image/jpeg';
     const todayISO = new Date().toISOString().split('T')[0];
 
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
-
-    const geminiResp = await fetch(geminiEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `${CHILEAN_TAX_SYSTEM_PROMPT}\nFecha actual del sistema (solo usar si la fecha es totalmente ilegible): ${todayISO}`
-              },
-              {
-                inline_data: {
-                  mime_type: detectedMime,
-                  data: cleanBase64
-                }
+    const payload = {
+      contents: [
+        {
+          parts: [
+            {
+              text: `${CHILEAN_TAX_SYSTEM_PROMPT}\nFecha actual del sistema (solo usar si la fecha es totalmente ilegible): ${todayISO}`
+            },
+            {
+              inline_data: {
+                mime_type: detectedMime,
+                data: cleanBase64
               }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: 'application/json'
+            }
+          ]
         }
-      })
-    });
-
-    if (!geminiResp.ok) {
-      let errMsg = `HTTP ${geminiResp.status}`;
-      try {
-        const errJson = await geminiResp.json();
-        errMsg = errJson?.error?.message || errMsg;
-      } catch {
-        errMsg = (await geminiResp.text()) || errMsg;
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: 'application/json'
       }
-      return res.status(geminiResp.status).json({
-        ok: false,
-        error: `No se pudo conectar con Gemini (${geminiResp.status}): ${errMsg}`
+    };
+
+    const modelsToTry = ['gemini-2.0-flash', 'gemini-3.8-flash', 'gemini-flash-latest'];
+    let lastError = '';
+    let lastStatus = 500;
+
+    for (const modelName of modelsToTry) {
+      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`;
+
+      const geminiResp = await fetch(geminiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': API_KEY
+        },
+        body: JSON.stringify(payload)
       });
+
+      if (geminiResp.ok) {
+        const geminiJson = await geminiResp.json();
+        const rawText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (rawText) {
+          const cleanJsonText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+          const parsed = JSON.parse(cleanJsonText);
+
+          return res.status(200).json({
+            ok: true,
+            provider: modelName,
+            data: normalizeExtractedReceipt(parsed)
+          });
+        }
+      } else {
+        lastStatus = geminiResp.status;
+        try {
+          const errJson = await geminiResp.json();
+          lastError = errJson?.error?.message || `HTTP ${geminiResp.status}`;
+        } catch {
+          lastError = (await geminiResp.text()) || `HTTP ${geminiResp.status}`;
+        }
+        if (geminiResp.status !== 404) {
+          break;
+        }
+      }
     }
 
-    const geminiJson = await geminiResp.json();
-    const rawText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!rawText) {
-      return res.status(502).json({
-        ok: false,
-        error: 'Gemini no devolvió contenido legible para esta imagen.'
-      });
-    }
-
-    const cleanJsonText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-    const parsed = JSON.parse(cleanJsonText);
-
-    return res.status(200).json({
-      ok: true,
-      provider: 'gemini-2.0-flash',
-      data: normalizeExtractedReceipt(parsed)
+    return res.status(lastStatus).json({
+      ok: false,
+      error: `No se pudo conectar con Gemini (${lastStatus}): ${lastError}`
     });
   } catch (error) {
     console.error('[scan-receipt] Error:', error);

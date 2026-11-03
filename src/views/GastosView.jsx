@@ -19,7 +19,6 @@ import {
   Building2,
   Tag,
   DollarSign,
-  KeyRound,
   Download,
   AlertTriangle
 } from 'lucide-react';
@@ -85,12 +84,6 @@ const GastosView = () => {
 
   // Modal de previsualización de comprobante
   const [previewExpense, setPreviewExpense] = useState(null);
-
-  // Modal para configurar API Key de Gemini 2.0 Flash
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
-  const [geminiApiKey, setGeminiApiKey] = useState(
-    () => localStorage.getItem('ecosilence_gemini_api_key') || ''
-  );
 
   const formatCurrency = (val) => {
     try {
@@ -203,8 +196,8 @@ const GastosView = () => {
   };
 
   /**
-   * Procesa la imagen real seleccionada o capturada y la envía a Google Gemini 2.0 Flash.
-   * Si ocurre un error de API o falta la clave, muestra el error real sin rellenar datos ficticios.
+   * Envía la imagen en Base64 directamente a POST /api/expenses/scan-receipt
+   * sin comprobar localStorage ni mostrar alertas previas.
    */
   const handleReceiptFileSelected = async (e) => {
     const file = e.target.files?.[0];
@@ -215,24 +208,20 @@ const GastosView = () => {
       setScanProviderBadge('');
       setScanError('');
 
-      // 1. Comprimir y obtener Base64 para adjuntar al registro y enviar a Gemini 2.0 Flash
       const compressedBase64 = await compressReceiptImage(file);
       const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
 
-      // Asociar la imagen original capturada al registro
       setFormData((prev) => ({
         ...prev,
         comprobanteImg: compressedBase64,
         nombreArchivo: file.name
       }));
 
-      // 2. Llamar a Google Gemini 2.0 Flash Vision
       const extracted = await scanReceiptWithAI({
         imageBase64: compressedBase64,
         mimeType
       });
 
-      // 3. Auto-rellenado reactivo instantáneo con los datos reales de la imagen
       setFormData((prev) => ({
         ...prev,
         fecha: extracted.fecha || prev.fecha,
@@ -248,14 +237,14 @@ const GastosView = () => {
         nombreArchivo: file.name
       }));
 
-      setScanProviderBadge(extracted.provider || 'gemini-2.0-flash');
+      setScanProviderBadge(extracted.provider || 'gemini');
       addToast(
-        `Comprobante analizado con Gemini 2.0 Flash (${extracted.razonSocial || extracted.tipoDocumento} • ${formatCurrency(extracted.total)})`,
+        `Comprobante analizado con éxito (${extracted.razonSocial || extracted.tipoDocumento} • ${formatCurrency(extracted.total)})`,
         'success'
       );
     } catch (error) {
-      console.error('Error escaneando boleta con Gemini:', error);
-      const msg = error?.message || 'No se pudo conectar con Gemini para analizar la imagen.';
+      console.error('Error escaneando boleta con IA:', error);
+      const msg = error?.message || 'Error al analizar la imagen en el servidor.';
       setScanError(msg);
       addToast(msg, 'error');
     } finally {
@@ -264,9 +253,6 @@ const GastosView = () => {
     }
   };
 
-  /**
-   * Recalcula Neto e IVA en tiempo real cuando el usuario edita el Monto Total o el Tipo de Documento
-   */
   const handleTotalChange = (newTotalStr) => {
     const cleanVal = newTotalStr === '' ? '' : Math.max(0, Math.round(Number(newTotalStr) || 0));
     if (cleanVal === '') {
@@ -375,19 +361,6 @@ const GastosView = () => {
     addToast('Reporte contable exportado a Excel (.xlsx).', 'success');
   };
 
-  const handleSaveApiKeys = (e) => {
-    e.preventDefault();
-    if (geminiApiKey.trim()) {
-      localStorage.setItem('ecosilence_gemini_api_key', geminiApiKey.trim());
-      setScanError('');
-      addToast('API Key de Google Gemini 2.0 Flash guardada correctamente.', 'success');
-    } else {
-      localStorage.removeItem('ecosilence_gemini_api_key');
-      addToast('API Key local eliminada (se usará GEMINI_API_KEY del servidor si existe).', 'info');
-    }
-    setIsApiKeyModalOpen(false);
-  };
-
   const getCategoryBadgeStyle = (cat = '') => {
     const lower = String(cat).toLowerCase();
     if (lower.includes('transporte') || lower.includes('bencina')) {
@@ -430,7 +403,7 @@ const GastosView = () => {
                 fontWeight: 600
               }}
             >
-              Gemini 2.0 Flash OCR
+              OCR Vision AI
             </span>
           </h1>
           <p style={{ color: 'var(--text-muted)' }}>
@@ -439,14 +412,6 @@ const GastosView = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-ghost"
-            onClick={() => setIsApiKeyModalOpen(true)}
-            title="Configurar API Key de Google Gemini 2.0 Flash"
-          >
-            <KeyRound size={17} /> Motor IA (Gemini Key)
-          </button>
-
           <button className="btn btn-ghost" onClick={handleExportExcel}>
             <FileSpreadsheet size={18} color="var(--color-basil)" /> Exportar Excel
           </button>
@@ -712,7 +677,7 @@ const GastosView = () => {
         </div>
       </div>
 
-      {/* MODAL: + Registrar Nuevo Gasto con Auto-Escaneo IA (Google Gemini 2.0 Flash) */}
+      {/* MODAL: + Registrar Nuevo Gasto con Auto-Escaneo IA */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => !isScanning && setIsModalOpen(false)}>
           <div
@@ -734,7 +699,7 @@ const GastosView = () => {
                   {editingId ? 'Editar Registro de Gasto' : '+ Registrar Nuevo Gasto'}
                 </h2>
                 <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                  Escanea una boleta o factura real con Gemini 2.0 Flash para autocompletar los campos.
+                  Escanea una boleta o factura con IA para autocompletar los campos o edítalos manualmente.
                 </p>
               </div>
               <button
@@ -786,7 +751,7 @@ const GastosView = () => {
                   </div>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      Google Gemini 2.0 Flash Vision (SII Chile)
+                      Lectura Tributaria Automática (SII Chile)
                       <Sparkles size={14} color="#fbbf24" />
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -867,15 +832,13 @@ const GastosView = () => {
                 </div>
               )}
 
-              {/* Alerta de error real de conexión / API Key */}
+              {/* Alerta de error si la petición al servidor falla */}
               {scanError && !isScanning && (
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '0.8rem',
+                    gap: '0.6rem',
                     padding: '0.85rem 1rem',
                     borderRadius: 'var(--radius-sm)',
                     background: 'rgba(239, 68, 68, 0.14)',
@@ -884,23 +847,8 @@ const GastosView = () => {
                     fontSize: '0.83rem'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1 }}>
-                    <AlertTriangle size={18} color="var(--color-tomato)" style={{ flexShrink: 0 }} />
-                    <span>{scanError}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    style={{
-                      padding: '0.35rem 0.75rem',
-                      fontSize: '0.78rem',
-                      borderColor: 'rgba(239, 68, 68, 0.4)',
-                      color: '#fff'
-                    }}
-                    onClick={() => setIsApiKeyModalOpen(true)}
-                  >
-                    <KeyRound size={14} /> Configurar API Key
-                  </button>
+                  <AlertTriangle size={18} color="var(--color-tomato)" style={{ flexShrink: 0 }} />
+                  <span>{scanError}</span>
                 </div>
               )}
 
@@ -1180,50 +1128,6 @@ const GastosView = () => {
                 <Download size={16} /> Descargar Comprobante
               </a>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: Configurar API Key de Google Gemini 2.0 Flash */}
-      {isApiKeyModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsApiKeyModalOpen(false)}>
-          <div
-            className="modal-content"
-            style={{ maxWidth: '500px', padding: '1.8rem' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <KeyRound size={20} color="var(--accent-primary)" /> Configurar Google Gemini 2.0 Flash
-              </h3>
-              <button className="btn btn-ghost" style={{ padding: '0.4rem' }} onClick={() => setIsApiKeyModalOpen(false)}>
-                <X size={18} />
-              </button>
-            </div>
-            <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginBottom: '1.2rem' }}>
-              El escáner utiliza <code>gemini-2.0-flash</code> leyendo <code>process.env.GEMINI_API_KEY</code> en el
-              servidor o la clave que guardes aquí en tu navegador:
-            </p>
-            <form onSubmit={handleSaveApiKeys}>
-              <div className="input-group">
-                <label className="input-label">Google Gemini API Key (GEMINI_API_KEY)</label>
-                <input
-                  type="password"
-                  className="input-control"
-                  placeholder="AIzaSy..."
-                  value={geminiApiKey}
-                  onChange={(e) => setGeminiApiKey(e.target.value)}
-                />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.2rem' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setIsApiKeyModalOpen(false)}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Guardar API Key
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

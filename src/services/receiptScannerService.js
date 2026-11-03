@@ -1,7 +1,7 @@
 /**
- * Receipt Scanner Service (OCR Real con Google Gemini 2.0 Flash - SII Chile)
- * Servicio modular e independiente para el módulo de Gastos de EcoSilence CRM.
- * Sin datos mock ni simulaciones locales.
+ * Receipt Scanner Service (OCR Real con Google Gemini - SII Chile)
+ * Envía siempre la imagen en Base64 directamente a POST /api/expenses/scan-receipt
+ * sin bloqueos ni validaciones previas de localStorage en el cliente.
  */
 
 export const EXPENSE_DOC_TYPES = [
@@ -220,117 +220,36 @@ export const compressReceiptImage = (file, maxWidth = 1200, quality = 0.85) => {
 };
 
 /**
- * Envía la imagen directamente a Google Gemini 2.0 Flash Vision (vía endpoint o cliente directo).
- * Si falla o no hay API Key válida, lanza un Error explícito sin inventar datos falsos.
+ * Envía la imagen en Base64 directamente mediante POST a /api/expenses/scan-receipt
+ * sin verificar localStorage ni mostrar alertas previas en el cliente.
  */
 export const scanReceiptWithAI = async ({ imageBase64, mimeType = 'image/jpeg' }) => {
   if (!imageBase64) {
     throw new Error('No se proporcionó ninguna imagen para escanear.');
   }
 
-  const localGeminiKey = (
-    localStorage.getItem('ecosilence_gemini_api_key') ||
-    import.meta.env.VITE_GEMINI_API_KEY ||
-    ''
-  ).trim();
-
   const detectedMime =
     imageBase64.match(/^data:([^;]+);base64,/)?.[1] || mimeType || 'image/jpeg';
 
-  // 1. Si hay API Key configurada localmente o en VITE_GEMINI_API_KEY, llamar directo a Gemini 2.0 Flash
-  if (localGeminiKey) {
-    const cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
-    const todayISO = new Date().toISOString().split('T')[0];
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${localGeminiKey}`;
+  const serverResp = await fetch('/api/expenses/scan-receipt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      imageBase64,
+      mimeType: detectedMime
+    })
+  });
 
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `${CHILEAN_TAX_SYSTEM_PROMPT}\nFecha actual del sistema (solo usar si la fecha es totalmente ilegible): ${todayISO}`
-              },
-              {
-                inline_data: {
-                  mime_type: detectedMime,
-                  data: cleanBase64
-                }
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: 'application/json'
-        }
-      })
-    });
-
-    if (!resp.ok) {
-      let errDetail = `HTTP ${resp.status}`;
-      try {
-        const errJson = await resp.json();
-        errDetail = errJson?.error?.message || errDetail;
-      } catch {
-        errDetail = (await resp.text()) || errDetail;
-      }
-      throw new Error(`No se pudo conectar con Gemini (${resp.status}): ${errDetail}`);
-    }
-
-    const json = await resp.json();
-    const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) {
-      throw new Error('Gemini no pudo extraer texto estructurado de la imagen.');
-    }
-
-    const cleanJsonText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-    const parsed = JSON.parse(cleanJsonText);
-    return {
-      ...normalizeReceiptResponse(parsed),
-      provider: 'gemini-2.0-flash'
-    };
-  }
-
-  // 2. Si no hay clave en localStorage, intentar con el endpoint del servidor (/api/expenses/scan-receipt)
-  // que utiliza process.env.GEMINI_API_KEY en Vercel
-  let serverResp;
-  try {
-    serverResp = await fetch('/api/expenses/scan-receipt', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        imageBase64,
-        mimeType: detectedMime,
-        apiKey: localGeminiKey
-      })
-    });
-  } catch (networkErr) {
-    throw new Error(
-      `No se pudo conectar con el servidor de OCR (${networkErr.message}). Configura tu API Key de Gemini en el botón "Motor IA".`
-    );
-  }
-
-  let serverJson = null;
-  try {
-    serverJson = await serverResp.json();
-  } catch {
-    throw new Error(
-      `Error de autenticación con la API (${serverResp.status}): Configura tu GEMINI_API_KEY haciendo clic en el botón "Motor IA".`
-    );
-  }
+  const serverJson = await serverResp.json();
 
   if (!serverResp.ok || !serverJson?.ok) {
     throw new Error(
-      serverJson?.error ||
-        `Error de autenticación con la API (${serverResp.status}): No se pudo conectar con Gemini.`
+      serverJson?.error || `Error al procesar el comprobante (${serverResp.status}).`
     );
   }
 
   return {
     ...normalizeReceiptResponse(serverJson.data),
-    provider: serverJson.provider || 'gemini-2.0-flash'
+    provider: serverJson.provider || 'gemini'
   };
 };
