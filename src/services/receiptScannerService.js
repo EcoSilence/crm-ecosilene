@@ -1,7 +1,7 @@
 /**
  * Receipt Scanner Service (OCR Real con Google Gemini - SII Chile)
- * Envía siempre la imagen en Base64 directamente a POST /api/expenses/scan-receipt
- * sin bloqueos ni validaciones previas de localStorage en el cliente.
+ * Incluye compresión de imagen en cliente (máx 1200px, JPEG 0.75)
+ * y AbortController con timeout de 15 segundos.
  */
 
 export const EXPENSE_DOC_TYPES = [
@@ -195,61 +195,107 @@ export const normalizeReceiptResponse = (raw = {}) => {
   };
 };
 
-export const compressReceiptImage = (file, maxWidth = 1200, quality = 0.85) => {
+/**
+ * Redimensiona y comprime la imagen en el cliente usando HTML5 Canvas:
+ * - Ancho/Alto máximo: 1200px
+ * - Formato de salida: 'image/jpeg' con calidad 0.75 (~200-350KB)
+ */
+export const compressReceiptImage = (file, maxDimension = 1200, quality = 0.75) => {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    const safetyTimeout = setTimeout(() => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Tiempo agotado al procesar la imagen seleccionada.'));
+    }, 10000);
+
+    img.onload = () => {
+      clearTimeout(safetyTimeout);
+      try {
+        const maxSide = Math.max(img.width, img.height);
+        const scale = maxSide > maxDimension ? maxDimension / maxSide : 1;
+        const targetWidth = Math.max(1, Math.round(img.width * scale));
+        const targetHeight = Math.max(1, Math.round(img.height * scale));
+
         const canvas = document.createElement('canvas');
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const outputMime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-        const compressedBase64 = canvas.toDataURL(outputMime, quality);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, targetWidth, targetHeight);
+        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        URL.revokeObjectURL(objectUrl);
         resolve(compressedBase64);
-      };
-      img.onerror = () => reject(new Error('No se pudo leer la imagen seleccionada.'));
-      img.src = event.target.result;
+      } catch (err) {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Error al comprimir la imagen: ' + err.message));
+      }
     };
-    reader.onerror = () => reject(new Error('Error al cargar el archivo de imagen.'));
-    reader.readAsDataURL(file);
+
+    img.onerror = () => {
+      clearTimeout(safetyTimeout);
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('El formato de imagen no es compatible. Usa una foto JPG o PNG.'));
+    };
+
+    img.src = objectUrl;
   });
 };
 
 /**
- * Envía la imagen en Base64 directamente mediante POST a /api/expenses/scan-receipt
- * sin verificar localStorage ni mostrar alertas previas en el cliente.
+ * Envía la imagen comprimida a POST /api/expenses/scan-receipt con un AbortController de 15 segundos.
  */
 export const scanReceiptWithAI = async ({ imageBase64, mimeType = 'image/jpeg' }) => {
   if (!imageBase64) {
     throw new Error('No se proporcionó ninguna imagen para escanear.');
   }
 
-  const detectedMime =
-    imageBase64.match(/^data:([^;]+);base64,/)?.[1] || mimeType || 'image/jpeg';
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-  const serverResp = await fetch('/api/expenses/scan-receipt', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      imageBase64,
-      mimeType: detectedMime
-    })
-  });
+  try {
+    const serverResp = await fetch('/api/expenses/scan-receipt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imageBase64,
+        mimeType
+      }),
+      signal: controller.signal
+    });
 
-  const serverJson = await serverResp.json();
+    let serverJson = null;
+    try {
+      serverJson = await serverResp.json();
+    } catch {
+      const rawErr = await serverResp.text();
+      throw new Error(
+        `Error del servidor (${serverResp.status}): ${rawErr.slice(0, 140) || 'Respuesta inválida'}`
+      );
+    }
 
-  if (!serverResp.ok || !serverJson?.ok) {
-    throw new Error(
-      serverJson?.error || `Error al procesar el comprobante (${serverResp.status}).`
-    );
+    if (!serverResp.ok || !serverJson?.ok) {
+      throw new Error(
+        serverJson?.error || `Error del servidor (${serverResp.status}) al analizar la boleta.`
+      );
+    }
+
+    return {
+      ...normalizeReceiptResponse(serverJson.data),
+      provider: serverJson.provider || 'gemini'
+    };
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(
+        'El análisis tardó más de 15 segundos (timeout). Verifica tu conexión e inténtalo de nuevo.'
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return {
-    ...normalizeReceiptResponse(serverJson.data),
-    provider: serverJson.provider || 'gemini'
-  };
 };

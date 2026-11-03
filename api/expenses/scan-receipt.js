@@ -1,6 +1,7 @@
 /**
  * Vercel Serverless API Route: POST /api/expenses/scan-receipt
- * Escaneo real de boletas, facturas y comprobantes chilenos (SII) con Google Gemini Vision.
+ * Llamada nativa REST a Google Gemini Vision con inlineData (image/jpeg comprimida)
+ * y responseMimeType: "application/json".
  */
 
 export const CHILEAN_TAX_SYSTEM_PROMPT = `Eres un auditor contable experto en Chile (SII). Analiza la imagen del comprobante y extrae en formato JSON estricto:
@@ -95,7 +96,7 @@ export function normalizeChileanDate(rawDate) {
 
   const dmyMatch = str.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})/);
   if (dmyMatch) {
-    const [, dd, mm, yy] = dmyMatch;
+    let [, dd, mm, yy] = dmyMatch;
     const yearNum = yy.length === 2 ? 2000 + parseInt(yy, 10) : parseInt(yy, 10);
     const m = parseInt(mm, 10);
     const d = parseInt(dd, 10);
@@ -219,8 +220,8 @@ export default async function handler(req, res) {
               text: `${CHILEAN_TAX_SYSTEM_PROMPT}\nFecha actual del sistema (solo usar si la fecha es totalmente ilegible): ${todayISO}`
             },
             {
-              inline_data: {
-                mime_type: detectedMime,
+              inlineData: {
+                mimeType: detectedMime,
                 data: cleanBase64
               }
             }
@@ -233,61 +234,77 @@ export default async function handler(req, res) {
       }
     };
 
+    // Prioriza los modelos Flash más rápidos y estables para evitar timeouts de 10s en Vercel Serverless
     const modelsToTry = [
-      'gemini-2.0-flash',
-      'gemini-3.8-flash',
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
       'gemini-3.5-flash',
-      'gemini-flash-latest'
+      'gemini-3.6-flash',
+      'gemini-flash-lite-latest',
+      'gemini-2.0-flash'
     ];
     let lastError = '';
     let lastStatus = 500;
 
     for (const modelName of modelsToTry) {
-      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 7500);
 
-      const geminiResp = await fetch(geminiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': API_KEY
-        },
-        body: JSON.stringify(payload)
-      });
+      try {
+        const geminiEndpoint =
+          'https://generativelanguage.googleapis.com/v1beta/models/' +
+          modelName +
+          ':generateContent?key=' +
+          API_KEY;
 
-      if (geminiResp.ok) {
-        const geminiJson = await geminiResp.json();
-        const rawText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const geminiResp = await fetch(geminiEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': API_KEY
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
 
-        if (rawText) {
-          const cleanJsonText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-          const parsed = JSON.parse(cleanJsonText);
+        clearTimeout(timer);
 
-          return res.status(200).json({
-            ok: true,
-            provider: modelName,
-            data: normalizeExtractedReceipt(parsed)
-          });
+        if (geminiResp.ok) {
+          const geminiJson = await geminiResp.json();
+          const rawText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+          if (rawText) {
+            const cleanJsonText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+            const parsed = JSON.parse(cleanJsonText);
+
+            return res.status(200).json({
+              ok: true,
+              provider: modelName,
+              data: normalizeExtractedReceipt(parsed)
+            });
+          }
+        } else {
+          lastStatus = geminiResp.status;
+          try {
+            const errJson = await geminiResp.json();
+            lastError = errJson?.error?.message || `HTTP ${geminiResp.status}`;
+          } catch {
+            lastError = (await geminiResp.text()) || `HTTP ${geminiResp.status}`;
+          }
+          if (geminiResp.status === 401 || geminiResp.status === 403) {
+            break;
+          }
         }
-      } else {
-        lastStatus = geminiResp.status;
-        try {
-          const errJson = await geminiResp.json();
-          lastError = errJson?.error?.message || `HTTP ${geminiResp.status}`;
-        } catch {
-          lastError = (await geminiResp.text()) || `HTTP ${geminiResp.status}`;
-        }
-        // Si es un error de autenticación (401/403), no seguir intentando otros modelos
-        if (geminiResp.status === 401 || geminiResp.status === 403) {
-          break;
-        }
+      } catch (fetchErr) {
+        clearTimeout(timer);
+        lastError =
+          fetchErr.name === 'AbortError'
+            ? 'Tiempo de espera agotado consultando el modelo.'
+            : fetchErr.message;
       }
     }
 
     return res.status(lastStatus).json({
       ok: false,
-      error: `No se pudo conectar con Gemini (${lastStatus}): ${lastError}`
+      error: `No se pudo procesar la boleta con Gemini (${lastStatus}): ${lastError}`
     });
   } catch (error) {
     console.error('[scan-receipt] Error:', error);
