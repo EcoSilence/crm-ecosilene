@@ -30,8 +30,15 @@ import {
   calculateTaxBreakdown,
   classifyCategoryFromText
 } from '../services/receiptScannerService';
+import {
+  fetchCentralizedExpenses,
+  saveCentralizedExpense,
+  deleteCentralizedExpense,
+  subscribeToExpensesRealtime,
+  EXPENSES_STORAGE_KEY
+} from '../services/expensesService';
 
-const STORAGE_KEY = 'ecosilence_gastos_registros_v1';
+const STORAGE_KEY = EXPENSES_STORAGE_KEY;
 
 const EMPTY_FORM = {
   fecha: new Date().toISOString().split('T')[0],
@@ -52,6 +59,7 @@ const GastosView = () => {
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
+  // Inicializa con cache local para render instantáneo, y luego sincroniza con Supabase
   const [gastos, setGastos] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -60,14 +68,34 @@ const GastosView = () => {
       return [];
     }
   });
+  const [isLoadingGastos, setIsLoadingGastos] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Carga y sincronización reactiva con Supabase (en PC, móvil y multiusuario)
+  const loadExpenses = async (showLoading = false) => {
+    if (showLoading) setIsLoadingGastos(true);
+    try {
+      const remoteData = await fetchCentralizedExpenses();
+      setGastos(remoteData);
+    } catch (err) {
+      console.error('Error sincronizando gastos con Supabase:', err);
+    } finally {
+      if (showLoading) setIsLoadingGastos(false);
+    }
+  };
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(gastos));
-    } catch (e) {
-      console.warn('Error guardando gastos en localStorage:', e);
-    }
-  }, [gastos]);
+    loadExpenses(true);
+
+    // Suscripción en Tiempo Real con Supabase Realtime
+    const unsubscribe = subscribeToExpensesRealtime(() => {
+      loadExpenses(false);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
@@ -283,7 +311,7 @@ const GastosView = () => {
     }));
   };
 
-  const handleSaveExpense = (e) => {
+  const handleSaveExpense = async (e) => {
     e.preventDefault();
     const totalNum = Math.round(Number(formData.total) || 0);
     if (totalNum <= 0) {
@@ -301,37 +329,69 @@ const GastosView = () => {
         : totalNum - netoNum;
 
     const record = {
-      id: editingId || `GAS-${Date.now().toString().slice(-5)}`,
+      id: editingId || undefined,
       fecha: formData.fecha || new Date().toISOString().split('T')[0],
       tipoDocumento: formData.tipoDocumento,
+      tipo_doc: formData.tipoDocumento,
       rutEmisor: formData.rutEmisor.trim(),
+      rut: formData.rutEmisor.trim(),
       razonSocial: formData.razonSocial.trim() || 'Proveedor General',
+      proveedor: formData.razonSocial.trim() || 'Proveedor General',
       categoria: formData.categoria,
       descripcion:
         formData.descripcion.trim() ||
         `${formData.razonSocial.trim() || 'Gasto'} — ${formData.categoria}`,
       total: totalNum,
+      total_bruto: totalNum,
       neto: netoNum,
       iva: ivaNum,
       comprobanteImg: formData.comprobanteImg || '',
+      comprobante_url: formData.comprobanteImg || '',
       nombreArchivo: formData.nombreArchivo || ''
     };
 
-    if (editingId) {
-      setGastos((prev) => prev.map((g) => (g.id === editingId ? record : g)));
-      addToast('Gasto actualizado correctamente.', 'success');
-    } else {
-      setGastos((prev) => [record, ...prev]);
-      addToast('Gasto registrado con su comprobante contable.', 'success');
-    }
+    try {
+      setIsSaving(true);
+      // Actualización optimista inmediata en la interfaz
+      if (editingId) {
+        setGastos((prev) => prev.map((g) => (g.id === editingId ? { ...g, ...record } : g)));
+      } else {
+        setGastos((prev) => [{ ...record, id: record.id || 'temp-' + Date.now() }, ...prev]);
+      }
 
-    setIsModalOpen(false);
+      // Persistencia centralizada en la base de datos (Supabase / Backend)
+      const saved = await saveCentralizedExpense(record);
+
+      setGastos((prev) =>
+        prev.map((g) => (g.id === editingId || g.id === record.id ? saved : g))
+      );
+
+      addToast(
+        editingId ? 'Gasto actualizado en la base de datos central.' : 'Gasto sincronizado en la base de datos central.',
+        'success'
+      );
+      setIsModalOpen(false);
+      // Revalida el estado completo
+      loadExpenses(false);
+    } catch (err) {
+      console.error('Error guardando gasto en Supabase:', err);
+      addToast('Error al sincronizar con la base de datos: ' + err.message, 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDeleteExpense = (id) => {
-    if (!window.confirm('¿Eliminar este registro de gasto?')) return;
-    setGastos((prev) => prev.filter((g) => g.id !== id));
-    addToast('Registro de gasto eliminado.', 'info');
+  const handleDeleteExpense = async (id) => {
+    if (!window.confirm('¿Eliminar este registro de gasto de la base de datos central?')) return;
+    try {
+      setGastos((prev) => prev.filter((g) => g.id !== id));
+      await deleteCentralizedExpense(id);
+      addToast('Registro de gasto eliminado de la base de datos.', 'info');
+      loadExpenses(false);
+    } catch (err) {
+      console.error('Error eliminando gasto:', err);
+      addToast('Error al eliminar de la base de datos: ' + err.message, 'error');
+    }
   };
 
   const handleExportExcel = () => {
@@ -405,6 +465,22 @@ const GastosView = () => {
               }}
             >
               OCR Vision AI
+            </span>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                padding: '0.2rem 0.6rem',
+                borderRadius: '999px',
+                background: 'rgba(16, 185, 129, 0.18)',
+                color: '#34d399',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem'
+              }}
+              title="Sincronización en vivo con Supabase"
+            >
+              <CheckCircle2 size={12} /> Supabase Realtime
             </span>
           </h1>
           <p style={{ color: 'var(--text-muted)' }}>
@@ -1070,12 +1146,12 @@ const GastosView = () => {
                   type="button"
                   className="btn btn-ghost"
                   onClick={() => setIsModalOpen(false)}
-                  disabled={isScanning}
+                  disabled={isScanning || isSaving}
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={isScanning}>
-                  Guardar Gasto
+                <button type="submit" className="btn btn-primary" disabled={isScanning || isSaving}>
+                  {isSaving ? 'Guardando en Base de Datos...' : editingId ? 'Actualizar Gasto' : 'Guardar Gasto'}
                 </button>
               </div>
             </form>
