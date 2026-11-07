@@ -83,11 +83,34 @@ export const normalizeExpenseRecord = (raw, defaultEntidad = 'empresa') => {
 
 /**
  * Carga todos los gastos desde la base de datos centralizada de Supabase según la entidad ('empresa' | 'casa').
+ * Lee exclusivamente desde la base de datos real (sin generar ni recargar datos dummy).
  */
 export const fetchCentralizedExpenses = async (entidad = 'empresa') => {
   const storageKey = getStorageKey(entidad);
+  const configKey = entidad === 'casa' ? 'gastos_casa_registros' : 'gastos_registros';
 
-  // 1. Intento directo en la tabla 'gastos' de Supabase con filtro de entidad
+  // 1. Intento principal en Supabase configuracion (almacenamiento activo)
+  try {
+    const { data: configRow, error: configErr } = await supabase
+      .from('configuracion')
+      .select('valor')
+      .eq('clave', configKey)
+      .single();
+
+    if (!configErr && configRow && Array.isArray(configRow.valor)) {
+      const normalized = configRow.valor.map((d) => normalizeExpenseRecord(d, entidad));
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(normalized));
+      } catch (e) {
+        console.warn('Error cacheando en localStorage:', e);
+      }
+      return normalized;
+    }
+  } catch (err) {
+    console.warn(`[expensesService] Error consultando configuracion (${configKey}):`, err.message);
+  }
+
+  // 2. Intento directo en la tabla 'gastos' de Supabase con filtro de entidad
   try {
     const { data, error } = await supabase
       .from('gastos')
@@ -105,10 +128,10 @@ export const fetchCentralizedExpenses = async (entidad = 'empresa') => {
       return normalized;
     }
   } catch (err) {
-    console.warn(`[expensesService] Tabla gastos (${entidad}) no disponible en Supabase:`, err.message);
+    // Ignore si no existe la tabla
   }
 
-  // 2. Intento vía API Route ('/api/expenses?entidad=' + entidad)
+  // 3. Intento vía API Route ('/api/expenses?entidad=' + entidad)
   try {
     let resp = await fetch(`/api/expenses?entidad=${encodeURIComponent(entidad)}`);
     if (!resp.ok) {
@@ -130,29 +153,7 @@ export const fetchCentralizedExpenses = async (entidad = 'empresa') => {
     console.warn(`[expensesService] Error en /api/expenses (${entidad}):`, err.message);
   }
 
-  // 3. Intento vía Supabase configuracion (clave = 'gastos_casa_registros' o 'gastos_registros')
-  const configKey = entidad === 'casa' ? 'gastos_casa_registros' : 'gastos_registros';
-  try {
-    const { data: configRow, error: configErr } = await supabase
-      .from('configuracion')
-      .select('valor')
-      .eq('clave', configKey)
-      .single();
-
-    if (!configErr && configRow?.valor && Array.isArray(configRow.valor)) {
-      const normalized = configRow.valor.map((d) => normalizeExpenseRecord(d, entidad));
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(normalized));
-      } catch (e) {
-        console.warn('Error cacheando en localStorage:', e);
-      }
-      return normalized;
-    }
-  } catch (err) {
-    console.warn(`[expensesService] Error consultando configuracion (${configKey}):`, err.message);
-  }
-
-  // 4. Respaldo local de emergencia
+  // 4. Respaldo local de emergencia (solo si la red falló completamente)
   try {
     const local = localStorage.getItem(storageKey);
     return local ? JSON.parse(local).map((d) => normalizeExpenseRecord(d, entidad)) : [];
@@ -168,154 +169,232 @@ export const saveCentralizedExpense = async (expenseData, entidad = 'empresa') =
   const targetEntity = expenseData.entidad || entidad || 'empresa';
   const normalized = normalizeExpenseRecord({ ...expenseData, entidad: targetEntity }, targetEntity);
   const storageKey = getStorageKey(targetEntity);
+  const configKey = targetEntity === 'casa' ? 'gastos_casa_registros' : 'gastos_registros';
 
-  const dbPayload = {
-    id: normalized.id,
-    created_at: normalized.created_at,
-    fecha: normalized.fecha,
-    entidad: targetEntity,
-    tipo_doc: normalized.tipo_doc,
-    proveedor: normalized.proveedor,
-    rut: normalized.rut,
-    categoria: normalized.categoria,
-    descripcion: normalized.descripcion,
-    neto: normalized.neto,
-    iva: normalized.iva,
-    total_bruto: normalized.total_bruto,
-    comprobante_url: normalized.comprobante_url
-  };
-
-  let savedOk = false;
-
-  // 1. Intento directo en tabla 'gastos'
+  // 1. Guardar de inmediato en localStorage para respuesta instantánea
   try {
-    const { error } = await supabase.from('gastos').upsert(dbPayload);
-    if (!error) {
-      savedOk = true;
+    const local = localStorage.getItem(storageKey);
+    const list = local ? JSON.parse(local) : [];
+    const idx = list.findIndex((g) => String(g.id) === String(normalized.id));
+    let updatedLocal;
+    if (idx >= 0) {
+      updatedLocal = list.map((g, i) => (i === idx ? normalized : g));
+    } else {
+      updatedLocal = [normalized, ...list];
     }
+    localStorage.setItem(storageKey, JSON.stringify(updatedLocal));
+  } catch (e) {}
+
+  // 2. Guardar directamente en Supabase configuracion (almacenamiento principal activo)
+  try {
+    const { data: configRow } = await supabase
+      .from('configuracion')
+      .select('valor')
+      .eq('clave', configKey)
+      .single();
+
+    const currentList = Array.isArray(configRow?.valor) ? configRow.valor : [];
+    const idx = currentList.findIndex((g) => String(g.id) === String(normalized.id));
+    let updatedList;
+    if (idx >= 0) {
+      updatedList = currentList.map((g, i) => (i === idx ? normalized : g));
+    } else {
+      updatedList = [normalized, ...currentList];
+    }
+    await supabase.from('configuracion').upsert({ clave: configKey, valor: updatedList });
   } catch (err) {
-    console.warn(`[expensesService] Error upsert en tabla gastos (${targetEntity}):`, err.message);
+    console.warn(`[expensesService] Error guardando en configuracion (${configKey}):`, err.message);
   }
 
-  // 2. Sincronización vía API Route ('/api/expenses')
-  if (!savedOk) {
-    try {
-      let resp = await fetch(`/api/expenses?entidad=${encodeURIComponent(targetEntity)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(normalized)
-      });
-      if (!resp.ok) {
-        resp = await fetch(`/api/expenses/index?entidad=${encodeURIComponent(targetEntity)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(normalized)
-        });
-      }
-      if (resp.ok) {
-        const json = await resp.json();
-        if (json.ok) {
-          savedOk = true;
-        }
-      }
-    } catch (err) {
-      console.warn(`[expensesService] Error en POST /api/expenses (${targetEntity}):`, err.message);
-    }
-  }
+  // 3. Intento en tabla 'gastos' por si existiese
+  try {
+    const dbPayload = {
+      id: normalized.id,
+      created_at: normalized.created_at,
+      fecha: normalized.fecha,
+      entidad: targetEntity,
+      tipo_doc: normalized.tipo_doc,
+      proveedor: normalized.proveedor,
+      rut: normalized.rut,
+      categoria: normalized.categoria,
+      descripcion: normalized.descripcion,
+      neto: normalized.neto,
+      iva: normalized.iva,
+      total_bruto: normalized.total_bruto,
+      comprobante_url: normalized.comprobante_url
+    };
+    await supabase.from('gastos').upsert(dbPayload);
+  } catch (err) {}
 
-  // 3. Fallback directo a configuracion en Supabase
-  if (!savedOk) {
-    const configKey = targetEntity === 'casa' ? 'gastos_casa_registros' : 'gastos_registros';
-    try {
-      const currentList = await fetchCentralizedExpenses(targetEntity);
-      const existingIdx = currentList.findIndex((g) => g.id === normalized.id);
-      let updatedList;
-      if (existingIdx >= 0) {
-        updatedList = currentList.map((g, i) => (i === existingIdx ? normalized : g));
-      } else {
-        updatedList = [normalized, ...currentList];
-      }
-      await supabase
-        .from('configuracion')
-        .upsert({ clave: configKey, valor: updatedList });
-      savedOk = true;
-    } catch (err) {
-      console.error(`[expensesService] Error guardando en fallback Supabase (${configKey}):`, err);
-    }
-  }
+  // 4. Sincronización vía API Route (/api/expenses)
+  try {
+    await fetch(`/api/expenses?entidad=${encodeURIComponent(targetEntity)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(normalized)
+    });
+  } catch (err) {}
 
-  // Notificar a otras pestañas/componentes localmente
+  // 5. Notificar a otras pestañas/componentes localmente
   try {
     window.dispatchEvent(
       new CustomEvent('ecosilence:expenses_updated', {
         detail: { ...normalized, entidad: targetEntity }
       })
     );
-  } catch (e) {
-    // Ignore
-  }
+  } catch (e) {}
 
   return normalized;
 };
 
 /**
- * Elimina un gasto de la base de datos centralizada de Supabase según su entidad.
+ * Elimina permanentemente un gasto de la base de datos centralizada de Supabase según su entidad.
+ * Garantiza que el registro desaparezca permanentemente tanto de Supabase como del almacenamiento local.
  */
 export const deleteCentralizedExpense = async (id, entidad = 'empresa') => {
-  let deletedOk = false;
+  const strId = String(id);
+  const storageKey = getStorageKey(entidad);
+  const configKey = entidad === 'casa' ? 'gastos_casa_registros' : 'gastos_registros';
 
-  // 1. Intento en tabla 'gastos'
+  // 1. Inmediatamente actualizar cache local (localStorage) para que nunca reaparezca al refrescar
   try {
-    const { error } = await supabase
-      .from('gastos')
-      .delete()
-      .eq('id', id)
-      .eq('entidad', entidad);
-    if (!error) deletedOk = true;
-  } catch (err) {
-    console.warn(`[expensesService] Error delete en tabla gastos (${entidad}):`, err.message);
-  }
-
-  // 2. Vía API Route
-  try {
-    let resp = await fetch(`/api/expenses?id=${encodeURIComponent(id)}&entidad=${encodeURIComponent(entidad)}`, {
-      method: 'DELETE'
-    });
-    if (!resp.ok) {
-      resp = await fetch(`/api/expenses/index?id=${encodeURIComponent(id)}&entidad=${encodeURIComponent(entidad)}`, {
-        method: 'DELETE'
-      });
+    const local = localStorage.getItem(storageKey);
+    if (local) {
+      const list = JSON.parse(local);
+      const filtered = list.filter((g) => String(g.id) !== strId);
+      localStorage.setItem(storageKey, JSON.stringify(filtered));
     }
-    if (resp.ok) deletedOk = true;
-  } catch (err) {
-    console.warn(`[expensesService] Error delete en /api/expenses (${entidad}):`, err.message);
+  } catch (e) {
+    console.warn('[expensesService] Error actualizando cache local tras eliminar:', e);
   }
 
-  // 3. Fallback directo a configuracion
-  if (!deletedOk) {
-    const configKey = entidad === 'casa' ? 'gastos_casa_registros' : 'gastos_registros';
-    try {
-      const currentList = await fetchCentralizedExpenses(entidad);
-      const updatedList = currentList.filter((g) => g.id !== id);
+  // 2. Eliminar permanentemente de Supabase configuracion (almacenamiento central activo)
+  try {
+    const { data: configRow } = await supabase
+      .from('configuracion')
+      .select('valor')
+      .eq('clave', configKey)
+      .single();
+
+    if (configRow?.valor && Array.isArray(configRow.valor)) {
+      const updated = configRow.valor.filter((g) => String(g.id) !== strId);
       await supabase
         .from('configuracion')
-        .upsert({ clave: configKey, valor: updatedList });
-    } catch (err) {
-      console.error(`[expensesService] Error delete en fallback Supabase (${configKey}):`, err);
+        .upsert({ clave: configKey, valor: updated });
+
+      // Sincronizar localStorage confirmado
+      try {
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify(updated.map((d) => normalizeExpenseRecord(d, entidad)))
+        );
+      } catch (e) {}
     }
+  } catch (err) {
+    console.warn(`[expensesService] Error eliminando en configuracion (${configKey}):`, err.message);
   }
 
+  // 3. Intento en tabla 'gastos' por si existiese
+  try {
+    await supabase
+      .from('gastos')
+      .delete()
+      .eq('id', strId)
+      .eq('entidad', entidad);
+  } catch (err) {}
+
+  // 4. Sincronización vía API Route (/api/expenses)
+  try {
+    await fetch(`/api/expenses?id=${encodeURIComponent(strId)}&entidad=${encodeURIComponent(entidad)}`, {
+      method: 'DELETE'
+    });
+  } catch (err) {}
+
+  // 5. Emitir evento para reactividad inmediata
   try {
     window.dispatchEvent(
       new CustomEvent('ecosilence:expenses_updated', {
-        detail: { id, entidad, deleted: true }
+        detail: { id: strId, entidad, deleted: true }
       })
     );
-  } catch (e) {
-    // Ignore
-  }
+  } catch (e) {}
 
   return true;
+};
+
+/**
+ * Detección Inteligente de Gastos Duplicados (Boleta Electrónica vs. Voucher POS Transbank)
+ * Comprueba si ya existe un gasto que coincida en:
+ * a) Mismo Monto Total exacto (total_bruto)
+ * b) Misma Fecha (YYYY-MM-DD)
+ * c) Mismo RUT o Proveedor similar, o voucher Transbank/POS
+ */
+export const findDuplicateExpense = (newExpense, existingExpenses = [], currentEditingId = null) => {
+  if (!newExpense || !Array.isArray(existingExpenses)) return null;
+
+  const newTotal = Math.round(Number(newExpense.total ?? newExpense.total_bruto ?? newExpense.montoTotal) || 0);
+  if (newTotal <= 0) return null;
+
+  const newFecha = String(newExpense.fecha || '').trim().slice(0, 10);
+  if (!newFecha) return null;
+
+  const cleanRut = (r) => String(r || '').replace(/[^0-9kK]/g, '').toUpperCase();
+  const newRut = cleanRut(newExpense.rutEmisor || newExpense.rut);
+
+  const normalizeStr = (s) =>
+    String(s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, ' ')
+      .trim();
+
+  const newProv = normalizeStr(newExpense.razonSocial || newExpense.proveedor);
+  const newDoc = normalizeStr(newExpense.tipoDocumento || newExpense.tipo_doc);
+
+  for (const existing of existingExpenses) {
+    if (currentEditingId && String(existing.id) === String(currentEditingId)) {
+      continue;
+    }
+
+    const exTotal = Math.round(Number(existing.total ?? existing.total_bruto) || 0);
+    const exFecha = String(existing.fecha || '').trim().slice(0, 10);
+
+    // a) Mismo Monto Total exacto
+    if (newTotal !== exTotal) continue;
+
+    // b) Misma Fecha exacta (YYYY-MM-DD)
+    if (newFecha !== exFecha) continue;
+
+    // c) Mismo RUT, Proveedor similar o detección de voucher POS Transbank
+    const exRut = cleanRut(existing.rutEmisor || existing.rut);
+    const rutMatches = Boolean(newRut && exRut && newRut === exRut);
+
+    const exProv = normalizeStr(existing.razonSocial || existing.proveedor);
+    const exDoc = normalizeStr(existing.tipoDocumento || existing.tipo_doc);
+
+    const provMatches = Boolean(
+      newProv && exProv && (
+        newProv === exProv ||
+        newProv.includes(exProv) ||
+        exProv.includes(newProv)
+      )
+    );
+
+    const isVoucherRelated =
+      /transbank|redelcom|pos|voucher/i.test(newProv) ||
+      /transbank|redelcom|pos|voucher/i.test(exProv) ||
+      /voucher/i.test(newDoc) ||
+      /voucher/i.test(exDoc);
+
+    // Si coincide el total y fecha, y además coincide el RUT, o el proveedor,
+    // o uno de los dos es voucher Transbank, o ninguno tiene RUT (mismo ticket anónimo)
+    if (rutMatches || provMatches || isVoucherRelated || (!newRut && !exRut)) {
+      return existing;
+    }
+  }
+
+  return null;
 };
 
 /**

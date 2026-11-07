@@ -47,23 +47,11 @@ function getConfigKeyForEntity(entidad) {
   return entidad === 'casa' ? 'gastos_casa_registros' : 'gastos_registros';
 }
 
-// 1. Intenta consultar tabla 'gastos' directamente con filtro de entidad; si no existe, usa 'configuracion'
+// 1. Intenta consultar Supabase configuracion directamente (o tabla gastos si estuviese disponible)
 async function fetchExpensesFromSupabase(entidad = 'empresa') {
-  try {
-    const tableResp = await fetch(
-      `${SUPABASE_URL}/rest/v1/gastos?entidad=eq.${entidad}&select=*&order=fecha.desc,created_at.desc`,
-      { headers }
-    );
-    if (tableResp.ok) {
-      const rows = await tableResp.json();
-      return { source: 'table:gastos', entidad, data: rows.map((r) => normalizeRow(r, entidad)) };
-    }
-  } catch (err) {
-    console.warn('[api/expenses] Error consultando tabla gastos:', err.message);
-  }
-
-  // Fallback a tabla configuracion según entidad
   const configKey = getConfigKeyForEntity(entidad);
+
+  // Consulta en tabla configuracion
   try {
     const configResp = await fetch(
       `${SUPABASE_URL}/rest/v1/configuracion?clave=eq.${configKey}&select=valor`,
@@ -78,6 +66,20 @@ async function fetchExpensesFromSupabase(entidad = 'empresa') {
     console.warn(`[api/expenses] Error consultando configuracion (${configKey}):`, err.message);
   }
 
+  // Intento en tabla 'gastos' si estuviera creada
+  try {
+    const tableResp = await fetch(
+      `${SUPABASE_URL}/rest/v1/gastos?entidad=eq.${entidad}&select=*&order=fecha.desc,created_at.desc`,
+      { headers }
+    );
+    if (tableResp.ok) {
+      const rows = await tableResp.json();
+      return { source: 'table:gastos', entidad, data: rows.map((r) => normalizeRow(r, entidad)) };
+    }
+  } catch (err) {
+    // Ignore si no existe la tabla
+  }
+
   return { source: 'empty', entidad, data: [] };
 }
 
@@ -85,47 +87,12 @@ async function fetchExpensesFromSupabase(entidad = 'empresa') {
 async function saveExpenseToSupabase(expense) {
   const entidad = expense.entidad || expense.tipo_entidad || 'empresa';
   const normalized = normalizeRow(expense, entidad);
-
-  // Intentar guardar en tabla 'gastos'
-  try {
-    const tablePayload = {
-      id: normalized.id,
-      created_at: normalized.created_at,
-      fecha: normalized.fecha,
-      entidad: normalized.entidad,
-      tipo_doc: normalized.tipo_doc,
-      proveedor: normalized.proveedor,
-      rut: normalized.rut,
-      categoria: normalized.categoria,
-      descripcion: normalized.descripcion,
-      neto: normalized.neto,
-      iva: normalized.iva,
-      total_bruto: normalized.total_bruto,
-      comprobante_url: normalized.comprobante_url
-    };
-
-    const tableResp = await fetch(`${SUPABASE_URL}/rest/v1/gastos`, {
-      method: 'POST',
-      headers: {
-        ...headers,
-        Prefer: 'resolution=merge-duplicates,return=representation'
-      },
-      body: JSON.stringify(tablePayload)
-    });
-
-    if (tableResp.ok) {
-      const inserted = await tableResp.json();
-      return { ok: true, source: 'table:gastos', entidad, data: normalizeRow(inserted?.[0] || normalized, entidad) };
-    }
-  } catch (err) {
-    console.warn('[api/expenses] Error insertando en tabla gastos:', err.message);
-  }
-
-  // Fallback a configuracion
   const configKey = getConfigKeyForEntity(entidad);
+
+  // 1. Guardar en configuracion
   const current = await fetchExpensesFromSupabase(entidad);
   const existingList = current.data || [];
-  const existsIndex = existingList.findIndex((g) => g.id === normalized.id);
+  const existsIndex = existingList.findIndex((g) => String(g.id) === String(normalized.id));
 
   let updatedList;
   if (existsIndex >= 0) {
@@ -146,6 +113,36 @@ async function saveExpenseToSupabase(expense) {
     })
   });
 
+  // 2. Intento en tabla 'gastos' por si estuviera disponible
+  try {
+    const tablePayload = {
+      id: normalized.id,
+      created_at: normalized.created_at,
+      fecha: normalized.fecha,
+      entidad: normalized.entidad,
+      tipo_doc: normalized.tipo_doc,
+      proveedor: normalized.proveedor,
+      rut: normalized.rut,
+      categoria: normalized.categoria,
+      descripcion: normalized.descripcion,
+      neto: normalized.neto,
+      iva: normalized.iva,
+      total_bruto: normalized.total_bruto,
+      comprobante_url: normalized.comprobante_url
+    };
+
+    await fetch(`${SUPABASE_URL}/rest/v1/gastos`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        Prefer: 'resolution=merge-duplicates,return=representation'
+      },
+      body: JSON.stringify(tablePayload)
+    });
+  } catch (err) {
+    // Ignore
+  }
+
   if (upsertResp.ok) {
     return { ok: true, source: `configuracion:${configKey}`, entidad, data: normalized };
   }
@@ -154,23 +151,14 @@ async function saveExpenseToSupabase(expense) {
   throw new Error(`Error en Supabase (${upsertResp.status}): ${errText}`);
 }
 
-// 3. Elimina un gasto según su entidad
+// 3. Elimina permanentemente un gasto según su entidad
 async function deleteExpenseFromSupabase(id, entidad = 'empresa') {
-  try {
-    const tableResp = await fetch(`${SUPABASE_URL}/rest/v1/gastos?id=eq.${id}&entidad=eq.${entidad}`, {
-      method: 'DELETE',
-      headers
-    });
-    if (tableResp.ok) {
-      return { ok: true, source: 'table:gastos', entidad };
-    }
-  } catch (err) {
-    console.warn('[api/expenses] Error eliminando en tabla gastos:', err.message);
-  }
-
+  const strId = String(id);
   const configKey = getConfigKeyForEntity(entidad);
+
+  // 1. Eliminar permanentemente de tabla configuracion
   const current = await fetchExpensesFromSupabase(entidad);
-  const updatedList = (current.data || []).filter((g) => g.id !== id);
+  const updatedList = (current.data || []).filter((g) => String(g.id) !== strId);
 
   await fetch(`${SUPABASE_URL}/rest/v1/configuracion`, {
     method: 'POST',
@@ -184,7 +172,17 @@ async function deleteExpenseFromSupabase(id, entidad = 'empresa') {
     })
   });
 
-  return { ok: true, source: `configuracion:${configKey}`, entidad };
+  // 2. Intento en tabla 'gastos' por si existiese
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/gastos?id=eq.${strId}&entidad=eq.${entidad}`, {
+      method: 'DELETE',
+      headers
+    });
+  } catch (err) {
+    // Ignore
+  }
+
+  return { ok: true, source: `configuracion:${configKey}`, entidad, deletedId: strId };
 }
 
 export default async function handler(req, res) {

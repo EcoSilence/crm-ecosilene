@@ -39,7 +39,8 @@ import {
   saveCentralizedExpense,
   deleteCentralizedExpense,
   subscribeToExpensesRealtime,
-  getStorageKey
+  getStorageKey,
+  findDuplicateExpense
 } from '../services/expensesService';
 
 const getEmptyForm = (entidad = 'empresa') => ({
@@ -74,6 +75,8 @@ const GastosView = ({ entidad = 'empresa', filterPeriod = null }) => {
   });
   const [isLoadingGastos, setIsLoadingGastos] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [detectedDuplicate, setDetectedDuplicate] = useState(null);
+  const [forceSaveDuplicate, setForceSaveDuplicate] = useState(false);
 
   // Carga y sincronización reactiva con Supabase (en PC, móvil y multiusuario)
   const loadExpenses = async (showLoading = false) => {
@@ -398,6 +401,8 @@ const GastosView = ({ entidad = 'empresa', filterPeriod = null }) => {
     setEditingId(null);
     setScanProviderBadge('');
     setScanError('');
+    setDetectedDuplicate(null);
+    setForceSaveDuplicate(false);
     setFormData(getEmptyForm(entidad));
     setIsModalOpen(true);
   };
@@ -406,6 +411,8 @@ const GastosView = ({ entidad = 'empresa', filterPeriod = null }) => {
     setEditingId(gasto.id);
     setScanProviderBadge('');
     setScanError('');
+    setDetectedDuplicate(null);
+    setForceSaveDuplicate(false);
     setFormData({
       fecha: gasto.fecha || new Date().toISOString().split('T')[0],
       tipoDocumento: gasto.tipoDocumento || gasto.tipo_doc || 'Boleta Electrónica',
@@ -466,6 +473,33 @@ const GastosView = ({ entidad = 'empresa', filterPeriod = null }) => {
         nombreArchivo: file.name
       }));
 
+      // Detección Inteligente de Duplicados (Boleta Electrónica vs. Voucher POS Transbank)
+      const duplicateFound = findDuplicateExpense(
+        {
+          fecha: extracted.fecha || formData.fecha,
+          total: extracted.montoTotal ?? extracted.total,
+          rutEmisor: extracted.rutEmisor,
+          razonSocial: extracted.razonSocial,
+          tipoDocumento: extracted.tipoDoc || extracted.tipoDocumento
+        },
+        gastos,
+        editingId
+      );
+
+      if (duplicateFound) {
+        setDetectedDuplicate(duplicateFound);
+        setForceSaveDuplicate(false);
+        addToast(
+          `⚠️ Posible gasto duplicado: Ya existe un registro el ${duplicateFound.fecha} por ${formatCurrency(
+            duplicateFound.total || duplicateFound.total_bruto
+          )} (${duplicateFound.razonSocial || duplicateFound.proveedor})`,
+          'warning'
+        );
+      } else {
+        setDetectedDuplicate(null);
+        setForceSaveDuplicate(false);
+      }
+
       setScanProviderBadge(extracted.provider || 'gemini');
       addToast(
         `Comprobante analizado con éxito (${extracted.razonSocial || extracted.tipoDocumento} • ${formatCurrency(extracted.total)})`,
@@ -521,6 +555,31 @@ const GastosView = ({ entidad = 'empresa', filterPeriod = null }) => {
     if (totalNum <= 0) {
       addToast('Ingresa un Monto Total válido mayor a $0.', 'warning');
       return;
+    }
+
+    // 1. Verificación anti-duplicados inteligente (Boleta vs. Voucher POS Transbank)
+    if (!forceSaveDuplicate) {
+      const duplicateFound =
+        detectedDuplicate ||
+        findDuplicateExpense(
+          {
+            ...formData,
+            total: totalNum
+          },
+          gastos,
+          editingId
+        );
+
+      if (duplicateFound) {
+        setDetectedDuplicate(duplicateFound);
+        addToast(
+          `⚠️ Posible gasto duplicado: Ya existe un registro el ${duplicateFound.fecha} por ${formatCurrency(
+            duplicateFound.total || duplicateFound.total_bruto
+          )} (${duplicateFound.razonSocial || duplicateFound.proveedor})`,
+          'warning'
+        );
+        return;
+      }
     }
 
     const netoNum =
@@ -579,6 +638,8 @@ const GastosView = ({ entidad = 'empresa', filterPeriod = null }) => {
         'success'
       );
       setIsModalOpen(false);
+      setDetectedDuplicate(null);
+      setForceSaveDuplicate(false);
       // Revalida el estado completo
       loadExpenses(false);
     } catch (err) {
@@ -590,11 +651,27 @@ const GastosView = ({ entidad = 'empresa', filterPeriod = null }) => {
   };
 
   const handleDeleteExpense = async (id) => {
+    const strId = String(id);
     if (!window.confirm(`¿Eliminar este registro de gasto de ${entidad === 'casa' ? 'Casa' : 'Empresa'} de la base de datos central?`)) return;
     try {
-      setGastos((prev) => prev.filter((g) => g.id !== id));
-      await deleteCentralizedExpense(id, entidad);
-      addToast('Registro de gasto eliminado de la base de datos.', 'info');
+      // 1. Actualización reactiva inmediata en la vista
+      setGastos((prev) => prev.filter((g) => String(g.id) !== strId));
+
+      // 2. Limpieza inmediata de la cache en localStorage para que no reaparezca al refrescar
+      try {
+        const storageKey = getStorageKey(entidad);
+        const cached = localStorage.getItem(storageKey);
+        if (cached) {
+          const list = JSON.parse(cached);
+          localStorage.setItem(storageKey, JSON.stringify(list.filter((g) => String(g.id) !== strId)));
+        }
+      } catch (e) {}
+
+      // 3. Eliminación permanente en Supabase (configuracion y tabla gastos)
+      await deleteCentralizedExpense(strId, entidad);
+      addToast('Registro de gasto eliminado permanentemente de la base de datos.', 'info');
+
+      // 4. Revalidar para asegurar sincronización central
       loadExpenses(false);
     } catch (err) {
       console.error(`Error eliminando gasto (${entidad}):`, err);
@@ -1515,6 +1592,80 @@ const GastosView = ({ entidad = 'empresa', filterPeriod = null }) => {
                 </div>
               )}
             </div>
+
+            {/* ALERTA INTELIGENTE: Posible Gasto Duplicado (Boleta vs. Voucher POS Transbank) */}
+            {detectedDuplicate && (
+              <div
+                style={{
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  border: '1px solid rgba(245, 158, 11, 0.45)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '1rem',
+                  marginBottom: '1.25rem'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <AlertTriangle size={24} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '2px' }} />
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: '0 0 0.35rem 0', fontSize: '0.95rem', fontWeight: 600, color: '#fbbf24' }}>
+                      ⚠️ Posible gasto duplicado detectado
+                    </h4>
+                    <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.86rem', color: 'var(--text-normal, #e2e8f0)', lineHeight: 1.4 }}>
+                      Ya existe un registro el <strong>{detectedDuplicate.fecha}</strong> por{' '}
+                      <strong style={{ color: '#fbbf24' }}>
+                        {formatCurrency(detectedDuplicate.total || detectedDuplicate.total_bruto)}
+                      </strong>{' '}
+                      (<strong>{detectedDuplicate.razonSocial || detectedDuplicate.proveedor}</strong> —{' '}
+                      <em>{detectedDuplicate.tipoDocumento || detectedDuplicate.tipo_doc}</em>).
+                    </p>
+                    <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.82rem', color: '#fcd34d' }}>
+                      ¿Es el voucher Transbank de una boleta ya ingresada?
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(245, 158, 11, 0.4)',
+                          color: '#fff',
+                          fontSize: '0.82rem',
+                          padding: '0.45rem 0.9rem'
+                        }}
+                        onClick={() => {
+                          setIsModalOpen(false);
+                          setDetectedDuplicate(null);
+                          setForceSaveDuplicate(false);
+                          setFormData(getEmptyForm(entidad));
+                          setEditingId(null);
+                        }}
+                      >
+                        <X size={14} style={{ marginRight: '4px' }} /> Descartar / Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{
+                          background: '#d97706',
+                          color: '#fff',
+                          fontSize: '0.82rem',
+                          padding: '0.45rem 0.9rem',
+                          border: 'none',
+                          borderRadius: 'var(--radius-sm)'
+                        }}
+                        onClick={() => {
+                          setForceSaveDuplicate(true);
+                          setDetectedDuplicate(null);
+                          addToast('Advertencia omitida. Puedes guardar el gasto si fueron compras separadas.', 'info');
+                        }}
+                      >
+                        <CheckCircle2 size={14} style={{ marginRight: '4px' }} /> Guardar de todos modos
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* FORMULARIO AUTO-RELLENADO Y EDITABLE */}
             <form onSubmit={handleSaveExpense}>
