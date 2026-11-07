@@ -435,8 +435,8 @@ const GastosView = ({ entidad = 'empresa', filterPeriod = null }) => {
       setScanProviderBadge('');
       setScanError('');
 
-      // Comprime la imagen en cliente agresivamente: máx 800px (ancho/alto) y formato image/jpeg calidad 0.65 (~120KB)
-      const compressedBase64 = await compressReceiptImage(file, 800, 0.65);
+      // Comprime la imagen en cliente vía Canvas a máx 900px y calidad 0.7 (payload < 250 KB)
+      const compressedBase64 = await compressReceiptImage(file, 900, 0.7);
       const mimeType = 'image/jpeg';
 
       setFormData((prev) => ({

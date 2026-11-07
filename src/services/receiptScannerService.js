@@ -269,11 +269,11 @@ export const normalizeReceiptResponse = (raw = {}, entidad = 'empresa') => {
 };
 
 /**
- * Redimensiona y comprime la imagen agresivamente en el cliente usando HTML5 Canvas:
- * - Ancho/Alto máximo: 800px
- * - Formato de salida: 'image/jpeg' con calidad 0.65 (~120KB)
+ * Redimensiona y comprime la imagen en el cliente usando HTML5 Canvas:
+ * - Ancho/Alto máximo: 900px
+ * - Formato de salida: 'image/jpeg' con calidad 0.70 (payload < 250KB)
  */
-export const compressReceiptImage = (file, maxDimension = 800, quality = 0.65) => {
+export const compressReceiptImage = (file, maxDimension = 900, quality = 0.7) => {
   return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
@@ -320,12 +320,19 @@ export const compressReceiptImage = (file, maxDimension = 800, quality = 0.65) =
 };
 
 /**
- * Envía la imagen comprimida a POST /api/expenses/scan-receipt con un AbortController de 30 segundos.
+ * Envía la imagen comprimida y saneada a POST /api/expenses/scan-receipt con un AbortController de 30 segundos.
  */
 export const scanReceiptWithAI = async ({ imageBase64, mimeType = 'image/jpeg', entidad = 'empresa' }) => {
   if (!imageBase64) {
     throw new Error('No se proporcionó ninguna imagen para escanear.');
   }
+
+  // Saneamiento riguroso de Base64 en el cliente antes de enviar
+  const rawBase64 = String(imageBase64);
+  const base64Data = rawBase64
+    .replace(/^data:image\/[a-z0-9_-]+;base64,/i, '')
+    .replace(/^data:[^;]+;base64,/i, '')
+    .trim();
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
@@ -335,7 +342,7 @@ export const scanReceiptWithAI = async ({ imageBase64, mimeType = 'image/jpeg', 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        imageBase64,
+        imageBase64: base64Data,
         mimeType,
         entidad
       }),
