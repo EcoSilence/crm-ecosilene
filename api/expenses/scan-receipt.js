@@ -277,63 +277,93 @@ export default async function handler(req, res) {
       process.env.VITE_GEMINI_API_KEY ||
       FALLBACK_KEY;
 
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+    const CANDIDATE_MODELS = [
+      'gemini-3.5-flash-lite',
+      'gemini-flash-latest',
+      'gemini-3.8-flash',
+      'gemini-3.5-flash'
+    ];
 
     const promptText =
       entidad === 'casa'
         ? 'Eres un asistente de finanzas personales en Chile. Extrae de esta boleta familiar en JSON estricto sin markdown: { "razonSocial": string, "rutEmisor": string, "tipoDoc": string, "fecha": "YYYY-MM-DD", "montoTotal": number, "montoNeto": number, "iva": number, "categoria": "Supermercado / Abarrotes | Cuentas Básicas (Luz, Agua, Gas, Internet) | Arriendo / Gastos Comunes | Mascotas / Veterinaria | Transporte / Bencina Personal | Salud / Farmacia | Salidas / Delivery / Ocio | Otros Hogar", "descripcion": string }'
         : 'Eres un auditor contable en Chile. Extrae de esta boleta/voucher en JSON estricto sin markdown: { "razonSocial": string, "rutEmisor": string, "tipoDoc": string, "fecha": "YYYY-MM-DD", "montoTotal": number, "montoNeto": number, "iva": number, "categoria": string, "descripcion": string }';
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 25000);
+    let resGoogle = null;
+    let lastErrorText = '';
+    let lastStatus = 500;
+    let successfulModel = '';
 
-    let resGoogle;
-    try {
-      resGoogle = await fetch(geminiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: promptText },
-                { inlineData: { mimeType: 'image/jpeg', data: base64Data } }
-              ]
+    for (const modelName of CANDIDATE_MODELS) {
+      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+
+      try {
+        resGoogle = await fetch(geminiEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: promptText },
+                  { inlineData: { mimeType: 'image/jpeg', data: base64Data } }
+                ]
+              }
+            ],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.1
             }
-          ],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.1
-          }
-        }),
-        signal: controller.signal
-      });
-    } catch (fetchErr) {
-      clearTimeout(timer);
-      const isTimeout = fetchErr.name === 'AbortError';
-      return res.status(504).json({
-        ok: false,
-        error: isTimeout
-          ? 'Tiempo de espera agotado al conectar con Gemini (timeout 25s).'
-          : `Error de conexión con Gemini: ${fetchErr.message}`
-      });
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+
+        if (resGoogle.ok) {
+          successfulModel = modelName;
+          break;
+        }
+
+        lastStatus = resGoogle.status;
+        try {
+          lastErrorText = await resGoogle.text();
+        } catch {
+          lastErrorText = `HTTP status ${resGoogle.status}`;
+        }
+
+        // Si es 404, 503 (alta demanda) o modelo no disponible, intenta con el siguiente modelo candidato
+        if (
+          resGoogle.status === 404 ||
+          resGoogle.status === 503 ||
+          lastErrorText.includes('no longer available') ||
+          lastErrorText.includes('NOT_FOUND') ||
+          lastErrorText.includes('high demand')
+        ) {
+          continue;
+        } else {
+          break;
+        }
+      } catch (fetchErr) {
+        clearTimeout(timer);
+        const isTimeout = fetchErr.name === 'AbortError';
+        lastErrorText = isTimeout
+          ? `Tiempo de espera agotado en modelo ${modelName} (timeout 12s).`
+          : `Error de conexión con Gemini (${modelName}): ${fetchErr.message}`;
+        lastStatus = isTimeout ? 504 : 502;
+        // Si hay timeout o error de conexión en un modelo, intentar con el siguiente modelo
+        continue;
+      }
     }
 
-    clearTimeout(timer);
-
     // 3. Respuesta de Google no ok: extraer texto de error sin colapsar el server
-    if (!resGoogle.ok) {
-      let errText = '';
-      try {
-        errText = await resGoogle.text();
-      } catch {
-        errText = `HTTP status ${resGoogle.status}`;
-      }
-      return res.status(resGoogle.status).json({
+    if (!resGoogle || !resGoogle.ok) {
+      return res.status(lastStatus || 500).json({
         ok: false,
-        error: `Error de Google Gemini (${resGoogle.status}): ${errText.slice(0, 220)}`
+        error: `Error de Google Gemini (${lastStatus}): ${String(lastErrorText || '').slice(0, 220)}`
       });
     }
 
@@ -371,7 +401,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       ok: true,
-      provider: 'gemini-2.0-flash',
+      provider: successfulModel || 'gemini-3.5-flash-lite',
       data
     });
   } catch (error) {
