@@ -342,25 +342,22 @@ export const scanReceiptWithAI = async ({ imageBase64, mimeType = 'image/jpeg', 
       signal: controller.signal
     });
 
-    let serverJson = null;
+    // Leer el body stream una sola vez como texto y luego parsear con seguridad
+    const rawText = await serverResp.text();
+    let data;
     try {
-      serverJson = await serverResp.json();
-    } catch {
-      const rawErr = await serverResp.text();
-      throw new Error(
-        `Error del servidor (${serverResp.status}): ${rawErr.slice(0, 140) || 'Respuesta inválida'}`
-      );
+      data = JSON.parse(rawText);
+    } catch (parseErr) {
+      throw new Error(rawText || `Error al procesar la respuesta del servidor (${serverResp.status})`);
     }
 
-    if (!serverResp.ok || !serverJson?.ok) {
-      throw new Error(
-        serverJson?.error || `Error del servidor (${serverResp.status}) al analizar la boleta.`
-      );
+    if (!serverResp.ok || !data?.ok) {
+      throw new Error(data?.error || data?.message || rawText || `Error en el escaneo (${serverResp.status})`);
     }
 
     return {
-      ...normalizeReceiptResponse(serverJson.data, entidad),
-      provider: serverJson.provider || 'gemini'
+      ...normalizeReceiptResponse(data.data, entidad),
+      provider: data.provider || 'gemini'
     };
   } catch (err) {
     if (err.name === 'AbortError') {

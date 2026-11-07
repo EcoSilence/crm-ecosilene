@@ -37,12 +37,15 @@ function App() {
     return localStorage.getItem('sidebar_collapsed') === 'true';
   });
 
-  // Estado del Acordeón y Ramas de Gastos (Empresa vs Casa)
-  const [gastosMenuExpanded, setGastosMenuExpanded] = useState(true);
-  const [gastosEmpresaExpanded, setGastosEmpresaExpanded] = useState(true);
-  const [gastosCasaExpanded, setGastosCasaExpanded] = useState(true);
-  const [gastosEmpresaExpandedYears, setGastosEmpresaExpandedYears] = useState({ 2026: true });
-  const [gastosCasaExpandedYears, setGastosCasaExpandedYears] = useState({ 2026: true });
+  // Estado del Acordeón y Ramas de Gastos (Empresa vs Casa) - Inicialmente todo cerrado/minimizado
+  const [gastosMenuExpanded, setGastosMenuExpanded] = useState(false);
+  const [gastosEmpresaExpanded, setGastosEmpresaExpanded] = useState(false);
+  const [gastosCasaExpanded, setGastosCasaExpanded] = useState(false);
+  const [gastosEmpresaExpandedYears, setGastosEmpresaExpandedYears] = useState({});
+  const [gastosCasaExpandedYears, setGastosCasaExpandedYears] = useState({});
+
+  // Estado del Acordeón de Flujo de Trabajo (Kanban) - Inicialmente cerrado/minimizado
+  const [kanbanMenuExpanded, setKanbanMenuExpanded] = useState(false);
 
   const [customYearsEmpresa, setCustomYearsEmpresa] = useState(() => {
     try {
@@ -189,6 +192,7 @@ function App() {
             </p>
           )}
           {navigation.map((item) => {
+            const isKanbanItem = item.id === 'kanban';
             const isGastosItem = item.id === 'gastos';
             const isGastosActive =
               currentView === 'gastos' ||
@@ -224,12 +228,16 @@ function App() {
                         if (!isGastosActive) {
                           navigate('gastos_empresa');
                         }
+                      } else if (isKanbanItem) {
+                        navigate('kanban');
+                        setKanbanMenuExpanded(prev => !prev);
+                        setIsMobileMenuOpen(false);
                       } else {
                         navigate(item.id);
                         setIsMobileMenuOpen(false);
                       }
                     }}
-                    title={isSidebarCollapsed ? item.name : isGastosItem ? "Click para desplegar Gastos Empresa y Casa" : "Doble clic para renombrar"}
+                    title={isSidebarCollapsed ? item.name : isGastosItem ? "Click para desplegar Gastos Empresa y Casa" : isKanbanItem ? "Click para desplegar años y meses" : "Doble clic para renombrar"}
                     onDoubleClick={() => {
                       if (!isSidebarCollapsed) {
                         setTempName(item.name);
@@ -262,7 +270,22 @@ function App() {
                         )}
                       </div>
                     )}
-                    {!isSidebarCollapsed && !isGastosItem && (
+                    {isKanbanItem && !isSidebarCollapsed && (
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setKanbanMenuExpanded(prev => !prev);
+                        }}
+                        style={{ padding: '2px', display: 'flex', alignItems: 'center' }}
+                      >
+                        {kanbanMenuExpanded ? (
+                          <ChevronDown size={14} color="var(--text-muted)" />
+                        ) : (
+                          <ChevronRight size={14} color="var(--text-muted)" />
+                        )}
+                      </div>
+                    )}
+                    {!isSidebarCollapsed && !isGastosItem && !isKanbanItem && (
                       <div 
                         onClick={(e) => {
                           e.stopPropagation();
@@ -279,7 +302,7 @@ function App() {
                 </div>
 
                 {/* Kanban Submenu */}
-                {item.id === 'kanban' && currentView === 'kanban' && !isSidebarCollapsed && (
+                {item.id === 'kanban' && kanbanMenuExpanded && !isSidebarCollapsed && (
                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', paddingLeft: '0.5rem', marginTop: '0.2rem', borderLeft: '2px solid rgba(255,255,255,0.05)', marginLeft: '1rem', marginBottom: '0.5rem' }}>
                       {kanbanGroupedData.sinFecha.length > 0 && (
                         <div 
@@ -349,7 +372,7 @@ function App() {
                       <div
                         onClick={() => {
                           navigate('gastos_empresa', null);
-                          setGastosEmpresaExpanded(true);
+                          setGastosEmpresaExpanded((prev) => !prev);
                         }}
                         style={{
                           padding: '0.4rem 0.7rem',
@@ -507,7 +530,7 @@ function App() {
                       <div
                         onClick={() => {
                           navigate('gastos_casa', null);
-                          setGastosCasaExpanded(true);
+                          setGastosCasaExpanded((prev) => !prev);
                         }}
                         style={{
                           padding: '0.4rem 0.7rem',
