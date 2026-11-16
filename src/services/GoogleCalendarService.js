@@ -161,127 +161,296 @@ export const authenticateGoogle = (silent = false) => {
   });
 };
 
+/**
+ * Normaliza cualquier formato de fecha (YYYY-MM-DD, DD/MM/YYYY, ISO, Date) a 'YYYY-MM-DD'
+ */
+export const normalizeDateStringToYMD = (val) => {
+  if (!val) return null;
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return null;
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  const str = String(val).trim();
+  // Formato YYYY-MM-DD
+  const ymdMatch = str.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+
+  // Formato DD/MM/YYYY
+  const dmyMatch = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  if (dmyMatch) {
+    const [, d, m, y] = dmyMatch;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+
+  // Fallback con new Date()
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    const d = String(parsed.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  return null;
+};
+
+/**
+ * Normaliza una hora a 'HH:mm:00'
+ */
+export const normalizeTimeString = (val) => {
+  if (!val) return null;
+  const str = String(val).trim();
+  const match = str.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (match) {
+    const hh = match[1].padStart(2, '0');
+    const mm = match[2];
+    const ss = match[3] || '00';
+    return `${hh}:${mm}:${ss}`;
+  }
+  return null;
+};
+
+/**
+ * Normalización estricta de fechas y horas para Google Calendar API (RFC 3339 / America/Santiago).
+ * Soluciona de raíz el error 'Invalid start time'.
+ * 
+ * - Si tiene hora específica:
+ *   start: { dateTime: 'YYYY-MM-DDTHH:mm:00', timeZone: 'America/Santiago' }
+ *   end:   { dateTime: 'YYYY-MM-DDTHH:mm:00', timeZone: 'America/Santiago' }
+ *   (si no hay hora de fin o si end <= start, suma 2 horas por defecto).
+ * - Si no tiene hora (All-day):
+ *   start: { date: 'YYYY-MM-DD' }
+ *   end:   { date: 'YYYY-MM-DD_MAS_1_DIA' } (exclusivo para Google Calendar).
+ */
+export const formatGoogleCalendarDates = (fechaInicio, horaInicio = null, fechaFin = null, horaFin = null) => {
+  if (!fechaInicio) {
+    throw new Error('La fecha de inicio es requerida para sincronizar con Google Calendar.');
+  }
+
+  // 1. Extraer fecha y hora de inicio (manejando strings combinados como 'YYYY-MM-DDTHH:mm')
+  let rawDateStart = fechaInicio;
+  let rawTimeStart = horaInicio;
+
+  if (typeof fechaInicio === 'string' && (fechaInicio.includes('T') || fechaInicio.includes(' '))) {
+    const sep = fechaInicio.includes('T') ? 'T' : ' ';
+    const parts = fechaInicio.split(sep);
+    rawDateStart = parts[0];
+    if (!rawTimeStart && parts[1]) {
+      const candidate = parts[1].trim();
+      if (!candidate.startsWith('00:00') && candidate !== '') {
+        rawTimeStart = candidate;
+      }
+    }
+  }
+
+  const ymdStart = normalizeDateStringToYMD(rawDateStart);
+  if (!ymdStart) {
+    throw new Error(`Fecha de inicio inválida: "${fechaInicio}"`);
+  }
+
+  // 2. Extraer fecha y hora de fin
+  let rawDateEnd = fechaFin || rawDateStart;
+  let rawTimeEnd = horaFin;
+
+  if (typeof fechaFin === 'string' && (fechaFin.includes('T') || fechaFin.includes(' '))) {
+    const sep = fechaFin.includes('T') ? 'T' : ' ';
+    const parts = fechaFin.split(sep);
+    rawDateEnd = parts[0];
+    if (!rawTimeEnd && parts[1]) {
+      const candidate = parts[1].trim();
+      if (!candidate.startsWith('00:00') && candidate !== '') {
+        rawTimeEnd = candidate;
+      }
+    }
+  }
+
+  const ymdEnd = normalizeDateStringToYMD(rawDateEnd) || ymdStart;
+
+  const timeStart = normalizeTimeString(rawTimeStart);
+  const timeEnd = normalizeTimeString(rawTimeEnd);
+
+  // CASO A: Evento con horario específico (Timed Event)
+  if (timeStart) {
+    const startDateTimeStr = `${ymdStart}T${timeStart}`;
+    let endDateTimeStr;
+
+    if (timeEnd) {
+      endDateTimeStr = `${ymdEnd}T${timeEnd}`;
+      const startMs = new Date(startDateTimeStr).getTime();
+      const endMs = new Date(endDateTimeStr).getTime();
+      // Si end es menor o igual a start, sumamos 2 horas a start
+      if (isNaN(endMs) || endMs <= startMs) {
+        const [sY, sM, sD] = ymdStart.split('-').map(Number);
+        const [sH, sMin, sSec] = timeStart.split(':').map(Number);
+        const d = new Date(sY, sM - 1, sD, sH, sMin, sSec || 0);
+        d.setHours(d.getHours() + 2);
+        const ey = d.getFullYear();
+        const em = String(d.getMonth() + 1).padStart(2, '0');
+        const ed = String(d.getDate()).padStart(2, '0');
+        const eh = String(d.getHours()).padStart(2, '0');
+        const emin = String(d.getMinutes()).padStart(2, '0');
+        const esec = String(d.getSeconds()).padStart(2, '0');
+        endDateTimeStr = `${ey}-${em}-${ed}T${eh}:${emin}:${esec}`;
+      }
+    } else {
+      // Sin hora fin especificada: sumar 2 horas por defecto
+      const [sY, sM, sD] = ymdStart.split('-').map(Number);
+      const [sH, sMin, sSec] = timeStart.split(':').map(Number);
+      const d = new Date(sY, sM - 1, sD, sH, sMin, sSec || 0);
+      d.setHours(d.getHours() + 2);
+      const ey = d.getFullYear();
+      const em = String(d.getMonth() + 1).padStart(2, '0');
+      const ed = String(d.getDate()).padStart(2, '0');
+      const eh = String(d.getHours()).padStart(2, '0');
+      const emin = String(d.getMinutes()).padStart(2, '0');
+      const esec = String(d.getSeconds()).padStart(2, '0');
+      endDateTimeStr = `${ey}-${em}-${ed}T${eh}:${emin}:${esec}`;
+    }
+
+    return {
+      start: { dateTime: startDateTimeStr, timeZone: 'America/Santiago' },
+      end: { dateTime: endDateTimeStr, timeZone: 'America/Santiago' },
+      isAllDay: false
+    };
+  }
+
+  // CASO B: Evento de día completo (All-Day Event)
+  // Google Calendar exige que 'end.date' sea exclusivo (el día siguiente al último día del evento)
+  const [ey, em, ed] = ymdEnd.split('-').map(Number);
+  const endPlusOne = new Date(ey, em - 1, ed);
+  endPlusOne.setDate(endPlusOne.getDate() + 1);
+
+  const plusOneY = endPlusOne.getFullYear();
+  const plusOneM = String(endPlusOne.getMonth() + 1).padStart(2, '0');
+  const plusOneD = String(endPlusOne.getDate()).padStart(2, '0');
+  const endExclusiveDate = `${plusOneY}-${plusOneM}-${plusOneD}`;
+
+  return {
+    start: { date: ymdStart },
+    end: { date: endExclusiveDate },
+    isAllDay: true
+  };
+};
+
 export const syncServiceToCalendar = async (servicio, clienteName, items = []) => {
   if (!gapiInited || !gsisInited) {
     throw new Error('La API de Google o el cliente de autenticación no se han cargado correctamente en este momento.');
   }
   
   // Si no hay fecha de inicio, no podemos crear evento en Google Calendar
-  if (!servicio.fechaInicio) {
+  if (!servicio || !servicio.fechaInicio) {
     console.log('Servicio sin fecha de inicio, saltando sincronización con Google Calendar');
     return null;
   }
 
-  // Calcular totales
-  const subtotalGeneral = items.reduce((acc, item) => acc + ((item.cantidad || 0) * (item.dias || 0) * (item.precioUnitario || 0)), 0);
-  const descuentoData = servicio.descuento || 0;
-  const descuentoMonto = subtotalGeneral * (descuentoData / 100);
-  const neto = subtotalGeneral - descuentoMonto;
-  const iva = neto * 0.19;
-  const totalFinal = neto + iva;
+  // 1. Normalización estricta de fechas y horas
+  const dateStructure = formatGoogleCalendarDates(
+    servicio.fechaInicio,
+    servicio.horaInicio,
+    servicio.fechaFin,
+    servicio.horaFin
+  );
 
-  // Formatear el detalle de equipos para la descripción incluyendo precios
-  let totalesTexto = `\n\nTOTAL COTIZACIÓN:\nSubtotal: $${subtotalGeneral.toLocaleString('es-CL')}`;
-  if (descuentoData > 0) {
-    totalesTexto += `\nDescuento (${descuentoData}%): -$${descuentoMonto.toLocaleString('es-CL')}`;
-  }
-  totalesTexto += `\nIVA (19%): $${iva.toLocaleString('es-CL')}\nTOTAL CLP: $${totalFinal.toLocaleString('es-CL')}`;
-
-  const detalleEquipos = items.length > 0 
-    ? '\n\nDETALLE DE EQUIPOS:\n' + items.map(item => {
-        const total = (item.cantidad || 0) * (item.dias || 0) * (item.precioUnitario || 0);
-        return `- ${item.cantidad}x ${item.descripcion} (${item.dias} d): $${total.toLocaleString('es-CL')}`;
-      }).join('\n') + totalesTexto
-    : '\n\n(No hay equipos agregados aún)';
-
-  // Calcular total de audífonos para el título
+  // 2. Conteo de equipos (Audífonos y Transmisores)
   const totalAudifonos = items
-    .filter(i => (i.descripcion || '').toLowerCase().includes('audifono'))
-    .reduce((acc, i) => acc + (i.cantidad || 0), 0);
+    .filter(i => /audifono/i.test(i.descripcion || ''))
+    .reduce((acc, i) => acc + (Number(i.cantidad) || 0), 0);
 
-  const prefijoAudifonos = totalAudifonos > 0 ? `${totalAudifonos} - ` : '';
+  const totalTX = items
+    .filter(i => /transmisor|\btx\b/i.test(i.descripcion || ''))
+    .reduce((acc, i) => acc + (Number(i.cantidad) || 0), 0);
 
-  // Helper para convertir strings de fecha/hora a objetos Date seguros
-  const safeDate = (dateStr) => {
-    if (!dateStr) return null;
-    let formatted = String(dateStr);
-    if (formatted.includes('T')) {
-      const parts = formatted.split('T');
-      if (parts[1] && parts[1].length === 5) {
-        formatted = `${parts[0]}T${parts[1]}:00`;
-      }
-    }
-    const d = new Date(formatted);
-    return isNaN(d.getTime()) ? null : d;
-  };
-
-  const startHasTime = servicio.fechaInicio.includes('T') && !servicio.fechaInicio.endsWith('T00:00');
-  
-  let startObj, endObj;
-
-  if (!startHasTime) {
-    // Evento de todo el día (All Day) - tanto start como end deben usar la propiedad 'date'
-    const pureDateStart = servicio.fechaInicio.split('T')[0];
-    startObj = { 'date': pureDateStart };
-
-    let pureDateEnd = pureDateStart;
-    if (servicio.fechaFin) {
-      pureDateEnd = servicio.fechaFin.split('T')[0];
-    }
-    // Google Calendar requiere que para eventos 'all-day', 'end.date' sea exclusivo (día siguiente)
-    const [y, m, d] = pureDateEnd.split('-').map(Number);
-    const endD = new Date(y, m - 1, d);
-    endD.setDate(endD.getDate() + 1);
-
-    const resY = endD.getFullYear();
-    const resM = String(endD.getMonth() + 1).padStart(2, '0');
-    const resD = String(endD.getDate()).padStart(2, '0');
-
-    endObj = { 'date': `${resY}-${resM}-${resD}` };
-  } else {
-    // Evento con horario específico (Timed) - tanto start como end deben usar la propiedad 'dateTime'
-    const startDate = safeDate(servicio.fechaInicio);
-    if (!startDate) {
-      console.error('Fecha de inicio inválida para Google Calendar:', servicio.fechaInicio);
-      return null;
-    }
-    startObj = { 'dateTime': startDate.toISOString(), 'timeZone': 'America/Santiago' };
-
-    if (servicio.fechaFin) {
-      let endDate = safeDate(servicio.fechaFin);
-      if (!endDate || endDate <= startDate) {
-        endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
-      }
-      endObj = { 'dateTime': endDate.toISOString(), 'timeZone': 'America/Santiago' };
-    } else {
-      const fallbackEnd = new Date(startDate.getTime() + 60 * 60 * 1000);
-      endObj = { 'dateTime': fallbackEnd.toISOString(), 'timeZone': 'America/Santiago' };
-    }
+  let equiposTag = '';
+  if (totalAudifonos > 0 && totalTX > 0) {
+    equiposTag = ` (${totalAudifonos} Audífonos / ${totalTX} TX)`;
+  } else if (totalAudifonos > 0) {
+    equiposTag = ` (${totalAudifonos} Audífonos)`;
+  } else if (totalTX > 0) {
+    equiposTag = ` (${totalTX} TX)`;
   }
 
-  const event = {
-    'summary': `${prefijoAudifonos}${clienteName} - ${servicio.idServicio}`,
-    'location': servicio.direccionEvento,
-    'description': `Servicio de EcoSilence\nEtapa: ${servicio.etapa}\nLugar: ${servicio.direccionEvento || 'No especificado'}\nReserva (50%): ${servicio.pagoAdelanto ? '✅ PAGADA' : '❌ PENDIENTE'}\nID: ${servicio.idServicio}${detalleEquipos}`,
-    'start': startObj,
-    'end': endObj,
-    'colorId': STAGE_COLORS[servicio.etapa] || '8'
+  // 3. Título dinámico del evento en Google Calendar: [ESTADO] Cliente — Evento (X Audífonos / Y TX)
+  const estadoUpper = (servicio.etapa || 'Cotizado').toUpperCase();
+  const clienteLabel = clienteName || 'Cliente';
+  const eventoLabel = servicio.idServicio ? `Servicio ${servicio.idServicio}` : 'Evento EcoSilence';
+  const summary = `[${estadoUpper}] ${clienteLabel} — ${eventoLabel}${equiposTag}`;
+
+  // 4. Cálculo financiero y estado de pago
+  const subtotalGeneral = items.reduce((acc, item) => {
+    return acc + ((Number(item.cantidad) || 0) * (Number(item.dias) || 0) * (Number(item.precioUnitario) || 0));
+  }, 0);
+  const descuentoPorc = Number(servicio.descuento) || 0;
+  const descuentoMonto = Math.round(subtotalGeneral * (descuentoPorc / 100));
+  const montoNeto = Math.round(subtotalGeneral - descuentoMonto);
+  const iva = Math.round(montoNeto * 0.19);
+  const totalConIva = montoNeto + iva;
+
+  const abono50 = Math.round(totalConIva * 0.5);
+  let estadoPagoTexto = '';
+  if (servicio.etapa === 'Pagado') {
+    estadoPagoTexto = `✅ PAGADO TOTAL ($${totalConIva.toLocaleString('es-CL')})`;
+  } else if (servicio.pagoAdelanto) {
+    const saldoPendiente = totalConIva - abono50;
+    estadoPagoTexto = `🟡 Abono 50% PAGADO ($${abono50.toLocaleString('es-CL')}) | Saldo pendiente: $${saldoPendiente.toLocaleString('es-CL')}`;
+  } else {
+    estadoPagoTexto = `❌ Abono 50% PENDIENTE ($${abono50.toLocaleString('es-CL')}) | Total por cobrar: $${totalConIva.toLocaleString('es-CL')}`;
+  }
+
+  // 5. Detalle de equipos para la descripción
+  const detalleEquipos = items.length > 0
+    ? items.map(item => {
+        const itemTot = (Number(item.cantidad) || 0) * (Number(item.dias) || 0) * (Number(item.precioUnitario) || 0);
+        return `• ${item.cantidad}x ${item.descripcion} (${item.dias} días) — $${itemTot.toLocaleString('es-CL')}`;
+      }).join('\n')
+    : '(Sin equipos agregados a la cotización)';
+
+  // 6. Descripción enriquecida y actualizada
+  const description = [
+    `SERVICIO ECOSILENCE — ${servicio.idServicio || ''}`,
+    `Estado: [${estadoUpper}]`,
+    `Cliente: ${clienteLabel}`,
+    `Ubicación: ${servicio.direccionEvento || 'No especificada'}`,
+    '',
+    `--- ESTADO FINANCIERO Y PAGO ---`,
+    `Monto Neto: $${montoNeto.toLocaleString('es-CL')}${descuentoPorc > 0 ? ` (Descuento ${descuentoPorc}%: -$${descuentoMonto.toLocaleString('es-CL')})` : ''}`,
+    `IVA (19%): $${iva.toLocaleString('es-CL')}`,
+    `Total c/IVA: $${totalConIva.toLocaleString('es-CL')}`,
+    `Estado de Pago: ${estadoPagoTexto}`,
+    '',
+    `--- EQUIPOS COTIZADOS ---`,
+    detalleEquipos
+  ].join('\n');
+
+  const eventResource = {
+    summary,
+    location: servicio.direccionEvento || '',
+    description,
+    start: dateStructure.start,
+    end: dateStructure.end,
+    colorId: STAGE_COLORS[servicio.etapa] || '8'
   };
 
   try {
     let request;
     if (servicio.googleEventId) {
-      // Actualizar evento existente
+      // Actualizar evento existente vía PATCH para no duplicarlo en el calendario
       request = window.gapi.client.calendar.events.patch({
-        'calendarId': 'primary',
-        'eventId': servicio.googleEventId,
-        'resource': event,
+        calendarId: 'primary',
+        eventId: servicio.googleEventId,
+        resource: eventResource
       });
     } else {
-      // Crear nuevo evento
+      // Crear nuevo evento vía POST
       request = window.gapi.client.calendar.events.insert({
-        'calendarId': 'primary',
-        'resource': event,
+        calendarId: 'primary',
+        resource: eventResource
       });
     }
 
@@ -295,19 +464,19 @@ export const syncServiceToCalendar = async (servicio, clienteName, items = []) =
       err.code === 401 || 
       (err.result && err.result.error && (err.result.error.code === 401 || err.result.error.status === 'UNAUTHENTICATED'));
     
-     if (isUnauthenticated) {
-       console.log('Token de Google vencido o no válido, intentando restaurar o re-autenticar...');
-       if (restoreGoogleToken()) {
-         return syncServiceToCalendar(servicio, clienteName, items);
-       }
-       try {
-         await authenticateGoogle(false);
-         return syncServiceToCalendar(servicio, clienteName, items);
-       } catch (authErr) {
-         console.error('Error de autenticación interactiva:', authErr);
-         throw new Error('Tu sesión de Google Calendar ha caducado o el navegador bloqueó la ventana emergente. Por favor, haz clic en el botón "Vincular Google Calendar" arriba para autorizar.');
-       }
-     }
+    if (isUnauthenticated) {
+      console.log('Token de Google vencido o no válido, intentando restaurar o re-autenticar...');
+      if (restoreGoogleToken()) {
+        return syncServiceToCalendar(servicio, clienteName, items);
+      }
+      try {
+        await authenticateGoogle(false);
+        return syncServiceToCalendar(servicio, clienteName, items);
+      } catch (authErr) {
+        console.error('Error de autenticación interactiva:', authErr);
+        throw new Error('Tu sesión de Google Calendar ha caducado. Por favor, haz clic en el botón "Vincular Google Calendar" para autorizar.');
+      }
+    }
     
     const isNotFound = 
       err.status === 404 || 
@@ -315,7 +484,7 @@ export const syncServiceToCalendar = async (servicio, clienteName, items = []) =
       (err.result && err.result.error && err.result.error.code === 404);
       
     if (isNotFound && servicio.googleEventId) {
-      console.log('Evento no encontrado en Google, re-creando...');
+      console.log('Evento no encontrado en Google Calendar (posiblemente borrado fuera del CRM), creando nuevo evento...');
       const { googleEventId, ...servicioSinId } = servicio;
       return syncServiceToCalendar(servicioSinId, clienteName, items);
     }

@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import { useAppStore } from '../context/AppDataContext';
-import { ArrowLeft, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, Archive, DollarSign, FileText, Eye, ExternalLink, Upload, X, Mail } from 'lucide-react';
+import { ArrowLeft, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, Archive, DollarSign, FileText, Eye, ExternalLink, Upload, X, Mail, CalendarCheck, CalendarX, CalendarClock, RotateCw } from 'lucide-react';
 
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
 
 const ServiciosListView = ({ type = 'normal' }) => {
-  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, removeServicio, editServicio, navigate, viewParams, formatDateDDMMYYYY, isArchived, togglePagoAdelanto, uploadServiceInvoiceFile, updateServiceInvoice } = useAppStore();
+  const { servicios, clientes, cotizaciones, inventario, updateServiceStage, removeServicio, editServicio, navigate, viewParams, formatDateDDMMYYYY, isArchived, togglePagoAdelanto, uploadServiceInvoiceFile, updateServiceInvoice, handleCalendarSync, calendarSyncStatus, isGoogleLinked } = useAppStore();
   const stage = viewParams?.stage || 'Cotizado';
 
   // Modal States
@@ -330,6 +330,57 @@ https://www.ecosilence.cl/`;
                       </a>
                     </div>
                   ))}
+
+                  {isGoogleLinked && (() => {
+                    const syncInfo = calendarSyncStatus[s.idServicio];
+                    const isSyncing = syncInfo?.status === 'syncing';
+                    const isError = syncInfo?.status === 'error';
+                    const isSynced = syncInfo?.status === 'synced' || (!syncInfo && !!s.googleEventId);
+                    const lastSync = syncInfo?.lastSyncTime;
+                    const syncErr = syncInfo?.error;
+
+                    let btnColor = '#f59e0b'; // amber / pending
+                    let title = 'Google Calendar: Pendiente de sincronizar. Clic para Forzar Sincronización.';
+                    let IconComponent = CalendarClock;
+
+                    if (isSyncing) {
+                      btnColor = '#3b82f6';
+                      title = 'Sincronizando con Google Calendar...';
+                      IconComponent = RotateCw;
+                    } else if (isError) {
+                      btnColor = 'var(--color-tomato, #ef4444)';
+                      title = `Error Google Calendar: ${syncErr || 'Falló la sincronización'}. Clic para reintentar (Force Sync).`;
+                      IconComponent = CalendarX;
+                    } else if (isSynced) {
+                      btnColor = 'var(--color-basil, #10b981)';
+                      title = `Sincronizado con Google Calendar${lastSync ? ` (Última sync: ${lastSync})` : ''}. Clic para forzar actualización.`;
+                      IconComponent = CalendarCheck;
+                    }
+
+                    return (
+                      <button 
+                        className="btn btn-ghost" 
+                        style={{ 
+                          padding: '0.4rem 0.6rem', 
+                          color: btnColor, 
+                          border: `1px solid ${btnColor}40`,
+                          background: `${btnColor}15`,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: isSyncing ? 'wait' : 'pointer'
+                        }} 
+                        disabled={isSyncing}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await handleCalendarSync(s, sQuotations, null, true);
+                        }}
+                        title={title}
+                      >
+                        <IconComponent size={16} className={isSyncing ? "animate-spin" : ""} />
+                      </button>
+                    );
+                  })()}
 
                   <button className="btn btn-ghost" style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.1)' }} onClick={() => openEditModal(s)}><Edit2 size={16}/></button>
                   <button className="btn btn-ghost" style={{ padding: '0.4rem 0.6rem', color: 'var(--color-tomato)', border: '1px solid rgba(255,255,255,0.1)' }} onClick={() => { if(window.confirm('¿Deseas eliminar definitivamente esta tarea y todas sus cotizaciones asociadas?')) removeServicio(s.idServicio) }}><Trash2 size={16}/></button>

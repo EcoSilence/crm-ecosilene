@@ -253,6 +253,7 @@ export const AppDataProvider = ({ children }) => {
 
   const [googleApiInited, setGoogleApiInited] = useState(false);
   const [googleGisInited, setGoogleGisInited] = useState(false);
+  const [calendarSyncStatus, setCalendarSyncStatus] = useState({});
 
   useEffect(() => {
     fetchData();
@@ -397,8 +398,26 @@ export const AppDataProvider = ({ children }) => {
     return equipo.stockTotal - totalUsado;
   };
 
-  const handleCalendarSync = async (servicioObj, itemsArr = [], customClienteName = null) => {
-    if (!isGoogleLinked || !servicioObj.fechaInicio) return true;
+  const handleCalendarSync = async (servicioObj, itemsArr = [], customClienteName = null, isManualForce = false) => {
+    if (!servicioObj?.fechaInicio) {
+      if (isManualForce) addToast('El servicio no tiene fecha de inicio para sincronizar.', 'warning');
+      return false;
+    }
+
+    const idServicio = servicioObj.idServicio;
+
+    if (!isGoogleLinked) {
+      if (isManualForce) {
+        addToast('Debes vincular tu cuenta de Google Calendar primero con el botón superior.', 'warning');
+      }
+      return false;
+    }
+
+    setCalendarSyncStatus(prev => ({
+      ...prev,
+      [idServicio]: { status: 'syncing', lastSyncTime: prev[idServicio]?.lastSyncTime || null, error: null }
+    }));
+
     const cliente = clientes.find(c => c.id === servicioObj.clienteId);
     const clienteName = customClienteName || (cliente ? (cliente.empresa || `${cliente.nombre} ${cliente.apellido}`) : 'Cliente');
     
@@ -406,18 +425,39 @@ export const AppDataProvider = ({ children }) => {
       const eventId = await syncServiceToCalendar(servicioObj, clienteName, itemsArr);
       
       if (eventId) {
+        const timeNow = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
         // Si el ID cambió (porque se re-creó por error 404) o si era nuevo
         if (eventId !== servicioObj.googleEventId) {
           servicioObj.googleEventId = eventId;
           setServicios(prev => prev.map(s => s.idServicio === servicioObj.idServicio ? { ...s, googleEventId: eventId } : s));
           await supabase.from('servicios').update({ google_event_id: eventId }).eq('id_servicio', servicioObj.idServicio);
         }
+
+        setCalendarSyncStatus(prev => ({
+          ...prev,
+          [idServicio]: { status: 'synced', lastSyncTime: timeNow, error: null }
+        }));
+
+        if (isManualForce) {
+          addToast('Sincronizado exitosamente con Google Calendar', 'success');
+        }
         return true;
       }
+
+      setCalendarSyncStatus(prev => ({
+        ...prev,
+        [idServicio]: { status: 'pending', lastSyncTime: null, error: 'No se generó ID de evento' }
+      }));
       return false;
     } catch (err) {
       console.error('Error sincronizando con Google Calendar:', err);
       const errMsg = err.result?.error?.message || err.message || err.error || 'Verifica tu conexión y permisos.';
+      
+      setCalendarSyncStatus(prev => ({
+        ...prev,
+        [idServicio]: { status: 'error', lastSyncTime: null, error: errMsg }
+      }));
+
       addToast('Error al sincronizar con Google Calendar: ' + errMsg, 'error');
       return false;
     }
@@ -460,8 +500,16 @@ export const AppDataProvider = ({ children }) => {
 
   const updateServiceDiscount = async (idServicio, newDiscount) => {
     const val = Number(newDiscount) || 0;
-    setServicios(servicios.map(s => s.idServicio === idServicio ? { ...s, descuento: val } : s));
+    const s = servicios.find(srv => srv.idServicio === idServicio);
+    const updatedS = { ...s, descuento: val };
+    setServicios(servicios.map(srv => srv.idServicio === idServicio ? updatedS : srv));
     await supabase.from('servicios').update({ descuento: val }).eq('id_servicio', idServicio);
+
+    // Sincronizar con Google Calendar
+    if (isGoogleLinked && updatedS) {
+      const items = cotizaciones.filter(c => c.servicioId === idServicio);
+      await handleCalendarSync(updatedS, items);
+    }
   };
 
   const updateServiceCurrency = async (idServicio, currency) => {
@@ -581,7 +629,8 @@ export const AppDataProvider = ({ children }) => {
       cliente_id: updatedData.clienteId,
       direccion_evento: updatedData.direccionEvento,
       fecha_inicio: updatedData.fechaInicio,
-      fecha_fin: updatedData.fechaFin
+      fecha_fin: updatedData.fechaFin,
+      etapa: updatedData.etapa || s?.etapa
     }).eq('id_servicio', idServicio);
 
     // Sincronizar con Google Calendar
@@ -867,6 +916,7 @@ export const AppDataProvider = ({ children }) => {
     brandProfile: brandProfiles[selectedMarketingAccount],
     archivados, isArchived,
     formatDateDDMMYYYY, handleCalendarSync, syncAllServicesToCalendar,
+    calendarSyncStatus,
     googleApiInited, googleGisInited,
     configurations, reorderCotizacionItems, fetchData
   };
