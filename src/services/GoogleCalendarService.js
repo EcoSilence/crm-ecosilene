@@ -218,16 +218,41 @@ export const normalizeTimeString = (val) => {
 };
 
 /**
+ * Retorna dinámicamente el offset RFC 3339 para la zona 'America/Santiago' (-03:00 en verano, -04:00 en invierno).
+ */
+export const getSantiagoOffset = (dateObj) => {
+  try {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Santiago',
+      timeZoneName: 'shortOffset'
+    });
+    const parts = dtf.formatToParts(dateObj);
+    const tzPart = parts.find(p => p.type === 'timeZoneName');
+    if (tzPart) {
+      const match = tzPart.value.match(/GMT([+-])(\d+)(?::(\d+))?/);
+      if (match) {
+        const sign = match[1];
+        const hours = match[2].padStart(2, '0');
+        const mins = (match[3] || '00').padStart(2, '0');
+        return `${sign}${hours}:${mins}`;
+      }
+    }
+  } catch (e) {
+    console.warn('Error al calcular offset de Santiago:', e);
+  }
+  return '-03:00';
+};
+
+/**
  * Normalización estricta de fechas y horas para Google Calendar API (RFC 3339 / America/Santiago).
  * Soluciona de raíz el error 'Invalid start time'.
  * 
  * - Si tiene hora específica:
- *   start: { dateTime: 'YYYY-MM-DDTHH:mm:00', timeZone: 'America/Santiago' }
- *   end:   { dateTime: 'YYYY-MM-DDTHH:mm:00', timeZone: 'America/Santiago' }
- *   (si no hay hora de fin o si end <= start, suma 2 horas por defecto).
+ *   patchStart:  { dateTime: 'YYYY-MM-DDTHH:mm:00-03:00', timeZone: 'America/Santiago', date: null }
+ *   patchEnd:    { dateTime: 'YYYY-MM-DDTHH:mm:00-03:00', timeZone: 'America/Santiago', date: null }
  * - Si no tiene hora (All-day):
- *   start: { date: 'YYYY-MM-DD' }
- *   end:   { date: 'YYYY-MM-DD_MAS_1_DIA' } (exclusivo para Google Calendar).
+ *   patchStart:  { date: 'YYYY-MM-DD', dateTime: null }
+ *   patchEnd:    { date: 'YYYY-MM-DD_MAS_1_DIA', dateTime: null } (exclusivo para Google Calendar).
  */
 export const formatGoogleCalendarDates = (fechaInicio, horaInicio = null, fechaFin = null, horaFin = null) => {
   if (!fechaInicio) {
@@ -278,45 +303,45 @@ export const formatGoogleCalendarDates = (fechaInicio, horaInicio = null, fechaF
 
   // CASO A: Evento con horario específico (Timed Event)
   if (timeStart) {
-    const startDateTimeStr = `${ymdStart}T${timeStart}`;
-    let endDateTimeStr;
+    const [sY, sM, sD] = ymdStart.split('-').map(Number);
+    const [sH, sMin, sSec] = timeStart.split(':').map(Number);
+    const startDateObj = new Date(sY, sM - 1, sD, sH, sMin, sSec || 0);
+    const offsetStart = getSantiagoOffset(startDateObj);
+    const startDateTimeStr = `${ymdStart}T${timeStart}${offsetStart}`;
 
+    let endDateTimeStr;
     if (timeEnd) {
-      endDateTimeStr = `${ymdEnd}T${timeEnd}`;
-      const startMs = new Date(startDateTimeStr).getTime();
-      const endMs = new Date(endDateTimeStr).getTime();
-      // Si end es menor o igual a start, sumamos 2 horas a start
-      if (isNaN(endMs) || endMs <= startMs) {
-        const [sY, sM, sD] = ymdStart.split('-').map(Number);
-        const [sH, sMin, sSec] = timeStart.split(':').map(Number);
-        const d = new Date(sY, sM - 1, sD, sH, sMin, sSec || 0);
-        d.setHours(d.getHours() + 2);
-        const ey = d.getFullYear();
-        const em = String(d.getMonth() + 1).padStart(2, '0');
-        const ed = String(d.getDate()).padStart(2, '0');
-        const eh = String(d.getHours()).padStart(2, '0');
-        const emin = String(d.getMinutes()).padStart(2, '0');
-        const esec = String(d.getSeconds()).padStart(2, '0');
-        endDateTimeStr = `${ey}-${em}-${ed}T${eh}:${emin}:${esec}`;
+      const [eY, eM, eD] = ymdEnd.split('-').map(Number);
+      const [eH, eMin, eSec] = timeEnd.split(':').map(Number);
+      let endDateObj = new Date(eY, eM - 1, eD, eH, eMin, eSec || 0);
+      if (isNaN(endDateObj.getTime()) || endDateObj.getTime() <= startDateObj.getTime()) {
+        endDateObj = new Date(startDateObj.getTime() + 2 * 60 * 60 * 1000);
       }
+      const endY = endDateObj.getFullYear();
+      const endM = String(endDateObj.getMonth() + 1).padStart(2, '0');
+      const endD = String(endDateObj.getDate()).padStart(2, '0');
+      const endH = String(endDateObj.getHours()).padStart(2, '0');
+      const endMin = String(endDateObj.getMinutes()).padStart(2, '0');
+      const endSec = String(endDateObj.getSeconds()).padStart(2, '0');
+      const offsetEnd = getSantiagoOffset(endDateObj);
+      endDateTimeStr = `${endY}-${endM}-${endD}T${endH}:${endMin}:${endSec}${offsetEnd}`;
     } else {
-      // Sin hora fin especificada: sumar 2 horas por defecto
-      const [sY, sM, sD] = ymdStart.split('-').map(Number);
-      const [sH, sMin, sSec] = timeStart.split(':').map(Number);
-      const d = new Date(sY, sM - 1, sD, sH, sMin, sSec || 0);
-      d.setHours(d.getHours() + 2);
-      const ey = d.getFullYear();
-      const em = String(d.getMonth() + 1).padStart(2, '0');
-      const ed = String(d.getDate()).padStart(2, '0');
-      const eh = String(d.getHours()).padStart(2, '0');
-      const emin = String(d.getMinutes()).padStart(2, '0');
-      const esec = String(d.getSeconds()).padStart(2, '0');
-      endDateTimeStr = `${ey}-${em}-${ed}T${eh}:${emin}:${esec}`;
+      const endDateObj = new Date(startDateObj.getTime() + 2 * 60 * 60 * 1000);
+      const endY = endDateObj.getFullYear();
+      const endM = String(endDateObj.getMonth() + 1).padStart(2, '0');
+      const endD = String(endDateObj.getDate()).padStart(2, '0');
+      const endH = String(endDateObj.getHours()).padStart(2, '0');
+      const endMin = String(endDateObj.getMinutes()).padStart(2, '0');
+      const endSec = String(endDateObj.getSeconds()).padStart(2, '0');
+      const offsetEnd = getSantiagoOffset(endDateObj);
+      endDateTimeStr = `${endY}-${endM}-${endD}T${endH}:${endMin}:${endSec}${offsetEnd}`;
     }
 
     return {
-      start: { dateTime: startDateTimeStr, timeZone: 'America/Santiago' },
-      end: { dateTime: endDateTimeStr, timeZone: 'America/Santiago' },
+      patchStart: { dateTime: startDateTimeStr, timeZone: 'America/Santiago', date: null },
+      patchEnd: { dateTime: endDateTimeStr, timeZone: 'America/Santiago', date: null },
+      insertStart: { dateTime: startDateTimeStr, timeZone: 'America/Santiago' },
+      insertEnd: { dateTime: endDateTimeStr, timeZone: 'America/Santiago' },
       isAllDay: false
     };
   }
@@ -333,8 +358,10 @@ export const formatGoogleCalendarDates = (fechaInicio, horaInicio = null, fechaF
   const endExclusiveDate = `${plusOneY}-${plusOneM}-${plusOneD}`;
 
   return {
-    start: { date: ymdStart },
-    end: { date: endExclusiveDate },
+    patchStart: { date: ymdStart, dateTime: null },
+    patchEnd: { date: endExclusiveDate, dateTime: null },
+    insertStart: { date: ymdStart },
+    insertEnd: { date: endExclusiveDate },
     isAllDay: true
   };
 };
@@ -428,34 +455,82 @@ export const syncServiceToCalendar = async (servicio, clienteName, items = []) =
     detalleEquipos
   ].join('\n');
 
-  const eventResource = {
+  const baseResource = {
     summary,
     location: servicio.direccionEvento || '',
     description,
-    start: dateStructure.start,
-    end: dateStructure.end,
     colorId: STAGE_COLORS[servicio.etapa] || '8'
   };
 
+  const patchResource = {
+    ...baseResource,
+    start: dateStructure.patchStart,
+    end: dateStructure.patchEnd
+  };
+
+  const insertResource = {
+    ...baseResource,
+    start: dateStructure.insertStart,
+    end: dateStructure.insertEnd
+  };
+
   try {
-    let request;
+    let response;
     if (servicio.googleEventId) {
-      // Actualizar evento existente vía PATCH para no duplicarlo en el calendario
-      request = window.gapi.client.calendar.events.patch({
-        calendarId: 'primary',
-        eventId: servicio.googleEventId,
-        resource: eventResource
-      });
+      try {
+        // Intentar actualizar vía PATCH con limpieza explícita de campos previos (date/dateTime null)
+        response = await window.gapi.client.calendar.events.patch({
+          calendarId: 'primary',
+          eventId: servicio.googleEventId,
+          resource: patchResource
+        });
+      } catch (patchErr) {
+        console.warn('events.patch falló, ejecutando recuperación resiliente:', patchErr);
+        const errMsg = patchErr.result?.error?.message || patchErr.message || '';
+        const isConflictOr400 = 
+          patchErr.status === 400 || 
+          patchErr.status === 404 || 
+          patchErr.code === 400 || 
+          patchErr.code === 404 ||
+          /invalid start|invalid end|not found/i.test(errMsg);
+
+        if (isConflictOr400) {
+          // Intentar reemplazo completo mediante events.update
+          try {
+            response = await window.gapi.client.calendar.events.update({
+              calendarId: 'primary',
+              eventId: servicio.googleEventId,
+              resource: insertResource
+            });
+          } catch (updateErr) {
+            console.warn('events.update también falló, recreando nuevo evento limpio en Google Calendar:', updateErr);
+            // Si el ID antiguo en Google está corrupto o incompatible, limpiamos y creamos uno nuevo
+            try {
+              await window.gapi.client.calendar.events.delete({
+                calendarId: 'primary',
+                eventId: servicio.googleEventId
+              });
+            } catch (_) {}
+
+            response = await window.gapi.client.calendar.events.insert({
+              calendarId: 'primary',
+              resource: insertResource
+            });
+          }
+        } else {
+          throw patchErr;
+        }
+      }
     } else {
       // Crear nuevo evento vía POST
-      request = window.gapi.client.calendar.events.insert({
+      response = await window.gapi.client.calendar.events.insert({
         calendarId: 'primary',
-        resource: eventResource
+        resource: insertResource
       });
     }
 
-    const response = await request;
-    return response.result.id;
+    const eventId = response.result.id;
+    return eventId;
   } catch (err) {
     console.error('Error sincronizando con Google Calendar:', err);
     

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useAppStore } from '../context/AppDataContext';
+import { normalizeDateStringToYMD } from '../services/GoogleCalendarService';
 import { ArrowLeft, MapPin, CalendarDays, CheckCircle, Edit2, Trash2, Archive, DollarSign, FileText, Eye, ExternalLink, Upload, X, Mail, CalendarCheck, CalendarX, CalendarClock, RotateCw } from 'lucide-react';
 
 const STAGES = ['Cotizado', 'Aprobado', 'Por Cobrar', 'Pagado'];
@@ -124,13 +125,18 @@ https://www.ecosilence.cl/`;
   }, [servicios, stage, type, isArchived]);
 
   const openEditModal = (s) => {
-    const [f1, h1] = (s.fechaInicio || '').split('T');
-    const [f2, h2] = (s.fechaFin || '').split('T');
+    const rawStart = s.fechaInicio || '';
+    const rawEnd = s.fechaFin || '';
+    const sepStart = rawStart.includes('T') ? 'T' : ' ';
+    const sepEnd = rawEnd.includes('T') ? 'T' : ' ';
+    const [f1, h1] = rawStart.split(sepStart);
+    const [f2, h2] = rawEnd.split(sepEnd);
+
     setEditingService({ 
       ...s, 
-      tempFecha: f1 || '', 
+      tempFecha: normalizeDateStringToYMD(f1) || '', 
       tempHora: h1 ? h1.substring(0,5) : '',
-      tempFechaFin: f2 || '',
+      tempFechaFin: normalizeDateStringToYMD(f2) || '',
       tempHoraFin: h2 ? h2.substring(0,5) : ''
     });
     setIsEditModalOpen(true);
@@ -139,13 +145,17 @@ https://www.ecosilence.cl/`;
   const handleEditSubmit = (e) => {
     e.preventDefault();
     let fechaInicio = '';
-    if (editingService.tempFecha) {
-      fechaInicio = editingService.tempHora ? `${editingService.tempFecha}T${editingService.tempHora}` : editingService.tempFecha;
+    const cleanFechaInicio = normalizeDateStringToYMD(editingService.tempFecha);
+    if (cleanFechaInicio) {
+      fechaInicio = editingService.tempHora ? `${cleanFechaInicio}T${editingService.tempHora.substring(0,5)}` : cleanFechaInicio;
     }
+
     let fechaFin = '';
-    if (editingService.tempFechaFin) {
-      fechaFin = editingService.tempHoraFin ? `${editingService.tempFechaFin}T${editingService.tempHoraFin}` : editingService.tempFechaFin;
+    const cleanFechaFin = normalizeDateStringToYMD(editingService.tempFechaFin);
+    if (cleanFechaFin) {
+      fechaFin = editingService.tempHoraFin ? `${cleanFechaFin}T${editingService.tempHoraFin.substring(0,5)}` : cleanFechaFin;
     }
+
     const updated = { ...editingService, fechaInicio, fechaFin };
     delete updated.tempFecha; delete updated.tempHora; delete updated.tempFechaFin; delete updated.tempHoraFin;
     editServicio(editingService.idServicio, updated);

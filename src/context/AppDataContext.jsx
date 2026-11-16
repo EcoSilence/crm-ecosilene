@@ -626,7 +626,7 @@ export const AppDataProvider = ({ children }) => {
 
     setServicios(servicios.map(srv => (srv.idServicio === idServicio ? merged : srv)));
     await supabase.from('servicios').update({
-      cliente_id: updatedData.clienteId,
+      cliente_id: updatedData.clienteId || s?.clienteId,
       direccion_evento: updatedData.direccionEvento,
       fecha_inicio: updatedData.fechaInicio,
       fecha_fin: updatedData.fechaFin,
